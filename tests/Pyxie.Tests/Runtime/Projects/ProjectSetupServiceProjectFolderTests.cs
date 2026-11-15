@@ -53,7 +53,7 @@ public sealed class ProjectSetupServiceProjectFolderTests
 		await using RepositoryRig rig = new();
 		ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(origin.Folder, Token));
 		Project first = rig.OpenProject.Current ?? throw new InvalidOperationException("The import did not open its project.");
-		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(Token));
+		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(first.Id, Token));
 
 		Repository connected = ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(origin.Folder, Token));
 
@@ -72,7 +72,7 @@ public sealed class ProjectSetupServiceProjectFolderTests
 		await using RepositoryRig rig = new();
 		ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(origin.Folder, Token));
 		Project first = rig.OpenProject.Current ?? throw new InvalidOperationException("The import did not open its project.");
-		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(Token));
+		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(first.Id, Token));
 		await TempFolder.DeleteAsync(first.Folder);
 
 		ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(origin.Folder, Token));
@@ -88,7 +88,8 @@ public sealed class ProjectSetupServiceProjectFolderTests
 		await using TempGitRepository repository = await TempGitRepository.CreateAsync();
 		await using RepositoryRig rig = new();
 		ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(repository.Folder, Token));
-		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(Token));
+		Project first = rig.OpenProject.Current ?? throw new InvalidOperationException("The import did not open its project.");
+		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(first.Id, Token));
 		Directory.CreateDirectory(rig.ProjectFolderFor(repository.Folder) + "-2");
 
 		Repository connected = ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(repository.Folder, Token));

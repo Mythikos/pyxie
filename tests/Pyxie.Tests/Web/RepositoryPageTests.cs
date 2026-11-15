@@ -184,7 +184,8 @@ public sealed class RepositoryPageTests
 		await using RepositoryPage page = await RepositoryPage.RenderAsync(async rig =>
 		{
 			ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(source.Folder, TestContext.Current.CancellationToken));
-			ResultAssert.Succeeded(await rig.Sessions.CloseAsync(TestContext.Current.CancellationToken));
+			Project imported = rig.OpenProject.Current ?? throw new InvalidOperationException("The import did not open its project.");
+			ResultAssert.Succeeded(await rig.Sessions.CloseAsync(imported.Id, TestContext.Current.CancellationToken));
 		});
 		Project project = Assert.Single(await page.Rig.Catalog.ListAsync(TestContext.Current.CancellationToken));
 		string before = await page.Page.HtmlAsync();
@@ -197,7 +198,7 @@ public sealed class RepositoryPageTests
 		Assert.Contains(ProjectsPanel, open, StringComparison.Ordinal);
 		Assert.Contains($"aria-label=\"Close {project.Name}\"", open, StringComparison.Ordinal);
 
-		ResultAssert.Succeeded(await page.Rig.Sessions.CloseAsync(TestContext.Current.CancellationToken));
+		ResultAssert.Succeeded(await page.Rig.Sessions.CloseAsync(project.Id, TestContext.Current.CancellationToken));
 		string closed = await page.Page.WaitForHtmlAsync(markup => !markup.Contains(RepositoryColumn, StringComparison.Ordinal), "The page should take the repository away once the project was closed");
 
 		Assert.Contains(ProjectsPanel, closed, StringComparison.Ordinal);
@@ -213,7 +214,7 @@ public sealed class RepositoryPageTests
 		Project project = Assert.Single(await page.Rig.Catalog.ListAsync(TestContext.Current.CancellationToken));
 		Assert.Contains(RepositoryColumn, await page.Page.HtmlAsync(), StringComparison.Ordinal);
 
-		ResultAssert.Succeeded(await page.Sessions.CloseAsync(TestContext.Current.CancellationToken));
+		ResultAssert.Succeeded(await page.Sessions.CloseAsync(project.Id, TestContext.Current.CancellationToken));
 		string html = await page.Page.WaitForHtmlAsync(markup => !markup.Contains(RepositoryColumn, StringComparison.Ordinal), "The page should take the repository away once the project was closed");
 
 		Assert.Null(page.Rig.OpenProject.Current);
@@ -257,10 +258,11 @@ public sealed class RepositoryPageTests
 		await using TempGitRepository source = await TempGitRepository.CreateAsync();
 		await using RepositoryPage page = await RepositoryPage.RenderAsync();
 		await page.Rig.ConnectAsync(source.Folder);
+		Project open = page.Rig.OpenProject.Current ?? throw new InvalidOperationException("Connecting did not open a project.");
 		page.Rig.Activity.NotifyProjectChanged();
 		await page.Page.WaitForHtmlAsync(markup => markup.Contains(RepositoryColumn, StringComparison.Ordinal), "The page should show the repository");
 
-		ResultAssert.Succeeded(await page.Rig.Sessions.CloseAsync(TestContext.Current.CancellationToken));
+		ResultAssert.Succeeded(await page.Rig.Sessions.CloseAsync(open.Id, TestContext.Current.CancellationToken));
 		string html = await page.Page.WaitForHtmlAsync(markup => !markup.Contains(RepositoryColumn, StringComparison.Ordinal), "The page should take the repository away once the project was closed");
 
 		Assert.Matches(EnabledImportField(), html);

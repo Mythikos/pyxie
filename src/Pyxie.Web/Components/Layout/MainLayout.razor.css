@@ -7,11 +7,14 @@
 	background: var(--pyx-ground);
 }
 
+/* Blazorise makes the root layout exactly the viewport's height and hides what overflows it, for a layout whose content scrolls inside; here the document scrolls, so the root grows with the page. */
 .app-shell ::deep .app-layout {
 	display: flex;
 	flex-direction: column;
 	flex: 1 0 auto;
+	height: auto;
 	min-width: 0;
+	overflow: visible;
 	background: var(--pyx-ground);
 }
 
@@ -39,6 +42,7 @@
 	flex-direction: column;
 	flex: 1 0 auto;
 	min-width: 0;
+	overflow: visible;
 	padding: 20px 24px 28px;
 }
 

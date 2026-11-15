@@ -9,12 +9,11 @@ using Pyxie.Runtime.Repositories;
 
 namespace Pyxie.Web.Components.Projects;
 
-/// <summary>The projects in the projects panel: each with where it came from, the open one marked and with the way to close it, the others with the way to open it, and, while an import runs, a row for the project being made. A project has one button, which says Close while the project is open and Open while it is not, so it is the same button after the change and keeps the keyboard focus. Opening and closing are announced, and the page follows the announcement; a refusal is shown on the project's row. Both are refused while the pipeline runs, and opening while another project is open, so the buttons wait for the same reasons and say them. A project whose folder is gone says so and cannot be opened.</summary>
+/// <summary>The projects in the projects panel: each with where it came from, the open one marked and with the way to close it, the others with the way to open it, and, while an import runs, a row for the project being made. A project has one button, which says Close while the project is open and Open while it is not, so it is the same button after the change and keeps the keyboard focus. Opening a project while another is open switches to it. Opening and closing are announced, and the page follows the announcement; a refusal is shown on the project's row. Both are refused while the pipeline runs, so the buttons wait for it and say so. A project whose folder is gone says so and cannot be opened.</summary>
 public partial class ProjectList : ComponentBase, IDisposable
 {
 	// What the services say when they refuse, so the buttons say it before the person tries.
 	private const string StopPipelineFirst = "Stop the pipeline first.";
-	private const string AnotherProjectOpen = "Another project is open. Close it first.";
 
 	private const string ImportKey = "importing";
 
@@ -50,20 +49,8 @@ public partial class ProjectList : ComponentBase, IDisposable
 	// One project changes at a time, so every Open and Close waits while one does.
 	private bool Busy => _changing is not null;
 
-	private bool PipelineRunning => Controller.IsRunning;
-
-	private bool AnotherProjectIsOpen => Projects.Any(entry => entry.Project.IsOpen);
-
-	// Why Open waits, in the order the service refuses: the running pipeline first, then the project that is open. The browser shows it for the wrapper, which still receives the pointer when the disabled button does not.
-	private string? OpenBlockedText => PipelineRunning ? StopPipelineFirst : AnotherProjectIsOpen ? AnotherProjectOpen : null;
-
-	private string? CloseBlockedText => PipelineRunning ? StopPipelineFirst : null;
-
-	// What the project's button waits for, which is also the title of its wrapper.
-	private string? ActionBlockedText(ProjectEntry entry)
-	{
-		return entry.Project.IsOpen ? CloseBlockedText : OpenBlockedText;
-	}
+	// What Open and Close wait for, which is also the title of the button's wrapper: the browser shows it there, because the wrapper still receives the pointer when the disabled button does not.
+	private string? BlockedText => Controller.IsRunning ? StopPipelineFirst : null;
 
 	/// <inheritdoc/>
 	public void Dispose()
@@ -143,7 +130,7 @@ public partial class ProjectList : ComponentBase, IDisposable
 		return entry.Project.IsOpen ? CloseAsync(entry) : OpenAsync(entry);
 	}
 
-	// Success announces the change, which replaces this list with the project. The service refuses when the folder went missing since the list was read, or another tab opened, imported, or is changing a project, and says why.
+	// Success announces the change, which replaces this list with the project, and closes any other project that was open. The service refuses when the folder went missing since the list was read, or another tab started the pipeline or is changing a project, and says why.
 	private Task OpenAsync(ProjectEntry entry)
 	{
 		return ChangeAsync(entry, async token =>
@@ -154,12 +141,12 @@ public partial class ProjectList : ComponentBase, IDisposable
 		});
 	}
 
-	// Closing loses nothing, so it asks for no confirmation. The service refuses while the pipeline runs, and says so, for a pipeline started since this list last rendered.
+	// Closing loses nothing, so it asks for no confirmation. The service closes the project this row shows and no other: it refuses, and says so, for a pipeline started since this list last rendered, and for a project that is no longer open because it was closed, or another project was opened, since.
 	private Task CloseAsync(ProjectEntry entry)
 	{
 		return ChangeAsync(entry, async token =>
 		{
-			ServiceResult result = await Sessions.CloseAsync(token);
+			ServiceResult result = await Sessions.CloseAsync(entry.Project.Id, token);
 
 			return result.Succeeded ? null : result.Error ?? "The project could not be closed.";
 		});

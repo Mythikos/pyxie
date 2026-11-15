@@ -156,8 +156,9 @@ public sealed class ProjectSetupServiceCloneTests
 		await using TempGitRepository origin = await TempGitRepository.CreateAsync();
 		await using RepositoryRig rig = new();
 		Repository connected = ResultAssert.Succeeded(await rig.Setup.CloneAsync(origin.Folder, Token));
+		Project project = rig.OpenProject.Current ?? throw new InvalidOperationException("The clone did not open its project.");
 
-		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(Token));
+		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(project.Id, Token));
 
 		Assert.Null(await rig.GetStoredAsync());
 		Assert.True(Directory.Exists(connected.Path), "Closing leaves the hub where it is.");

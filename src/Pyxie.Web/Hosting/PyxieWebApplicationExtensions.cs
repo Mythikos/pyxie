@@ -37,7 +37,7 @@ internal static partial class PyxieWebApplicationExtensions
 			}
 			else
 			{
-				await catalog.CloseAsync(CancellationToken.None);
+				await catalog.CloseAsync(open.Id, CancellationToken.None);
 				LogOpenProjectGone(app.Logger, open.Name, open.Folder);
 			}
 		}

@@ -6,7 +6,7 @@ using Pyxie.Data.Limits;
 
 namespace Pyxie.Data.Persistence.Configuration.Machine;
 
-/// <summary>Maps <see cref="Project"/>. The index on <see cref="Project.IsOpen"/> is made unique for open projects only by the provider, because a filtered index needs the provider's own SQL (see <c>Pyxie.Data.Sqlite</c>); the catalog's conditional writes keep at most one project open on any provider.</summary>
+/// <summary>Maps <see cref="Project"/>. The index on <see cref="Project.IsOpen"/> is made unique for open projects only by the provider, because a filtered index needs the provider's own SQL (see <c>Pyxie.Data.Sqlite</c>); the catalog closes every other open project before it opens one, which keeps at most one project open on any provider.</summary>
 public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
 {
 	/// <inheritdoc/>

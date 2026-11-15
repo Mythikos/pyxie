@@ -1,22 +1,29 @@
-/* Two columns that wrap: the projects panel, which is always there, and the open project's repository. */
+/* Two columns: the projects panel, which is always there and always as wide, and the open project's repository. */
 .repository-page {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
+	display: grid;
+	grid-template-columns: 300px minmax(0, 1fr);
+	align-items: start;
 	gap: 20px;
 	min-width: 0;
 }
 
+/* Below the width that holds the panel, the gap, a 640 px repository column, and the page's 24 px padding on each side, they stack, each the full width. */
+@media (max-width: 1007.98px) {
+	.repository-page {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
 .repository-status {
+	grid-column: 1 / -1;
 	padding: 24px 18px;
 	color: var(--pyx-text-muted);
 }
 
 .repository-projects {
 	display: flex;
-	flex: 1 1 300px;
 	flex-direction: column;
-	max-width: 360px;
+	min-width: 0;
 	overflow: hidden;
 }
 
@@ -29,7 +36,6 @@
 
 .repository-column {
 	display: flex;
-	flex: 999 1 640px;
 	flex-direction: column;
 	gap: 16px;
 	min-width: 0;

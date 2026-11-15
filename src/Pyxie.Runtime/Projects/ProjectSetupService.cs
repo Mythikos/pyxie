@@ -222,6 +222,8 @@ public sealed class ProjectSetupService
 
 			added = add.Value;
 			listed.Value = true;
+
+			// Opening closes whichever other project is open, so this must never run with one open. The check at the start of this method guarantees it: it ran inside this change, where nothing else opens or closes a project, so the only project this opens is the one just imported and it closes none.
 			ServiceResult<Project> open = await _catalog.OpenAsync(added.Id, cancellationToken);
 			if (!open.Succeeded)
 			{
@@ -265,13 +267,13 @@ public sealed class ProjectSetupService
 	// The import's token is Pyxie's shutdown token, so undoing never uses it: a cancelled import still leaves nothing behind.
 	private async Task UndoAsync(Project? added, bool opened, string folder)
 	{
-		if (opened)
-		{
-			await _catalog.CloseAsync(CancellationToken.None);
-		}
-
 		if (added is not null)
 		{
+			if (opened)
+			{
+				await _catalog.CloseAsync(added.Id, CancellationToken.None);
+			}
+
 			await _catalog.RemoveAsync(added.Id, CancellationToken.None);
 		}
 

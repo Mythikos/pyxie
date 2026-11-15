@@ -113,30 +113,36 @@ public sealed class ProjectCatalogTests
 	}
 
 	[Fact]
-	public async Task OpenAsync_WhileAnotherProjectIsOpen_IsRefusedAndKeepsTheOpenOne()
+	public async Task OpenAsync_WhileAnotherProjectIsOpen_ClosesItAndOpensTheProject()
 	{
 		await using MachineTestDatabase database = new();
 		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
 		Project second = ResultAssert.Succeeded(await database.Catalog.AddAsync("second", FolderFor("second"), Source, Token));
 		ResultAssert.Succeeded(await database.Catalog.OpenAsync(first.Id, Token));
+		int changes = 0;
+		database.OpenProject.Changed += () => changes++;
 
-		string error = ResultAssert.Failed(await database.Catalog.OpenAsync(second.Id, Token));
+		Project opened = ResultAssert.Succeeded(await database.Catalog.OpenAsync(second.Id, Token));
 
-		Assert.Equal("Another project is open. Close it first.", error);
-		Assert.Equal(first.Id, database.OpenProject.Current?.Id);
-		Assert.Equal(first.Id, (await database.Catalog.GetOpenAsync(Token))?.Id);
+		Assert.True(opened.IsOpen, "The returned project is open.");
+		Assert.Equal(second.Id, database.OpenProject.Current?.Id);
+		Assert.Equal(second.Id, (await database.Catalog.GetOpenAsync(Token))?.Id);
+		Assert.Equal([(first.Id, false), (second.Id, true)], (await database.Catalog.ListAsync(Token)).Select(project => (project.Id, project.IsOpen)));
+		Assert.Equal(1, changes);
 	}
 
 	[Fact]
-	public async Task OpenAsync_OfTheOpenProject_SucceedsAndChangesNothing()
+	public async Task OpenAsync_OfTheOpenProject_SucceedsAndLeavesItTheOnlyOpenProject()
 	{
 		await using MachineTestDatabase database = new();
 		Project added = ResultAssert.Succeeded(await database.Catalog.AddAsync("app", FolderFor("app"), Source, Token));
+		Project other = ResultAssert.Succeeded(await database.Catalog.AddAsync("other", FolderFor("other"), Source, Token));
 		ResultAssert.Succeeded(await database.Catalog.OpenAsync(added.Id, Token));
 
 		ResultAssert.Succeeded(await database.Catalog.OpenAsync(added.Id, Token));
 
 		Assert.Equal(added.Id, database.OpenProject.Current?.Id);
+		Assert.Equal([(added.Id, true), (other.Id, false)], (await database.Catalog.ListAsync(Token)).Select(project => (project.Id, project.IsOpen)));
 	}
 
 	[Fact]
@@ -149,6 +155,23 @@ public sealed class ProjectCatalogTests
 	}
 
 	[Fact]
+	public async Task OpenAsync_OfAProjectThatDoesNotExistWhileAnotherIsOpen_SaysSoAndLeavesTheOpenOneOpen()
+	{
+		await using MachineTestDatabase database = new();
+		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
+		ResultAssert.Succeeded(await database.Catalog.OpenAsync(first.Id, Token));
+		int changes = 0;
+		database.OpenProject.Changed += () => changes++;
+
+		string error = ResultAssert.Failed(await database.Catalog.OpenAsync(42, Token));
+
+		Assert.Equal("Project not found.", error);
+		Assert.Equal(first.Id, database.OpenProject.Current?.Id);
+		Assert.Equal(first.Id, (await database.Catalog.GetOpenAsync(Token))?.Id);
+		Assert.Equal(0, changes);
+	}
+
+	[Fact]
 	public async Task CloseAsync_ClosesTheOpenProjectAndClearsTheOpenProject()
 	{
 		await using MachineTestDatabase database = new();
@@ -157,7 +180,7 @@ public sealed class ProjectCatalogTests
 		int changes = 0;
 		database.OpenProject.Changed += () => changes++;
 
-		ResultAssert.Succeeded(await database.Catalog.CloseAsync(Token));
+		ResultAssert.Succeeded(await database.Catalog.CloseAsync(added.Id, Token));
 
 		Assert.Null(database.OpenProject.Current);
 		Assert.Null(await database.Catalog.GetOpenAsync(Token));
@@ -165,11 +188,67 @@ public sealed class ProjectCatalogTests
 	}
 
 	[Fact]
-	public async Task CloseAsync_WhenNoProjectIsOpen_SaysSo()
+	public async Task CloseAsync_OfTheOpenProject_LeavesTheOtherProjectsClosed()
 	{
 		await using MachineTestDatabase database = new();
+		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
+		Project second = ResultAssert.Succeeded(await database.Catalog.AddAsync("second", FolderFor("second"), Source, Token));
+		ResultAssert.Succeeded(await database.Catalog.OpenAsync(second.Id, Token));
 
-		Assert.Equal("No project is open.", ResultAssert.Failed(await database.Catalog.CloseAsync(Token)));
+		ResultAssert.Succeeded(await database.Catalog.CloseAsync(second.Id, Token));
+
+		Assert.Equal([(first.Id, false), (second.Id, false)], (await database.Catalog.ListAsync(Token)).Select(project => (project.Id, project.IsOpen)));
+	}
+
+	[Fact]
+	public async Task CloseAsync_OfAProjectThatIsNotOpenWhileAnotherIsOpen_SaysSoAndLeavesTheOpenOneOpen()
+	{
+		await using MachineTestDatabase database = new();
+		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
+		Project second = ResultAssert.Succeeded(await database.Catalog.AddAsync("second", FolderFor("second"), Source, Token));
+		ResultAssert.Succeeded(await database.Catalog.OpenAsync(second.Id, Token));
+		int changes = 0;
+		database.OpenProject.Changed += () => changes++;
+
+		string error = ResultAssert.Failed(await database.Catalog.CloseAsync(first.Id, Token));
+
+		Assert.Equal("The project is not open.", error);
+		Assert.Equal(second.Id, database.OpenProject.Current?.Id);
+		Assert.Equal(second.Id, (await database.Catalog.GetOpenAsync(Token))?.Id);
+		Assert.Equal([(first.Id, false), (second.Id, true)], (await database.Catalog.ListAsync(Token)).Select(project => (project.Id, project.IsOpen)));
+		Assert.Equal(0, changes);
+	}
+
+	[Fact]
+	public async Task CloseAsync_OfAProjectThatDoesNotExistWhileAnotherIsOpen_SaysSoAndLeavesTheOpenOneOpen()
+	{
+		await using MachineTestDatabase database = new();
+		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
+		ResultAssert.Succeeded(await database.Catalog.OpenAsync(first.Id, Token));
+		int changes = 0;
+		database.OpenProject.Changed += () => changes++;
+
+		string error = ResultAssert.Failed(await database.Catalog.CloseAsync(42, Token));
+
+		Assert.Equal("Project not found.", error);
+		Assert.Equal(first.Id, database.OpenProject.Current?.Id);
+		Assert.Equal(first.Id, (await database.Catalog.GetOpenAsync(Token))?.Id);
+		Assert.Equal(0, changes);
+	}
+
+	[Fact]
+	public async Task CloseAsync_WhenNoProjectIsOpen_IsRefusedWhetherOrNotTheProjectExists()
+	{
+		await using MachineTestDatabase database = new();
+		Project closed = ResultAssert.Succeeded(await database.Catalog.AddAsync("app", FolderFor("app"), Source, Token));
+		int changes = 0;
+		database.OpenProject.Changed += () => changes++;
+
+		Assert.Equal("The project is not open.", ResultAssert.Failed(await database.Catalog.CloseAsync(closed.Id, Token)));
+		Assert.Equal("Project not found.", ResultAssert.Failed(await database.Catalog.CloseAsync(42, Token)));
+
+		Assert.Null(database.OpenProject.Current);
+		Assert.Equal(0, changes);
 	}
 
 	[Fact]
@@ -193,18 +272,17 @@ public sealed class ProjectCatalogTests
 	{
 		await using MachineTestDatabase database = new();
 		Project first = ResultAssert.Succeeded(await database.Catalog.AddAsync("first", FolderFor("first"), Source, Token));
-		Project second = ResultAssert.Succeeded(await database.Catalog.AddAsync("second", FolderFor("second"), Source, Token));
 		int changes = 0;
 		database.OpenProject.Changed += () => changes++;
 
-		ResultAssert.Failed(await database.Catalog.CloseAsync(Token));
+		ResultAssert.Failed(await database.Catalog.CloseAsync(first.Id, Token));
 		ResultAssert.Failed(await database.Catalog.OpenAsync(42, Token));
 
 		Assert.Null(database.OpenProject.Current);
 		Assert.Equal(0, changes);
 
 		ResultAssert.Succeeded(await database.Catalog.OpenAsync(first.Id, Token));
-		ResultAssert.Failed(await database.Catalog.OpenAsync(second.Id, Token));
+		ResultAssert.Failed(await database.Catalog.OpenAsync(42, Token));
 		ResultAssert.Failed(await database.Catalog.RemoveAsync(first.Id, Token));
 
 		Assert.Equal(first.Id, database.OpenProject.Current?.Id);
@@ -228,6 +306,7 @@ public sealed class ProjectCatalogTests
 		OpenProject openProject = new();
 		ProjectCatalog catalog = new(contextFactory, openProject, new TestClock());
 		Project added = ResultAssert.Succeeded(await catalog.AddAsync("app", FolderFor("app"), Source, Token));
+		Project other = ResultAssert.Succeeded(await catalog.AddAsync("other", FolderFor("other"), Source, Token));
 		List<(int? Current, int? Committed)> seen = [];
 		openProject.Changed += () =>
 		{
@@ -236,9 +315,10 @@ public sealed class ProjectCatalogTests
 		};
 
 		ResultAssert.Succeeded(await catalog.OpenAsync(added.Id, Token));
-		ResultAssert.Succeeded(await catalog.CloseAsync(Token));
+		ResultAssert.Succeeded(await catalog.OpenAsync(other.Id, Token));
+		ResultAssert.Succeeded(await catalog.CloseAsync(other.Id, Token));
 
-		Assert.Equal([(added.Id, added.Id), (null, null)], seen);
+		Assert.Equal([(added.Id, added.Id), (other.Id, other.Id), (null, null)], seen);
 	}
 
 	[Fact]

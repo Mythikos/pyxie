@@ -74,7 +74,8 @@ internal sealed class PipelineHeader : IAsyncDisposable
 	/// <returns>A task that completes when no project is open.</returns>
 	public async Task CloseProjectAsync()
 	{
-		ResultAssert.Succeeded(await _machine.Catalog.CloseAsync(TestContext.Current.CancellationToken));
+		Project open = _machine.OpenProject.Current ?? throw new InvalidOperationException("No project is open to close.");
+		ResultAssert.Succeeded(await _machine.Catalog.CloseAsync(open.Id, TestContext.Current.CancellationToken));
 	}
 
 	/// <inheritdoc/>

@@ -36,9 +36,11 @@
 	background: var(--pyx-segmented-track);
 }
 
+/* Each choice fills its half of the track; Ant starts them at their text's width. */
 .connect ::deep .ant-segmented-group {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
+	justify-items: stretch;
 	gap: 2px;
 }
 
@@ -51,6 +53,7 @@
 }
 
 .connect ::deep .ant-segmented-item-label {
+	justify-content: center;
 	min-height: 30px;
 	border-radius: 6px;
 	color: var(--pyx-text-2);

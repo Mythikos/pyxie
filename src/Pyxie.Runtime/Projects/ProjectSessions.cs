@@ -8,7 +8,7 @@ using Pyxie.Runtime.Workspaces;
 
 namespace Pyxie.Runtime.Projects;
 
-/// <summary>Opens and closes projects. Both are refused while the pipeline is started and wait while the stopped pipeline finishes the work it began, so the project the pipeline works on never changes under it, and both are announced. Switching projects is a close followed by an open.</summary>
+/// <summary>Opens and closes projects. Both are refused while the pipeline is started and wait while the stopped pipeline finishes the work it began, so the project the pipeline works on never changes under it, and both are announced. Opening a project while another is open switches to it: the catalog closes the open one as it opens the chosen one, and the switch is announced once. Closing names the project to close and closes it only while it is the open one.</summary>
 public sealed class ProjectSessions
 {
 	private readonly IProjectCatalog _catalog;
@@ -37,11 +37,11 @@ public sealed class ProjectSessions
 		return Directory.Exists(project.Folder) && File.Exists(DatabaseFiles.PathIn(project.Folder)) && Directory.Exists(WorkspaceLayout.HubPath(project.Folder));
 	}
 
-	/// <summary>Opens a project, bringing its database up to date first.</summary>
+	/// <summary>Opens a project, bringing its database up to date first. Another project that is open is closed in the same step. Everything that can refuse or fail is checked before the catalog switches, so a project that cannot be opened leaves the open project open and <see cref="OpenProject.Current"/> as it was.</summary>
 	/// <param name="id">The project's identifier.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>
-	/// The open project, or a failure while the pipeline is started, when another project is open, when the project does not exist, or when its folder, database, or hub is gone.
+	/// The open project, or a failure while the pipeline is started, when the project does not exist, or when its folder, database, or hub is gone.
 	/// </returns>
 	public async Task<ServiceResult<Project>> OpenAsync(int id, CancellationToken cancellationToken)
 	{
@@ -69,10 +69,11 @@ public sealed class ProjectSessions
 		return result;
 	}
 
-	/// <summary>Closes the open project. Nothing is lost: it stays in the list with everything in its folder.</summary>
+	/// <summary>Closes a project, but only while it is the open one: a caller whose list is out of date, or another tab, cannot close a project that was opened since, because the catalog checks the project in the same write that closes it. Nothing is lost: the project stays in the list with everything in its folder. Only a close that happened is announced.</summary>
+	/// <param name="id">The identifier of the project to close.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
-	/// <returns>A failure while the pipeline is started, or when no project is open.</returns>
-	public async Task<ServiceResult> CloseAsync(CancellationToken cancellationToken)
+	/// <returns>A failure while the pipeline is started, when the project does not exist, or when it is not open, in which case the open project stays open and nothing is announced.</returns>
+	public async Task<ServiceResult> CloseAsync(int id, CancellationToken cancellationToken)
 	{
 		ServiceResult change = await _controller.BeginProjectChangeAsync(cancellationToken);
 		if (!change.Succeeded)
@@ -83,7 +84,7 @@ public sealed class ProjectSessions
 		ServiceResult result;
 		try
 		{
-			result = await _catalog.CloseAsync(cancellationToken);
+			result = await _catalog.CloseAsync(id, cancellationToken);
 		}
 		finally
 		{
@@ -106,16 +107,12 @@ public sealed class ProjectSessions
 			return ServiceResult<Project>.Failure("Project not found.");
 		}
 
-		if (projects.Any(other => other.IsOpen && other.Id != id))
-		{
-			return ServiceResult<Project>.Failure("Another project is open. Close it first.");
-		}
-
 		if (!IsFolderPresent(project))
 		{
 			return ServiceResult<Project>.Failure($"The folder {project.Folder} is gone.");
 		}
 
+		// The target's database is brought up to date while the open project is still open: if that fails, nothing has switched. The catalog then closes the open project and opens the target in one transaction.
 		await _projectDatabase.MigrateAsync(project.Folder, cancellationToken);
 
 		return await _catalog.OpenAsync(id, cancellationToken);

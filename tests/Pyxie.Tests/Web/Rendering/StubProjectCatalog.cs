@@ -103,7 +103,7 @@ internal sealed class StubProjectCatalog : IProjectCatalog
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult> CloseAsync(CancellationToken cancellationToken)
+	public Task<ServiceResult> CloseAsync(int id, CancellationToken cancellationToken)
 	{
 		return Task.FromResult(ServiceResult.Failure(ChangesNothing));
 	}

@@ -12,8 +12,8 @@
 					}
 					@if (entry.Project.IsOpen || entry.IsFolderPresent)
 					{
-						<span class="project-action" title="@ActionBlockedText(entry)">
-							<Button Color="Color.Default" Size="Size.Small" Disabled="@(Busy || ActionBlockedText(entry) is not null)" Loading="@IsChanging(entry)" Clicked="@(() => ToggleAsync(entry))" aria-label="@($"{ActionText(entry)} {entry.Project.Name}")">@ActionText(entry)</Button>
+						<span class="project-action" title="@BlockedText">
+							<Button Color="Color.Default" Size="Size.Small" Disabled="@(Busy || BlockedText is not null)" Loading="@IsChanging(entry)" Clicked="@(() => ToggleAsync(entry))" aria-label="@($"{ActionText(entry)} {entry.Project.Name}")">@ActionText(entry)</Button>
 						</span>
 					}
 					else

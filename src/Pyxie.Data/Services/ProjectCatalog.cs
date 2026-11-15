@@ -14,6 +14,7 @@ namespace Pyxie.Data.Services;
 public sealed class ProjectCatalog : IProjectCatalog
 {
 	private const string NotFoundMessage = "Project not found.";
+	private const string NotOpenMessage = "The project is not open.";
 
 	private readonly IDbContextFactory<MachineDbContext> _contextFactory;
 	private readonly OpenProject _openProject;
@@ -117,14 +118,13 @@ public sealed class ProjectCatalog : IProjectCatalog
 		await using MachineDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-		// One conditional statement opens the project only while no other is open, so two callers opening different projects cannot both succeed.
-		int opened = await context.Projects.Where(project => project.Id == id && !context.Projects.Any(other => other.IsOpen && other.Id != id)).ExecuteUpdateAsync(changes => changes.SetProperty(project => project.IsOpen, true), cancellationToken);
+		// The other projects are closed before the project is opened, because the unique index on open projects refuses two open ones even inside a transaction. Closing is the transaction's first statement, so it takes the database's write lock before anything is read. A project that does not exist ends the transaction without a commit, which rolls the close back, so a refusal changes nothing.
+		await context.Projects.Where(other => other.IsOpen && other.Id != id).ExecuteUpdateAsync(changes => changes.SetProperty(other => other.IsOpen, false), cancellationToken);
 
+		int opened = await context.Projects.Where(project => project.Id == id).ExecuteUpdateAsync(changes => changes.SetProperty(project => project.IsOpen, true), cancellationToken);
 		if (opened == 0)
 		{
-			bool exists = await context.Projects.AnyAsync(project => project.Id == id, cancellationToken);
-
-			return ServiceResult<Project>.Failure(exists ? "Another project is open. Close it first." : NotFoundMessage);
+			return ServiceResult<Project>.Failure(NotFoundMessage);
 		}
 
 		Project project = await context.Projects.AsNoTracking().SingleAsync(existing => existing.Id == id, cancellationToken);
@@ -135,19 +135,22 @@ public sealed class ProjectCatalog : IProjectCatalog
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> CloseAsync(CancellationToken cancellationToken)
+	public async Task<ServiceResult> CloseAsync(int id, CancellationToken cancellationToken)
 	{
 		await using MachineDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-		int closed = await context.Projects.Where(project => project.IsOpen).ExecuteUpdateAsync(changes => changes.SetProperty(project => project.IsOpen, false), cancellationToken);
-		if (closed == 0)
+		// The project is closed only while it is the open one, in the same statement that checks it, so a project opened since the caller looked is never closed in its place. The reason for a refusal is read afterwards: it changes nothing either way.
+		int closed = await context.Projects.Where(project => project.Id == id && project.IsOpen).ExecuteUpdateAsync(changes => changes.SetProperty(project => project.IsOpen, false), cancellationToken);
+		if (closed > 0)
 		{
-			return ServiceResult.Failure("No project is open.");
+			_openProject.Set(null);
+
+			return ServiceResult.Success();
 		}
 
-		_openProject.Set(null);
+		bool exists = await context.Projects.AnyAsync(project => project.Id == id, cancellationToken);
 
-		return ServiceResult.Success();
+		return ServiceResult.Failure(exists ? NotOpenMessage : NotFoundMessage);
 	}
 
 	/// <inheritdoc/>

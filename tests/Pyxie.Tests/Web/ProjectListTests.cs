@@ -15,7 +15,6 @@ public sealed class ProjectListTests
 {
 	private const string FolderGone = "Folder is gone";
 	private const string StopPipelineFirst = "Stop the pipeline first.";
-	private const string AnotherProjectOpen = "Another project is open. Close it first.";
 
 	[Fact]
 	public async Task Render_ListsEachProjectWithItsSourceAndAnOpenButton()
@@ -70,22 +69,22 @@ public sealed class ProjectListTests
 	}
 
 	[Fact]
-	public async Task Render_DisablesOpenOnTheOtherProjectsWhileOneIsOpenAndSaysWhy()
+	public async Task Render_OffersOpenOnTheOtherProjectsWhileOneIsOpenWithoutAReason()
 	{
 		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
 
 		GateRenderedElement web = await list.Host.FindButtonAsync("Open web");
 
-		Assert.False(web.IsClickable, "A second project cannot be opened beside the open one.");
-		Assert.True(web.Attributes.ContainsKey("disabled"), "The button is disabled, not only without a handler.");
-		Assert.Equal([AnotherProjectOpen], await TitlesOfActionsAsync(list));
+		Assert.True(web.IsClickable, "Another project can be opened while one is open: opening it closes the open one.");
+		Assert.False(web.Attributes.ContainsKey("disabled"), "The button is not disabled.");
+		Assert.Empty(await TitlesOfActionsAsync(list));
 	}
 
 	[Fact]
 	public async Task Render_DisablesOpenAndCloseWhileThePipelineRunsAndSaysWhyUntilItStops()
 	{
 		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
-		Assert.Equal([string.Empty, AnotherProjectOpen], await TitlesOfActionsAsync(list, includeUntitled: true));
+		Assert.Equal([string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
 
 		ResultAssert.Succeeded(list.Controller.Start());
 
@@ -96,7 +95,8 @@ public sealed class ProjectListTests
 		list.Controller.Stop();
 
 		Assert.True((await list.Host.FindButtonAsync("Close app")).IsClickable, "Close is offered again once the pipeline stopped.");
-		Assert.Equal([string.Empty, AnotherProjectOpen], await TitlesOfActionsAsync(list, includeUntitled: true));
+		Assert.True((await list.Host.FindButtonAsync("Open web")).IsClickable, "Open is offered again once the pipeline stopped.");
+		Assert.Equal([string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
 	}
 
 	[Fact]
@@ -110,6 +110,21 @@ public sealed class ProjectListTests
 
 		Project? open = list.Rig.OpenProject.Current;
 		Assert.Equal("web", open?.Name);
+		Assert.Equal(1, announcements);
+		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
+	}
+
+	[Fact]
+	public async Task Open_OnAnotherProjectWhileOneIsOpen_SwitchesToItAndAnnouncesItOnce()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open web"));
+
+		Assert.Equal("web", list.Rig.OpenProject.Current?.Name);
+		Assert.Equal(["web"], (await list.Rig.Catalog.ListAsync(TestContext.Current.CancellationToken)).Where(project => project.IsOpen).Select(project => project.Name));
 		Assert.Equal(1, announcements);
 		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
 	}
@@ -152,12 +167,41 @@ public sealed class ProjectListTests
 	{
 		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
 		GateRenderedElement close = await list.Host.FindButtonAsync("Close app");
-		ResultAssert.Succeeded(await list.Rig.Catalog.CloseAsync(TestContext.Current.CancellationToken));
+		ResultAssert.Succeeded(await list.Rig.Catalog.CloseAsync(list.Projects[0].Id, TestContext.Current.CancellationToken));
 
 		await list.Host.ClickAsync(close);
 
-		Assert.Equal(["No project is open."], await list.Host.TextsWithClassAsync("project-error"));
+		Assert.Equal(["The project is not open."], await list.Host.TextsWithClassAsync("project-error"));
 		Assert.True((await list.Host.FindButtonAsync("Close app")).IsClickable, "Nothing is closing any more, so the person can try again.");
+	}
+
+	[Fact]
+	public async Task Close_OfAProjectThatASwitchJustClosed_IsRefusedOnItsRowAndLeavesTheNewlyOpenedProjectOpen()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open web"));
+
+		// The list is not reloaded yet, as between the switch and the page reading the projects again, so it still offers to close app.
+		GateRenderedElement staleClose = await list.Host.FindButtonAsync("Close app");
+		Assert.True(staleClose.IsClickable, "The list still shows app as open, and nothing is changing, so Close is offered.");
+		await list.Host.ClickAsync(staleClose);
+
+		Assert.Equal("web", list.Rig.OpenProject.Current?.Name);
+		Assert.Equal(["web"], (await list.Rig.Catalog.ListAsync(TestContext.Current.CancellationToken)).Where(project => project.IsOpen).Select(project => project.Name));
+		Assert.Equal(1, announcements);
+		Assert.Equal(["The project is not open."], await list.Host.TextsWithClassAsync("project-error"));
+		List<GateRenderedElement> elements = [.. await list.Host.ElementsAsync()];
+		int errorAt = elements.IndexOf(Assert.Single(elements, element => ClassesOf(element).Contains("project-error")));
+		int appAt = elements.IndexOf(Assert.Single(elements, element => ClassesOf(element).Contains("project-name") && element.Text == "app"));
+		int webAt = elements.IndexOf(Assert.Single(elements, element => ClassesOf(element).Contains("project-name") && element.Text == "web"));
+		Assert.True(appAt < errorAt && errorAt < webAt, "The refusal belongs on the row of app, the project that was refused.");
+
+		await list.ReloadAsync();
+
+		Assert.True((await list.Host.FindButtonAsync("Open app")).IsClickable, "The project the switch closed offers Open again once the list was read.");
+		Assert.True((await list.Host.FindButtonAsync("Close web")).IsClickable, "The project the switch opened offers Close once the list was read.");
 	}
 
 	[Fact]
@@ -174,6 +218,26 @@ public sealed class ProjectListTests
 		Assert.Equal("Close", close.Text);
 		Assert.True(close.IsClickable, "The project that was opened can be closed.");
 		Assert.NotEqual(open.Attribute("id"), (await list.Host.FindButtonAsync("Open app")).Attribute("id"));
+	}
+
+	[Fact]
+	public async Task Open_OnAnotherProjectWhileOneIsOpen_LeavesTheSameButtonOnTheProjectsRowAsCloseSoItKeepsTheFocus()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		GateRenderedElement open = await list.Host.FindButtonAsync("Open web");
+		GateRenderedElement close = await list.Host.FindButtonAsync("Close app");
+
+		await list.Host.ClickAsync(open);
+		await list.ReloadAsync();
+
+		GateRenderedElement switched = await list.Host.FindButtonAsync("Close web");
+		Assert.Equal(open.Attribute("id"), switched.Attribute("id"));
+		Assert.Equal("Close", switched.Text);
+		Assert.True(switched.IsClickable, "The project that was opened can be closed.");
+		GateRenderedElement reopenable = await list.Host.FindButtonAsync("Open app");
+		Assert.Equal(close.Attribute("id"), reopenable.Attribute("id"));
+		Assert.Equal("Open", reopenable.Text);
+		Assert.True(reopenable.IsClickable, "The project that was closed by the switch can be opened again.");
 	}
 
 	[Fact]

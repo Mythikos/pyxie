@@ -4,7 +4,7 @@ using Pyxie.Data.Services.Results;
 
 namespace Pyxie.Data.Services;
 
-/// <summary>The list of projects in the machine database, and which one is open. Writes are conditional, so two callers never both open a project, and after a committed open or close <see cref="OpenProject"/> follows. The catalog records projects only; the runtime creates, checks, and deletes their folders.</summary>
+/// <summary>The list of projects in the machine database, and which one is open. Opening a project closes the one that is open in the same transaction, so at most one project is ever open, and after a committed open or close <see cref="OpenProject"/> follows. The catalog records projects only; the runtime creates, checks, and deletes their folders.</summary>
 public interface IProjectCatalog
 {
 	/// <summary>Lists the projects.</summary>
@@ -30,16 +30,17 @@ public interface IProjectCatalog
 	/// <returns>The added project, or a failure when a field is invalid or another project already has the name or the folder (ignoring case).</returns>
 	Task<ServiceResult<Project>> AddAsync(string name, string folder, string source, CancellationToken cancellationToken);
 
-	/// <summary>Opens a project. Opening the project that is already open succeeds and changes nothing.</summary>
+	/// <summary>Opens a project. Another project that is open is closed in the same transaction, so at most one project is ever open and there is never a moment with neither the old nor the new one open. Opening the project that is already open succeeds and closes nothing.</summary>
 	/// <param name="id">The project's identifier.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
-	/// <returns>The open project, or a failure when it does not exist or another project is open.</returns>
+	/// <returns>The open project, or a failure when it does not exist, in which case the open project stays open.</returns>
 	Task<ServiceResult<Project>> OpenAsync(int id, CancellationToken cancellationToken);
 
-	/// <summary>Closes the open project.</summary>
+	/// <summary>Closes a project, but only while it is the open one, in one conditional write. A caller whose list is out of date, or another tab, therefore cannot close a project that someone else opened since: that is refused, and nothing changes, <see cref="OpenProject"/> included.</summary>
+	/// <param name="id">The identifier of the project to close.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
-	/// <returns>A failure when no project is open.</returns>
-	Task<ServiceResult> CloseAsync(CancellationToken cancellationToken);
+	/// <returns>A failure when the project does not exist or is not open.</returns>
+	Task<ServiceResult> CloseAsync(int id, CancellationToken cancellationToken);
 
 	/// <summary>Removes a closed project from the list, for example to undo an import that failed. Its folder is left alone.</summary>
 	/// <param name="id">The project's identifier.</param>

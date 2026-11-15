@@ -115,15 +115,16 @@ public sealed class PipelineOrchestratorRecoveryTests
 		await ClaimAsync(harness);
 		await using (AsyncServiceScope scope = harness.CreateScope())
 		{
-			ResultAssert.Succeeded(await scope.ServiceProvider.GetRequiredService<ProjectSessions>().CloseAsync(Token));
+			ResultAssert.Succeeded(await scope.ServiceProvider.GetRequiredService<ProjectSessions>().CloseAsync(firstProject, Token));
 		}
 
 		await harness.ConnectRepositoryAsync(second);
+		int secondProject = harness.OpenProject.Current?.Id ?? throw new InvalidOperationException("The import did not open its project.");
 		await harness.StartOrchestratorAsync();
 		await using (AsyncServiceScope scope = harness.CreateScope())
 		{
 			ProjectSessions sessions = scope.ServiceProvider.GetRequiredService<ProjectSessions>();
-			ResultAssert.Succeeded(await sessions.CloseAsync(Token));
+			ResultAssert.Succeeded(await sessions.CloseAsync(secondProject, Token));
 			ResultAssert.Succeeded(await sessions.OpenAsync(firstProject, Token));
 		}
 

@@ -24,7 +24,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Repositories;
 
-/// <summary>The project import and repository services wired as Pyxie wires them, over a workspace root of the rig's own (or one the test names) that holds the machine database and the project folders: the real <see cref="ProjectSetupService"/>, <see cref="RepositoryBrowser"/>, and project catalog, and the real git client. The pipeline is never started. Disposing it deletes the workspace root when the rig made it.</summary>
+/// <summary>The project import and repository services wired as Pyxie wires them, over a workspace root of the rig's own (or one the test names) that holds the machine database and the project folders: the real <see cref="ProjectSetupService"/>, <see cref="RepositoryBrowser"/>, and project catalog, and the real git client. No pipeline runs; a test may start the controller to see a project change refused. Disposing it deletes the workspace root when the rig made it.</summary>
 public sealed class RepositoryRig : IAsyncDisposable
 {
 	/// <summary>The name of the project <see cref="ConnectAsync"/> opens when none is open.</summary>
@@ -79,6 +79,7 @@ public sealed class RepositoryRig : IAsyncDisposable
 		Catalog = _scope.ServiceProvider.GetRequiredService<IProjectCatalog>();
 		Setup = _scope.ServiceProvider.GetRequiredService<ProjectSetupService>();
 		Sessions = _scope.ServiceProvider.GetRequiredService<ProjectSessions>();
+		Controller = _provider.GetRequiredService<PipelineController>();
 		Browser = _scope.ServiceProvider.GetRequiredService<RepositoryBrowser>();
 	}
 
@@ -105,6 +106,9 @@ public sealed class RepositoryRig : IAsyncDisposable
 
 	/// <summary>Gets the service that opens and closes projects.</summary>
 	public ProjectSessions Sessions { get; }
+
+	/// <summary>Gets the controller the service that opens and closes projects asks. A test starts it to see opening and closing refused; no pipeline runs.</summary>
+	public PipelineController Controller { get; }
 
 	/// <summary>Gets the browser under test.</summary>
 	public RepositoryBrowser Browser { get; }
