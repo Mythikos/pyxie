@@ -1,0 +1,23 @@
+.row-edit ::deep .ant-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border-color: transparent;
+	border-radius: var(--pyx-radius-control);
+	background: transparent;
+	color: var(--pyx-text-2);
+}
+
+.row-edit ::deep .ant-btn:not(:disabled):hover,
+.row-edit ::deep .ant-btn:not(:disabled):active {
+	border-color: transparent;
+	background: var(--pyx-lane);
+	color: var(--pyx-text);
+}
+
+.row-edit ::deep .anticon {
+	font-size: 15px;
+}

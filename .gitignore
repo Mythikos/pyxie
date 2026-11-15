@@ -1,0 +1,20 @@
+# IDE and .NET output.
+.vs/
+.idea/
+**/bin/
+**/obj/
+TestResults/
+*.user
+*.suo
+
+# Local SQLite databases and machine-specific configuration.
+*.db
+*.db-shm
+*.db-wal
+appsettings.*.local.json
+
+# Local logs and operating-system metadata.
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

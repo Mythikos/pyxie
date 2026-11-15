@@ -1,0 +1,13 @@
+@if (_blocks.Count == 0)
+{
+	<div class="diff-empty">No changes.</div>
+}
+else
+{
+	<div class="diff" tabindex="0" role="region" aria-label="Changes">
+		@foreach (DiffBlock block in _blocks)
+		{
+			<div class="diff-block @ClassOf(block.Kind)">@block.Text</div>
+		}
+	</div>
+}

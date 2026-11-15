@@ -1,0 +1,61 @@
+<SettingsPanel Section="SettingsSections.Agents" Flush>
+	<Actions>
+		<PanelAddButton Label="Add agent" Disabled="@_busy" Clicked="@BeginAdd" />
+	</Actions>
+	<ChildContent>
+		@if (_error is not null)
+		{
+			<div class="agent-error">
+				<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+			</div>
+		}
+		@if (_agents.Count > 0)
+		{
+			<div class="agent-scroll">
+				<table class="agent-table">
+					<thead>
+						<tr>
+							<th scope="col" class="agent-first">Name</th>
+							<th scope="col">Harness</th>
+							<th scope="col">Command</th>
+							<th scope="col" class="agent-role">Work</th>
+							<th scope="col" class="agent-role">Review</th>
+							<th scope="col" class="agent-role">Resolve</th>
+							<th scope="col" class="agent-edit"><span class="pyx-visually-hidden">Actions</span></th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (Agent agent in _agents)
+						{
+							<tr @key="@((agent.Id, _revision))">
+								<td class="agent-first agent-name">@agent.Name</td>
+								<td class="agent-harness">@HarnessInfo.DisplayName(agent.Harness)</td>
+								<td><code class="agent-command"><TokenizedText Text="@CommandLine(agent)" /></code></td>
+								<td class="agent-role">
+									<Check TValue="bool" Value="@agent.CanWork" ValueChanged="@((bool canWork) => SetWorkAsync(agent, canWork))" Disabled="@_busy" aria-label="@($"{agent.Name} can work")" />
+								</td>
+								<td class="agent-role">
+									<Check TValue="bool" Value="@agent.CanReview" ValueChanged="@((bool canReview) => SetReviewAsync(agent, canReview))" Disabled="@_busy" aria-label="@($"{agent.Name} can review")" />
+								</td>
+								<td class="agent-role">
+									<input type="radio" name="merge-agent" class="agent-radio" checked="@agent.CanMerge" disabled="@_busy" aria-label="@($"{agent.Name} resolves merge conflicts")" @onchange="@(() => SetMergeAgentAsync(agent.Id))" />
+								</td>
+								<td class="agent-edit">
+									<RowEditButton Label="@($"Edit {agent.Name}")" Disabled="@_busy" Clicked="@(() => BeginEdit(agent))" />
+								</td>
+							</tr>
+						}
+						<tr @key="@((0, _revision))">
+							<td class="agent-first agent-none" colspan="5">None</td>
+							<td class="agent-role">
+								<input type="radio" name="merge-agent" class="agent-radio" checked="@(!_agents.Any(agent => agent.CanMerge))" disabled="@_busy" aria-label="No agent resolves merge conflicts" @onchange="@(() => SetMergeAgentAsync(null))" />
+							</td>
+							<td class="agent-edit"></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		}
+		<AgentEditor Visible="@_editorVisible" VisibleChanged="@OnEditorVisibleChangedAsync" Agent="_editing" />
+	</ChildContent>
+</SettingsPanel>

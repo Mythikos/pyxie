@@ -1,0 +1,73 @@
+.file-path {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	padding: 12px 18px;
+	border-bottom: 1px solid var(--pyx-lane);
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+	overflow-wrap: anywhere;
+}
+
+.file-crumb {
+	color: var(--pyx-primary);
+	text-decoration: none;
+}
+
+.file-crumb:hover {
+	color: var(--pyx-primary-hover);
+	text-decoration: underline;
+}
+
+.file-crumb-current {
+	color: var(--pyx-text);
+	font-weight: 600;
+}
+
+.file-crumb-separator {
+	color: var(--pyx-text-muted);
+}
+
+.file-alert {
+	padding: 16px 18px;
+}
+
+.file-status {
+	padding: 24px 18px;
+	color: var(--pyx-text-muted);
+	overflow-wrap: anywhere;
+}
+
+.entry {
+	color: var(--pyx-text);
+	font-family: var(--pyx-font-mono);
+	font-size: 13px;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+a.entry:hover {
+	color: var(--pyx-primary-hover);
+	text-decoration: underline;
+}
+
+.entry-inert {
+	color: var(--pyx-text-muted);
+}
+
+.file-browser ::deep .ant-table-cell {
+	padding: 10px 18px;
+}
+
+.file-browser ::deep .entry-size {
+	width: 120px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.file-browser ::deep .entry-size:not(th) {
+	color: var(--pyx-text-muted);
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+}

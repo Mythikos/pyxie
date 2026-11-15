@@ -1,0 +1,27 @@
+@page "/settings"
+@using Pyxie.Web.Components.Projects
+@using Pyxie.Web.Components.Settings
+
+<PageTitle>Settings</PageTitle>
+
+<OpenProjectView>
+	<ChildContent>
+		<div class="settings">
+			<nav class="settings-nav" aria-label="Settings sections">
+				@foreach (SettingsSection section in SettingsSections.All)
+				{
+					<a href="@HrefOf(section)" aria-current="@(section == _current ? "true" : null)" @onclick="@(() => Select(section))">@section.Title</a>
+				}
+			</nav>
+			<div class="settings-panels">
+				<AgentTable />
+				<GateTable />
+				<CategoryList />
+				<SandboxSettingsEditor />
+			</div>
+		</div>
+	</ChildContent>
+	<Closed>
+		<NoProjectOpen />
+	</Closed>
+</OpenProjectView>

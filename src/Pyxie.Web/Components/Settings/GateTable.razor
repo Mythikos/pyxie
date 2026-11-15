@@ -1,0 +1,32 @@
+<SettingsPanel Section="SettingsSections.Gates" Flush>
+	<Actions>
+		<PanelAddButton Label="Add gate" Disabled="@_busy" Clicked="@BeginAdd" />
+	</Actions>
+	<ChildContent>
+		@if (_error is not null)
+		{
+			<div class="gate-error">
+				<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+			</div>
+		}
+		@* Things only the browser can be told, as the event happens: the arrow keys on a handle must not scroll the page, and a drag over a gate must be accepted as a place to drop. Blazor cannot cancel one key and let the others through. In Chrome a drop never landed when only @ondragover:preventDefault was on the rows, so the browser is told by these attributes. *@
+		<ol class="gate-list" onkeydown="@KeepArrowKeysOnHandles" ondragenter="@AcceptDragsOverGates" ondragover="@AcceptDragsOverGates">
+			@foreach ((int index, Gate gate) in _gates.Index())
+			{
+				<li @key="gate.Id" class="@RowClass(gate, index)" @ondragenter="@(() => DragEnter(index))" @ondrop="@(() => DropAsync(index))" @ondrop:preventDefault>
+					<button type="button" class="gate-handle" draggable="true" @ref="_handles[gate.Id]" aria-label="@($"Move {gate.Name}")" aria-describedby="gate-move-hint" @onkeydown="@((KeyboardEventArgs args) => HandleKeyAsync(gate, index, args))" @ondragstart="@(() => BeginDrag(gate))" @ondragend="@EndDrag"><Icon Name="@("holder")" /></button>
+					<span class="gate-text">@gate.Name</span>
+					<code class="gate-command">@CommandLine(gate)</code>
+					<span class="gate-timeout">@gate.TimeoutMinutes min</span>
+					<Switch TValue="bool" Value="@gate.IsEnabled" ValueChanged="@((bool isEnabled) => SetEnabledAsync(gate, isEnabled))" Disabled="@_busy" aria-label="@($"Enable {gate.Name}")" />
+					<RowEditButton Label="@($"Edit {gate.Name}")" Disabled="@_busy" Clicked="@(() => BeginEdit(gate))" />
+				</li>
+			}
+		</ol>
+		@if (_gates.Count > 0)
+		{
+			<span id="gate-move-hint" class="pyx-visually-hidden">Use the up and down arrow keys to move.</span>
+		}
+		<GateEditor Visible="@_editorVisible" VisibleChanged="@OnEditorVisibleChangedAsync" Gate="_editing" />
+	</ChildContent>
+</SettingsPanel>

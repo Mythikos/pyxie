@@ -1,0 +1,35 @@
+span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.round-number {
+	color: var(--pyx-text-muted);
+}
+
+.round-attempt {
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.round-tone-success {
+	color: var(--pyx-primary-hover);
+}
+
+.round-tone-danger {
+	color: var(--pyx-error-text);
+}
+
+.round-tone-warning {
+	color: var(--pyx-amber-strong);
+}
+
+.round-tone-muted {
+	color: var(--pyx-text-muted);
+}
+
+.round-time {
+	color: var(--pyx-text-muted);
+}

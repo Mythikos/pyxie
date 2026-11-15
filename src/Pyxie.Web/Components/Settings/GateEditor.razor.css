@@ -1,0 +1,5 @@
+.field-error {
+	margin-top: 4px;
+	color: var(--pyx-error-text);
+	font-size: 12px;
+}

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pyxie settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F3}
+a{color:#3D7336}a:hover{color:#2F5C29}
+</style>
+</head>
+<body>
+<div style="min-height: 1640px; background: #F6F6F3; font-family: Inter, system-ui, sans-serif; color: #1E1F23; display: flex; flex-direction: column">
+
+<header style="background: #232429; color: #FFFFFF; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding: 10px 24px">
+<a href="board.html" aria-label="Pyxie home" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #FFFFFF">
+<svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true"><path d="M7 34 C6 24 7 14 9.5 7.5 Q10.6 4.8 13 6.4 L23.5 15.6 Q32 13 40.5 15.6 L51 6.4 Q53.4 4.8 54.5 7.5 C57 14 58 24 57 34 Q56 57 32 59 Q8 57 7 34 Z" fill="#7B7C85"></path><path d="M12.6 11.2 Q13.4 9.6 14.8 10.8 L20 15.8 Q17 18.6 13.6 22.6 Q11.9 17 12.6 11.2 Z" fill="#F0AEB8"></path><path d="M51.4 11.2 Q50.6 9.6 49.2 10.8 L44 15.8 Q47 18.6 50.4 22.6 Q52.1 17 51.4 11.2 Z" fill="#F0AEB8"></path><path d="M30.5 17 Q32 16.4 33.5 17 L35 31 Q45 37 47 46 Q42 57.5 32 58.6 Q22 57.5 17 46 Q19 37 29 31 Z" fill="#FFFFFF"></path><ellipse cx="21.5" cy="34" rx="4.6" ry="5" fill="#8DBE5A"></ellipse><ellipse cx="21.5" cy="34" rx="1.5" ry="3.8" fill="#18191D"></ellipse><ellipse cx="42.5" cy="34" rx="4.6" ry="5" fill="#8DBE5A"></ellipse><ellipse cx="42.5" cy="34" rx="1.5" ry="3.8" fill="#18191D"></ellipse><path d="M28.6 42.2 Q32 41.2 35.4 42.2 Q34 45.6 32 46.2 Q30 45.6 28.6 42.2 Z" fill="#E8939F"></path></svg>
+<span style="font-family: Outfit, Inter, sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.01em">pyxie</span>
+</a>
+<nav aria-label="Main" style="display: flex; gap: 4px">
+<a href="board.html" style="color: #B9BAC2; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 8px">Board</a>
+<a href="repository.html" style="color: #B9BAC2; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 8px">Repository</a>
+<a href="settings.html" aria-current="page" style="color: #FFFFFF; background: rgba(255,255,255,0.10); text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 8px">Settings</a>
+</nav>
+<div style="flex: 1 1 0; min-width: 0"></div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #B9BAC2">
+<span style="color: #FFFFFF; font-weight: 500">pyxie</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 6px">main</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; background: rgba(141,190,90,0.14); border: 1px solid rgba(141,190,90,0.35); padding: 4px 12px 4px 6px; border-radius: 999px">
+<svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><path d="M7 34 C6 24 7 14 9.5 7.5 Q10.6 4.8 13 6.4 L23.5 15.6 Q32 13 40.5 15.6 L51 6.4 Q53.4 4.8 54.5 7.5 C57 14 58 24 57 34 Q56 57 32 59 Q8 57 7 34 Z" fill="#7B7C85"></path><path d="M30.5 17 Q32 16.4 33.5 17 L35 31 Q45 37 47 46 Q42 57.5 32 58.6 Q22 57.5 17 46 Q19 37 29 31 Z" fill="#FFFFFF"></path><ellipse cx="21.5" cy="34" rx="4.6" ry="5" fill="#8DBE5A"></ellipse><ellipse cx="21.5" cy="34" rx="1.5" ry="3.8" fill="#18191D"></ellipse><ellipse cx="42.5" cy="34" rx="4.6" ry="5" fill="#8DBE5A"></ellipse><ellipse cx="42.5" cy="34" rx="1.5" ry="3.8" fill="#18191D"></ellipse><path d="M28.6 42.2 Q32 41.2 35.4 42.2 Q34 45.6 32 46.2 Q30 45.6 28.6 42.2 Z" fill="#E8939F"></path></svg>
+<span style="font-size: 13px; font-weight: 600; color: #CFE6B8">Running</span>
+<span style="font-size: 12px; color: #B9BAC2">5 of 5</span>
+</div>
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.24); background: transparent; color: #FFFFFF; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer">
+<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="#FFFFFF"></rect></svg>Stop</button>
+</div>
+</header>
+
+<main style="flex: 1 1 auto; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; min-width: 0">
+
+<nav aria-label="Settings sections" style="flex: 1 1 200px; max-width: 220px; display: flex; flex-direction: column; gap: 2px">
+<a href="#agents" style="color: #1E1F23; background: #EDEDE9; text-decoration: none; font-size: 14px; font-weight: 600; padding: 9px 12px; border-radius: 8px">Agents</a>
+<a href="#gates" style="color: #4A4C53; text-decoration: none; font-size: 14px; font-weight: 500; padding: 9px 12px; border-radius: 8px">Gates</a>
+<a href="#categories" style="color: #4A4C53; text-decoration: none; font-size: 14px; font-weight: 500; padding: 9px 12px; border-radius: 8px">Categories</a>
+<a href="#sandbox" style="color: #4A4C53; text-decoration: none; font-size: 14px; font-weight: 500; padding: 9px 12px; border-radius: 8px">Sandbox</a>
+</nav>
+
+<div style="flex: 999 1 640px; min-width: 0; max-width: 1100px; display: flex; flex-direction: column; gap: 20px">
+
+<section id="agents" aria-labelledby="agents-h" style="background: #FFFFFF; border: 1px solid #E3E3DF; border-radius: 14px; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; padding: 18px 20px">
+<h2 id="agents-h" style="margin: 0; font-size: 17px; font-weight: 600">Agents</h2>
+<button type="button" style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #D6D6D1; background: #FFFFFF; color: #1E1F23; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer">
+<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="#1E1F23" stroke-width="1.6" stroke-linecap="round" fill="none"></path></svg>Add agent</button>
+</div>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13.5px">
+<thead>
+<tr style="background: #F6F6F3; text-align: left">
+<th scope="col" style="padding: 10px 20px; font-size: 12px; font-weight: 600; color: #4A4C53">Name</th>
+<th scope="col" style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #4A4C53">Harness</th>
+<th scope="col" style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #4A4C53">Command</th>
+<th scope="col" style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #4A4C53; text-align: center">Work</th>
+<th scope="col" style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #4A4C53; text-align: center">Review</th>
+<th scope="col" style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #4A4C53; text-align: center">Resolve</th>
+<th scope="col" style="padding: 10px 20px 10px 12px; width: 44px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Actions</span></th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-top: 1px solid #EDEDE9">
+<td style="padding: 14px 20px; font-weight: 600">Claude</td>
+<td style="padding: 14px 12px; color: #4A4C53">Claude Code</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #1E1F23">claude -p --dangerously-skip-permissions --name "<span style="background: #FBE9EC; color: #8E2F42; padding: 1px 4px; border-radius: 4px">{CARD_NAME}</span>"</td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" checked aria-label="Claude can work" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" checked aria-label="Claude can review" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="radio" name="merge-agent" aria-label="Claude resolves merge conflicts" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 8px 20px 8px 12px"><button type="button" aria-label="Edit Claude" style="width: 34px; height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.6l2.6 2.6-7.9 7.9-3.2.6.6-3.2z" stroke="#4A4C53" stroke-width="1.4" fill="none" stroke-linejoin="round"></path></svg></button></td>
+</tr>
+<tr style="border-top: 1px solid #EDEDE9">
+<td style="padding: 14px 20px; font-weight: 600">Codex</td>
+<td style="padding: 14px 12px; color: #4A4C53">Codex</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #1E1F23">codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check</td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" checked aria-label="Codex can work" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" checked aria-label="Codex can review" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="radio" name="merge-agent" aria-label="Codex resolves merge conflicts" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 8px 20px 8px 12px"><button type="button" aria-label="Edit Codex" style="width: 34px; height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.6l2.6 2.6-7.9 7.9-3.2.6.6-3.2z" stroke="#4A4C53" stroke-width="1.4" fill="none" stroke-linejoin="round"></path></svg></button></td>
+</tr>
+<tr style="border-top: 1px solid #EDEDE9">
+<td style="padding: 14px 20px; font-weight: 600">Resolver</td>
+<td style="padding: 14px 12px; color: #4A4C53">Claude Code</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #1E1F23">claude -p --dangerously-skip-permissions</td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" aria-label="Resolver can work" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="checkbox" aria-label="Resolver can review" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 14px 12px; text-align: center"><input type="radio" name="merge-agent" checked aria-label="Resolver resolves merge conflicts" style="width: 18px; height: 18px; accent-color: #3D7336"></td>
+<td style="padding: 8px 20px 8px 12px"><button type="button" aria-label="Edit Resolver" style="width: 34px; height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 2.6l2.6 2.6-7.9 7.9-3.2.6.6-3.2z" stroke="#4A4C53" stroke-width="1.4" fill="none" stroke-linejoin="round"></path></svg></button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="gates" aria-labelledby="gates-h" style="background: #FFFFFF; border: 1px solid #E3E3DF; border-radius: 14px; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; padding: 18px 20px">
+<h2 id="gates-h" style="margin: 0; font-size: 17px; font-weight: 600">Gates</h2>
+<button type="button" style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid #D6D6D1; background: #FFFFFF; color: #1E1F23; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer">
+<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="#1E1F23" stroke-width="1.6" stroke-linecap="round" fill="none"></path></svg>Add gate</button>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0">
+<li style="display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid #EDEDE9">
+<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><circle cx="3" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="13" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="13" r="1.2" fill="#9A9BA3"></circle></svg>
+<span style="width: 90px; font-weight: 600; font-size: 14px">build</span>
+<code style="flex: 1 1 auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #1E1F23; overflow-x: auto; white-space: nowrap">dotnet build -warnaserror</code>
+<span style="font-size: 13px; color: #63656D; width: 56px; text-align: right">10 min</span>
+<button type="button" role="switch" aria-checked="true" aria-label="Enable build" style="width: 40px; height: 24px; border-radius: 999px; border: none; background: #3D7336; padding: 3px; display: flex; justify-content: flex-end; cursor: pointer"><span style="width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF"></span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid #EDEDE9">
+<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><circle cx="3" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="13" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="13" r="1.2" fill="#9A9BA3"></circle></svg>
+<span style="width: 90px; font-weight: 600; font-size: 14px">test</span>
+<code style="flex: 1 1 auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #1E1F23; overflow-x: auto; white-space: nowrap">dotnet test</code>
+<span style="font-size: 13px; color: #63656D; width: 56px; text-align: right">20 min</span>
+<button type="button" role="switch" aria-checked="true" aria-label="Enable test" style="width: 40px; height: 24px; border-radius: 999px; border: none; background: #3D7336; padding: 3px; display: flex; justify-content: flex-end; cursor: pointer"><span style="width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF"></span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid #EDEDE9">
+<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><circle cx="3" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="13" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="13" r="1.2" fill="#9A9BA3"></circle></svg>
+<span style="width: 90px; font-weight: 600; font-size: 14px">format</span>
+<code style="flex: 1 1 auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #1E1F23; overflow-x: auto; white-space: nowrap">dotnet format --verify-no-changes</code>
+<span style="font-size: 13px; color: #63656D; width: 56px; text-align: right">5 min</span>
+<button type="button" role="switch" aria-checked="true" aria-label="Enable format" style="width: 40px; height: 24px; border-radius: 999px; border: none; background: #3D7336; padding: 3px; display: flex; justify-content: flex-end; cursor: pointer"><span style="width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF"></span></button>
+</li>
+<li style="display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid #EDEDE9; color: #63656D">
+<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><circle cx="3" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="3" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="8" r="1.2" fill="#9A9BA3"></circle><circle cx="3" cy="13" r="1.2" fill="#9A9BA3"></circle><circle cx="7" cy="13" r="1.2" fill="#9A9BA3"></circle></svg>
+<span style="width: 90px; font-weight: 600; font-size: 14px">docker</span>
+<code style="flex: 1 1 auto; min-width: 0; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; overflow-x: auto; white-space: nowrap">sh -c "PYXIE_DOCKER_TESTS=1 dotnet test"</code>
+<span style="font-size: 13px; width: 56px; text-align: right">30 min</span>
+<button type="button" role="switch" aria-checked="false" aria-label="Enable docker" style="width: 40px; height: 24px; border-radius: 999px; border: none; background: #CFCFCA; padding: 3px; display: flex; justify-content: flex-start; cursor: pointer"><span style="width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF"></span></button>
+</li>
+</ol>
+</section>
+
+<section id="categories" aria-labelledby="categories-h" style="background: #FFFFFF; border: 1px solid #E3E3DF; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="categories-h" style="margin: 0; font-size: 17px; font-weight: 600">Categories</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #2F5C29; background: #EAF3E2; padding: 4px 4px 4px 12px; border-radius: 999px">Feature<button type="button" aria-label="Delete Feature" style="width: 24px; height: 24px; border: none; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="#2F5C29" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span>
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #8E2F42; background: #FBE9EC; padding: 4px 4px 4px 12px; border-radius: 999px">Bug<button type="button" aria-label="Delete Bug" style="width: 24px; height: 24px; border: none; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="#8E2F42" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span>
+<span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #4A4C53; background: #EEEEEB; padding: 4px 4px 4px 12px; border-radius: 999px">Chore<button type="button" aria-label="Delete Chore" style="width: 24px; height: 24px; border: none; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="#4A4C53" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span>
+<form style="display: flex; gap: 6px; margin: 0 0 0 4px">
+<label for="new-category" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">New category</label>
+<input id="new-category" type="text" placeholder="New category" style="height: 32px; width: 160px; box-sizing: border-box; padding: 0 10px; border: 1px solid #D6D6D1; border-radius: 8px; font-family: Inter, sans-serif; font-size: 13px; color: #1E1F23">
+<button type="submit" style="height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #D6D6D1; background: #FFFFFF; color: #1E1F23; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer">Add</button>
+</form>
+</div>
+</section>
+
+<section id="sandbox" aria-labelledby="sandbox-h" style="background: #FFFFFF; border: 1px solid #E3E3DF; border-radius: 14px; padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="sandbox-h" style="margin: 0; font-size: 17px; font-weight: 600">Sandbox</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<div style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<label for="dockerfile" style="font-size: 13px; font-weight: 600">Dockerfile</label>
+<textarea id="dockerfile" rows="13" spellcheck="false" style="width: 100%; box-sizing: border-box; resize: vertical; padding: 14px 16px; border: 1px solid #2E3036; border-radius: 10px; background: #232429; color: #E6E6E3; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.65">ARG PYXIE_BASE
+FROM ${PYXIE_BASE}
+
+USER root
+RUN apt-get update \
+ &amp;&amp; apt-get install -y --no-install-recommends python3 \
+ &amp;&amp; rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh \
+ | bash -s -- --channel 10.0 --install-dir /usr/share/dotnet \
+ &amp;&amp; ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+USER node</textarea>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #2F5C29"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6.5" fill="#4E8A34"></circle><path d="M4 7.2l2 2 4-4.2" stroke="#FFFFFF" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>Built</span>
+<code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4A4C53">pyxie-project-pyxie:3f9a2c1e</code>
+<div style="margin-left: auto; display: flex; gap: 8px">
+<button type="button" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #D6D6D1; background: #FFFFFF; color: #1E1F23; font-family: Inter, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer">Build</button>
+<button type="button" style="height: 36px; padding: 0 16px; border-radius: 8px; border: none; background: #3D7336; color: #FFFFFF; font-family: Inter, sans-serif; font-size: 13px; font-weight: 600; cursor: pointer">Save</button>
+</div>
+</div>
+</div>
+<div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 10px">
+<h3 style="margin: 0; font-size: 13px; font-weight: 600">Sign-ins</h3>
+<ul style="list-style: none; margin: 0; padding: 0; border: 1px solid #E3E3DF; border-radius: 10px; overflow: hidden">
+<li style="display: flex; align-items: center; gap: 10px; padding: 12px 14px">
+<span style="font-size: 13.5px; font-weight: 500">Claude Code token</span>
+<span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; color: #2F5C29"><svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 7.4l2.6 2.6L11 4.6" stroke="#3D7336" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>Found</span>
+</li>
+<li style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid #EDEDE9">
+<span style="font-size: 13.5px; font-weight: 500">Codex sign-in</span>
+<span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; color: #2F5C29"><svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 7.4l2.6 2.6L11 4.6" stroke="#3D7336" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>Found</span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+
+</div>
+</main>
+</div>
+</body>
+</html>

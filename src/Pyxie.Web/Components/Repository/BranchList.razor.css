@@ -1,0 +1,42 @@
+.branch-status {
+	padding: 24px 18px;
+	color: var(--pyx-text-muted);
+}
+
+.branch-name {
+	margin-right: 4px;
+	color: var(--pyx-primary);
+	font-family: var(--pyx-font-mono);
+	font-size: 13px;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+.branch-name:hover {
+	color: var(--pyx-primary-hover);
+	text-decoration: underline;
+}
+
+.branch-chip {
+	margin-right: 4px;
+	padding: 1px 7px;
+}
+
+.branch-card {
+	color: var(--pyx-text-2);
+	overflow-wrap: anywhere;
+}
+
+.branch-list ::deep .ant-table-cell {
+	padding: 10px 18px;
+}
+
+.branch-list ::deep .branch-subject-cell {
+	overflow-wrap: anywhere;
+}
+
+.branch-list ::deep .branch-date-cell {
+	width: 144px;
+	color: var(--pyx-text-muted);
+	white-space: nowrap;
+}

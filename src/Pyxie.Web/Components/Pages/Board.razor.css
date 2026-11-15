@@ -1,0 +1,29 @@
+/* The document scrolls, so the page fills what the content area leaves and its lanes stretch to the bottom of a short board. */
+.board-page {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+/* Lanes never stack: on a narrow screen the board scrolls sideways. */
+.board-scroll {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
+	overflow-x: auto;
+	padding-bottom: 4px;
+}
+
+.board {
+	display: grid;
+	flex: 1 0 auto;
+	grid-template-columns: repeat(var(--lane-count), minmax(264px, 1fr));
+	align-items: stretch;
+	gap: 14px;
+}
+
+.board-status {
+	padding: 24px 0;
+	color: var(--pyx-text-muted);
+}

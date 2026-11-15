@@ -1,0 +1,14 @@
+using Microsoft.AspNetCore.Components;
+
+using Pyxie.Data.Entities;
+
+namespace Pyxie.Web.Components.Categories;
+
+/// <summary>A category's name as a chip in the category's color, as cards show it.</summary>
+public partial class CategoryChip : ComponentBase
+{
+	/// <summary>Gets or sets the category.</summary>
+	[Parameter]
+	[EditorRequired]
+	public required Category Category { get; set; }
+}

@@ -1,0 +1,48 @@
+.signin {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	padding: 12px 14px;
+}
+
+.signin + .signin {
+	border-top: 1px solid var(--pyx-lane);
+}
+
+.signin-name {
+	font-size: 13.5px;
+	font-weight: 500;
+}
+
+.signin-found,
+.signin-missing {
+	margin-left: auto;
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.signin-found {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--pyx-primary-hover);
+}
+
+.signin-found ::deep .anticon {
+	color: var(--pyx-primary);
+	font-size: 13px;
+}
+
+.signin-missing {
+	color: var(--pyx-error-text);
+}
+
+.signin-fix {
+	flex-basis: 100%;
+	margin: 0;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}

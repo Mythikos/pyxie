@@ -1,0 +1,7 @@
+#!/bin/sh
+# Starts a Pyxie sandbox. As root it sets the firewall (see pyxie-firewall) with the machine's addresses Pyxie passed as arguments, marks the
+# sandbox ready, and idles. Pyxie runs every command separately as the node user, which cannot change the firewall.
+set -eu
+/usr/local/bin/pyxie-firewall "$@"
+touch /run/pyxie-ready
+exec sleep infinity

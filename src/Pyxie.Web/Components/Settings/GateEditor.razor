@@ -1,0 +1,49 @@
+<Modal Visible="@Visible" VisibleChanged="@VisibleChanged" Centered>
+	<ModalContent>
+		<ModalHeader>
+			<ModalTitle>@(Gate is null ? "Add gate" : "Edit gate")</ModalTitle>
+		</ModalHeader>
+		<ModalBody>
+			<Field>
+				<FieldLabel>Name</FieldLabel>
+				<TextInput @bind-Value="_model.Name" />
+				@if (NameError is not null)
+				{
+					<div class="field-error">@NameError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Command</FieldLabel>
+				<TextInput @bind-Value="_model.Command" />
+				@if (CommandError is not null)
+				{
+					<div class="field-error">@CommandError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Arguments</FieldLabel>
+				<TextInput @bind-Value="_model.Arguments" />
+				@if (ArgumentsError is not null)
+				{
+					<div class="field-error">@ArgumentsError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Timeout (minutes)</FieldLabel>
+				<NumericPicker TValue="int" @bind-Value="_model.TimeoutMinutes" Min="1" Max="@PyxieLimits.MaxGateTimeoutMinutes" />
+				@if (TimeoutError is not null)
+				{
+					<div class="field-error">@TimeoutError</div>
+				}
+			</Field>
+			<Field>
+				<Switch TValue="bool" @bind-Value="_model.IsEnabled" aria-label="Enabled">Enabled</Switch>
+			</Field>
+			@if (_serviceError is not null)
+			{
+				<Alert Color="Color.Danger" Visible="true">@_serviceError</Alert>
+			}
+		</ModalBody>
+		<EditorFooter Subject="@(Gate?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(Gate is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
+	</ModalContent>
+</Modal>

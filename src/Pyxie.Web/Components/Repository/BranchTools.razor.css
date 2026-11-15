@@ -1,0 +1,23 @@
+.branch-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	padding: 8px 0;
+}
+
+.branch-tools ::deep .ant-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 34px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.branch-tools ::deep .ant-btn .anticon {
+	font-size: 13px;
+}

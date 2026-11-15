@@ -1,0 +1,15 @@
+@using Pyxie.Data.Enums
+
+@switch (Kind)
+{
+	case RoundKind.Work:
+	case RoundKind.Review:
+		<span class="pyx-chip pyx-chip-green"><span class="stage-dot" aria-hidden="true"></span>@Kind.DisplayName()</span>
+		break;
+	case RoundKind.Resolve:
+		<span class="pyx-chip pyx-chip-pink stage-resolve"><Icon Name="@("merge")" />Resolve</span>
+		break;
+	case RoundKind.Merge:
+		<span class="pyx-chip pyx-chip-dark stage-merging"><PyxieMark Drawing="PyxieMarkDrawing.Small" Size="14" />Merging</span>
+		break;
+}

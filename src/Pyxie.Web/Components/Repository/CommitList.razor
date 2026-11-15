@@ -1,0 +1,52 @@
+<div class="commit-list">
+	@if (_error is not null)
+	{
+		<div class="commit-alert">
+			<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+		</div>
+	}
+	else if (_commits is null)
+	{
+		<div class="commit-status">Loading</div>
+	}
+	else
+	{
+		@if (_commits.Count == 0)
+		{
+			<div class="commit-status">@(Location.Page == 0 ? "No commits." : "No older commits.")</div>
+		}
+		else
+		{
+			<ul class="commit-rows">
+				@foreach (GitCommit commit in _commits)
+				{
+					<li class="commit-row" @key="commit.Sha">
+						@if (commit.CardId is not null)
+						{
+							<span class="commit-avatar commit-avatar-pyxie"><PyxieMark Drawing="PyxieMarkDrawing.Small" Size="22" Label="Pyxie" /></span>
+						}
+						else
+						{
+							<span class="commit-avatar" aria-hidden="true">@CommitText.Initial(commit.AuthorName)</span>
+						}
+						<div class="commit-main">
+							<div class="commit-title">
+								<a class="commit-subject" href="@Href(commit)">@commit.Subject</a>
+								@if (commit.CardId is int cardId)
+								{
+									<span class="pyx-chip pyx-chip-green commit-card">Card @cardId</span>
+								}
+							</div>
+							<span class="commit-meta">@commit.AuthorName · <time datetime="@IsoOf(commit)" title="@RepositoryDates.Format(commit.AuthoredUtc)">@AgoOf(commit)</time></span>
+						</div>
+						<code class="commit-sha">@commit.ShortSha</code>
+					</li>
+				}
+			</ul>
+		}
+		<div class="commit-pager">
+			<Button Color="Color.Default" Disabled="@(Location.Page == 0)" Clicked="@Newer">Newer</Button>
+			<Button Color="Color.Default" Disabled="@(!HasOlder)" Clicked="@Older">Older</Button>
+		</div>
+	}
+</div>

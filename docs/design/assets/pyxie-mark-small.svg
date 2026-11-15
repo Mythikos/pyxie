@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pyxie">
+<path d="M7 34 C6 24 7 14 9.5 7.5 Q10.6 4.8 13 6.4 L23.5 15.6 Q32 13 40.5 15.6 L51 6.4 Q53.4 4.8 54.5 7.5 C57 14 58 24 57 34 Q56 57 32 59 Q8 57 7 34 Z" fill="#8A8B94"/>
+<path d="M29.5 16 L34.5 16 L36 31 Q46 37 48 46 Q42 58 32 59 Q22 58 16 46 Q18 37 28 31 Z" fill="#FFFFFF"/>
+<ellipse cx="21" cy="34" rx="5.4" ry="5.8" fill="#8DBE5A"/>
+<ellipse cx="43" cy="34" rx="5.4" ry="5.8" fill="#8DBE5A"/>
+<path d="M27.5 42 L36.5 42 L32 47.5 Z" fill="#E8939F"/>
+</svg>

@@ -1,0 +1,59 @@
+.diff-empty {
+	padding: 12px 18px;
+	border-top: 1px solid var(--pyx-lane);
+	color: var(--pyx-text-muted);
+}
+
+.diff {
+	overflow-x: auto;
+	border-top: 1px solid var(--pyx-lane);
+	background: var(--pyx-surface);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+	line-height: 20px;
+}
+
+.diff:focus-visible {
+	outline-offset: -2px;
+}
+
+.diff-block {
+	box-sizing: border-box;
+	width: max-content;
+	min-width: 100%;
+	padding: 0 18px;
+	tab-size: 4;
+	white-space: pre;
+}
+
+.diff-header {
+	margin-top: 8px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	border-top: 1px solid var(--pyx-lane);
+	background: var(--pyx-ground);
+	font-weight: 600;
+}
+
+.diff-header:first-child {
+	margin-top: 0;
+	border-top: 0;
+}
+
+.diff-hunk {
+	background: var(--pyx-lane);
+	color: var(--pyx-text-2);
+}
+
+.diff-added {
+	background: var(--pyx-success-tint);
+}
+
+.diff-removed {
+	background: var(--pyx-pink-tint);
+}
+
+.diff-note {
+	color: var(--pyx-text-muted);
+	font-style: italic;
+}

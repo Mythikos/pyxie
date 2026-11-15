@@ -1,0 +1,18 @@
+@using Pyxie.Data.Services.ReadModels
+@using Pyxie.Data.Services.Rules
+
+<section class="lane" aria-label="@Title">
+	<header class="lane-header">
+		<span class="@DotClass" aria-hidden="true"></span>
+		<h2 class="lane-title" tabindex="-1" @ref="_heading">@Title</h2>
+		<span class="lane-count">@Cards.Count</span>
+		@if (CardLifecycleRules.CanAdd(Lane))
+		{
+			<Button Color="Color.Default" Size="Size.Small" Class="lane-add" Clicked="@AddClicked"><Icon Name="@("plus")" />Add</Button>
+		}
+	</header>
+	@foreach (BoardCard card in Cards)
+	{
+		<CardTile @key="card.Card.Id" @ref="_tiles[card.Card.Id]" Card="@card" Clicked="@CardClicked" RetryClicked="@RetryClicked" CloseClicked="@CloseClicked" Refusal="@RefusalOf(card)" />
+	}
+</section>

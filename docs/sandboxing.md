@@ -1,0 +1,98 @@
+# Agent sandboxes
+
+Status: built, for Linux projects. Decided on 2026-11-13; it replaced agents running on the host in linked worktrees of the hub ([pipeline design](pipeline.md)).
+
+## Why
+
+- Agents run unattended. Claude Code needs `--dangerously-skip-permissions` for that, so an agent can do anything the person can.
+- A linked worktree shares the hub's branches, objects, settings, and hooks. An agent with a shell can move the target branch without pushing, which skips the gates and the review. It can also plant settings that make Pyxie's own git commands run its code: a repository-configured `core.fsmonitor` runs on `git status` and `git diff`, and a planted `reference-transaction` hook runs on `git update-ref`.
+- Hooks and harness permission settings only discourage. The guarantee has to come from agents never having write access to the hub or the host.
+
+## Goals
+
+- The hub behaves as the project's origin. People push, pull, and merge their own changes freely; the hub refuses only what would stop Pyxie working: rewriting or deleting the target branch, and pushes to `pyxie/` branches.
+- Agents are constrained; people are not. An agent's work reaches the target branch only through the pull request: the gates pass and the reviewer approves the same commit, and then Pyxie merges it. Gates and an AI reviewer are the whole approval.
+- No agent process can write to the hub, Pyxie's folders, or the person's files, or reach Pyxie itself.
+
+## Forks and pull requests
+
+Each round runs in a Docker Linux container, the sandbox. The agent works in its own clone, like a contributor's fork; only Pyxie writes to the hub.
+
+1. A card's worker gets a container that is kept between that card's work rounds, so the agent's state and build caches survive, and is removed when the card completes or is deleted. Gate, review, and resolve rounds each get a fresh container.
+2. Hand-in: Pyxie writes a git bundle of the target branch and the card branch into the round's input folder, which the container sees read-only. Pyxie runs each step in the container itself, with `docker exec`: the sandbox's own repository fetches the bundle as `origin/*` (so agents see `origin/main`), and the card branch is put at the commit Pyxie names. A worker keeps what an earlier attempt left, commits included, as long as it builds on that commit; a merge left half-done is abandoned, and lock files a killed git command left are removed.
+3. The agent runs with the briefing on standard input.
+4. Hand-out: Pyxie ends whatever the worker left running, commits whatever it left (never the `.pyxie` folder), and writes a bundle of the card branch's new commits into the round's output folder. Pyxie commits as `Pyxie <pyxie@localhost>` (`PyxieIdentity`) through the environment of the git command, so no identity the repository, the image, or the agent configured applies.
+5. Take-back, on the host: `git bundle verify`, then a fetch with an explicit refspec into `refs/pyxie/incoming/card-<id>` with `fetch.fsckObjects` on. The result must descend from the commit Pyxie handed in; then `pyxie/card-<id>` moves with a compare-and-swap. Pyxie never runs git inside an agent's repository on the host.
+6. Gates run in a fresh container from the project's image, on that exact commit. Gate commands run the agent's code, so they never run on the host.
+7. Review runs in a fresh container on a clean clone of that exact commit, and nothing it writes is accepted. Files that steer a harness (`.claude/`, `.mcp.json`, `opencode.json`, `CLAUDE.md`, `AGENTS.md`) come from the target branch for the reviewer, so a worker cannot steer its own review; the card's changes to them are still reviewed as code.
+8. Merge, in the hub: `git merge-tree --write-tree`, `git commit-tree`, and a compare-and-swap on the target branch, only when the latest gate pass and approval are for the card branch's current commit. A conflict goes to the project's merge agent (step 9), or, when the project has none, back to the worker, who merges the target branch in its sandbox.
+9. Resolve, when a merge conflicts and the project has a merge agent: a fresh container with the merge agent's sign-in and no volumes, handed in as in step 2 (the card's last commit as the card branch, and the target branch). Pyxie starts the merge there itself, `git merge --no-ff --no-commit` of the target commit it read when it opened the sandbox (the bundle's target branch can already be ahead of it; commits that land later wait for the next merge round). It stops on the conflicts and stays uncommitted, so the agent finds them in the working tree. The files that steer a harness are not swapped for the target branch's version here, as they are for a reviewer, because the resolution is written into the merge; the review that follows gets the target branch's version as always. Hand-out is as in step 4: Pyxie ends what the agent left running and commits the merge unless the agent did. The take-back is as in step 5, with three more checks in the hub before the card branch moves: the sandbox's last commit is not the commit it started from (the merge was completed; an unchanged tip would loop conflict, resolved, conflict); its parents are exactly the card's last commit and the pinned target commit; and none of the files that conflicted holds conflict markers, found by merging the two parents in the hub and reading each such file at the new tip (a marker line that already stood in either parent's version of the file does not count). A failed check is a recoverable error, and the next resolve round starts over in a fresh container. A resolution is new agent-written code, so it goes through steps 6 and 7 again before step 8: no agent can bypass the gates or the review, and only Pyxie writes the target branch.
+
+The project's `worktrees` folder went away, and so did the hub's `pre-push` hook, which existed only because agents worked in hub worktrees. The `update` hook that protects the target branch and `pyxie/` branches stays.
+
+## Images
+
+- `pyxie-base` ships with Pyxie: a Debian-based image with git, Node, Python, the Claude Code, Codex, and OpenCode command lines, Pyxie's runner, and the firewall setup. Agents run as a non-root user; Claude Code refuses to skip permissions as root.
+- Each project has its own Dockerfile, `FROM pyxie-base`, that adds the project's build tools. Pyxie keeps it in the project folder and people edit it on a Pyxie page; it is never read from the repository, so agents cannot change what their sandbox is built from. Pyxie rebuilds the image when the Dockerfile or the base changes.
+
+## Network
+
+- A sandbox reaches the internet and the local network, so builds can fetch packages and agents can read documentation. It never reaches the machine it runs on: on Docker Desktop, `host.docker.internal` reaches services bound to the host's localhost, which includes Pyxie, and Pyxie has no sign-in.
+- The firewall refuses the Docker host and its gateway, and every address of the machine, which Pyxie passes in (`HostAddresses`), so Pyxie is out of reach however it is bound. Loopback inside the sandbox is the sandbox's own and stays open.
+- The rules are set as root when the container starts, with `no-new-privileges`, and again before a kept sandbox's next round, because addresses change. Commands run as the unprivileged `node` user, which cannot change them.
+- An agent can send what its sandbox holds, its own credentials included, anywhere on the internet. That is the cost of open access; the sandbox holds nothing of the person's but the code and the agent's own sign-in.
+
+## Credentials
+
+- Agents use the person's subscriptions; switching a harness to an API key later is a change to its arguments and environment.
+- Claude Code: a token from `claude setup-token` (one year, model requests only), stored by Pyxie on the machine and given to each sandbox as a read-only file the runner exports as `CLAUDE_CODE_OAUTH_TOKEN`.
+- Codex: a copy of the ChatGPT sign-in in its own `CODEX_HOME` per sandbox.
+- OpenCode: a ChatGPT sign-in or an API key; it cannot use a Claude subscription.
+- An agent can read the credentials in its own sandbox. No git credentials or SSH keys ever enter a sandbox.
+
+## Trial
+
+On 2026-11-13, on Windows 11 25H2 with Docker Desktop 29.7 (Linux engine):
+
+- `pyxie-base` built from `node:22-bookworm-slim` with git 2.39, Claude Code 2.1.325, and Codex 0.169.
+- A stand-in agent worked two rounds in one card container with a kept volume. Bundles went in and out, the take-back checks passed, a person's push to `main` landed in between, and a checkout-free merge with `merge-tree` put both on `main`. The source repository was untouched.
+- Codex, on a copy of a ChatGPT sign-in, worked one real round in 23 seconds; its commit came back and became the card branch. It reached for `python3`, which the base image should include.
+- Claude Code, on a `setup-token` token, worked one real round in 6 seconds, without the 401 errors others have reported.
+- Containers saw no host folders but reached a service bound to the host's localhost through `host.docker.internal`, so the firewall is required.
+- With the firewall, the agent user had no capabilities and could not change the rules; the host's localhost service, `example.com`, and `github.com` were refused, and real Claude Code and Codex rounds worked with only the hosts listed under Network.
+- Two Codex sandboxes whose copies of one sign-in had an expired access token refreshed it at the same moment; both rounds worked and each got its own new tokens. A third copy of the original sign-in refreshed afterwards too, so the refresh token the person's own Codex holds stayed valid. An unexpired access token lasted at least five days without a refresh, so refreshes during rounds are rare. Whether OpenAI would refuse a reused refresh token after some grace period is not known.
+- The allowlist tried here was replaced by a firewall that refuses only the machine itself, at the person's choice, so builds and agents can reach what they need.
+
+## Building it
+
+What replaced what, in `Pyxie.Runtime` unless named:
+
+- `Sandboxes/` (new): an `ISandboxes` service creates sandboxes and an `ISandbox` runs a command in one, writes and reads a file in it, and has an input and an output folder on the host that it sees as `/pyxie/in` (read-only) and `/pyxie/out`. `DockerSandboxes` implements it with the `docker` command line through `ProcessRunner`: `docker run -d` with a start script that sets the firewall and then idles as root, and `docker exec --user node` for each command, with `no-new-privileges`. A command that times out or is stopped leaves the container spoiled, so it is removed; a worker's volumes survive. Containers and volumes carry `pyxie.project`, `pyxie.card`, and `pyxie.role` labels (the roles are work, gates, review, and resolve), so the cleanup that runs when the pipeline starts can find them. Gate, review, and resolve sandboxes are never kept, so any left behind by a crash or a stop is removed then.
+- `Sandboxes/` images: `pyxie-base` is built from a Dockerfile and scripts embedded in Pyxie, tagged with a hash of their content. A project's image is built from its Dockerfile (`ARG PYXIE_BASE` / `FROM ${PYXIE_BASE}`), tagged with a hash of the base tag and the Dockerfile. Builds run when a round needs an image that is not there, or when a person asks for one, and keep a log.
+- `CardWorkspaces` and the worktree paths in `WorkspaceLayout` went. In their place, `CardSandboxes` runs each kind of round in a sandbox:
+  - Work: the card's worker container (volumes for `/work` and the agent's home, kept between the card's work rounds). Pyxie bundles the target branch and the card branch, the sandbox's repository fetches them as `origin/*` (so agents see `origin/main`), and the card branch is put at the commit Pyxie names; a worker keeps what an earlier attempt left, commits included, when it builds on that commit. Then the briefing is written, the agent runs, the result file is read, whatever was left is committed, the new commits are bundled, and Pyxie takes them back as described above.
+  - Gates: a fresh container, a fresh clone of the card's commit, and a per-card volume as the home folder, so package caches survive between the card's gate rounds while the build starts clean. No credentials go in.
+  - Review: a fresh container and a fresh clone of the card's commit, with the files that steer a harness taken from the target branch. Nothing comes back but the result file.
+  - Resolve: a fresh container with the merge agent's sign-in, no volumes, and a fresh checkout of the card's last commit. Pyxie records the target commit it read when it opened the sandbox (`CardSandbox.TargetCommit`; the bundle's target ref can be ahead of it), sets the local target branch from `origin` as for every round, and starts `git merge --no-ff --no-commit -m "Merge <target> into <branch>"` of that commit: exit code 1 (conflicts) or 0 (a clean merge, left uncommitted) is accepted only when `MERGE_HEAD` then names that commit, because git also exits with 1 when it refuses to start a merge; anything else is a `SandboxException`. There is no steering-file swap. After the agent runs, `RoundExecutor` ends its processes, commits the merge (`CommitAsync` commits while `MERGE_HEAD` exists, staging conflicted files even with markers, which the hub check catches), and takes the merge back with its own verification, which reuses the bundle copy, verify, fetch, and compare-and-swap steps of `TakeBackAsync`; its bundle leaves out the pinned target commit as well as the card's last commit, since the hub has both, so it carries only the merge commit and what the resolution added. The round's report is the agent's report followed by the remerge diff of the merge commit, `git show --remerge-diff`, computed in the hub (it writes a temporary object directory there) and clipped, which the reviewer reads.
+  - Merge: no sandbox. In the hub, `merge-tree` decides: the card already contains the target branch, so it is merged with `commit-tree` and a compare-and-swap, as today; or the target moved and merges cleanly, so the merge commit goes onto the card branch and the gates check it (`Outdated`); or it conflicts (`Conflicted`), and the card goes to the merge agent's Resolve round when the project has one, or back to the worker, who merges `origin/<target>` in its sandbox, when it has none. The conflict report lists the conflicting files and what landed on the target branch since the card branch last took it in, with the names and tasks of the cards Pyxie merged; what to do about it is in the next round's briefing.
+- `HarnessRunner` and `GateRunner` run their commands through an `ISandbox` instead of in a folder on the host, and `HarnessResultFile` reads text instead of a path. `CardIntegrator` uses `merge-tree` instead of merging in a worktree.
+- `GitClient` loses the worktree, working-tree merge, reset, and commit methods that only the host worktrees used, and gains bundle creation, verification, and fetching, `merge-tree`, and what a resolve round needs: the remerge diff of a merge commit, a commit's parents, and the first-parent log of a range.
+- `HubHooks` loses the `pre-push` hook; `SetUpHubAsync` stops pointing `core.hooksPath` at a folder card worktrees share, though the hub still names its own hooks folder.
+- Sign-ins (`Sandboxes/`): a harness kind decides what a sandbox gets. Claude Code: the token in `<Workspace:Root>\secrets\claude-oauth-token`, mounted read-only and exported as `CLAUDE_CODE_OAUTH_TOKEN`. Codex: a copy, per container, of the person's Codex sign-in (`%USERPROFILE%\.codex\auth.json`, or `CODEX_HOME`) as its `CODEX_HOME`. OpenCode and Other get no sign-in for now.
+- `Pyxie.Data`: a `SandboxSettings` row per project database holds the project image's Dockerfile, with conditional writes like the other services; the migrations are regenerated.
+- Web: Settings gets a Sandbox section for the open project (the Dockerfile, and a Build action with the end of its log when it fails) and shows whether the Claude token and the Codex sign-in were found. The agent editor's defaults become the unattended ones, since the sandbox is the boundary: `claude -p --dangerously-skip-permissions` and `codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check`. The editor also has a third role next to Can work and Can review, "Resolves merge conflicts", which marks the project's merge agent; at most one agent can have it.
+- The pipeline needs Docker: Start is refused, with a message saying so, when Docker cannot be reached. There is no fallback that runs agents on the host.
+- Tests: the runtime tests run sandboxes through a local stand-in in the test project, which runs the same commands as host processes in temporary folders, with `tests/Pyxie.FakeHarness` as the agent. Bundles, take-back, and merges are tested for real. A smaller set of tests drives real Docker: the base image, a round with a stand-in agent, a resolve round, and the firewall. They run only when the environment variable `PYXIE_DOCKER_TESTS` is `1`, and are skipped with a reason otherwise.
+
+Known costs: each round hands in a full bundle of the two branches, which is slow for a large history (handing in only what the sandbox lacks is a later step); gates build from a fresh clone every time.
+
+## Future work: Windows projects
+
+Linux containers cannot build or test projects that need Windows, such as desktop apps and Windows-only tools, and tests that behave differently on Windows run the Linux way. Windows projects need a second sandbox type, chosen per project; the fork and pull-request model stays the same. Options, as researched in November 2026:
+
+- Windows containers with Hyper-V isolation: each sandbox has its own kernel, and the shape matches Linux (a `pyxie-base-windows` image on Server Core plus a project layer). Limits: Docker Desktop runs one engine, Linux or Windows, at a time and switching is machine-wide, so a separate Windows container engine has to run alongside it; images are large (Server Core plus build tools); there is no desktop, so no UI tests; there is no built-in egress allowlist; and the Windows Containers and Hyper-V features must be enabled (admin rights and a restart).
+- Microsoft Execution Containers (MXC, generally available since October 2026, .NET SDK `Microsoft.Mxc.Sdk`): policy-driven containment of a process on the host, using the tools installed there, with files read-write, read-only, or denied and outbound allow and block lists. Codex supports it; it needs Windows 11 build 26100.9278 or 26200.9278 or later. Weaker than a VM, new, and whether git, dotnet, and node work under it is unproven.
+- A Hyper-V VM per sandbox: the strongest option and the only one with a desktop for UI tests; heavy in disk, memory, start time, Windows licences, and image tooling.
+- Ruled out: Windows Sandbox (one instance at a time, network only on or off), and switching Docker Desktop between engines.
+
+The deciding question is whether Windows projects' gates need a desktop.

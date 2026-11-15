@@ -1,0 +1,46 @@
+#!/bin/sh
+# Keeps the sandbox away from the machine it runs on, and so from Pyxie: the Docker host, its gateway, and every address of the machine
+# (passed as arguments by Pyxie) are refused. Everything else, the internet and the local network, stays reachable, so builds and agents can
+# fetch what they need. Runs as root when the sandbox starts, and again before a kept sandbox's next round, because addresses change.
+set -eu
+
+blocked="$*"
+for name in host.docker.internal gateway.docker.internal; do
+	blocked="$blocked $(getent ahosts "$name" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' ')"
+done
+
+# The default gateway, from the kernel's routing table, where it is little-endian hexadecimal.
+hex="$(awk '$2 == "00000000" { print $3; exit }' /proc/net/route)"
+if [ -n "$hex" ]; then
+	gateway="$(printf '%d.%d.%d.%d' "0x$(echo "$hex" | cut -c7-8)" "0x$(echo "$hex" | cut -c5-6)" "0x$(echo "$hex" | cut -c3-4)" "0x$(echo "$hex" | cut -c1-2)")"
+	blocked="$blocked $gateway"
+fi
+
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -F
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+
+ip6=false
+if command -v ip6tables >/dev/null 2>&1 && ip6tables -F 2>/dev/null; then
+	ip6=true
+	ip6tables -P OUTPUT ACCEPT
+fi
+
+for address in $(echo "$blocked" | tr ' ' '\n' | sort -u); do
+	case "$address" in
+		*:*)
+			if [ "$ip6" = true ]; then
+				ip6tables -A OUTPUT -d "$address" -j REJECT
+			fi
+			;;
+		*)
+			iptables -A OUTPUT -d "$address" -j REJECT --reject-with icmp-admin-prohibited
+			;;
+	esac
+done
+
+echo "pyxie-firewall: refused $(echo "$blocked" | tr ' ' '\n' | sort -u | grep -c . || true) host addresses"

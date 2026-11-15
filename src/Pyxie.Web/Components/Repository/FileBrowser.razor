@@ -1,0 +1,81 @@
+@{
+	IReadOnlyList<BreadcrumbSegment> trail = Trail;
+}
+<div class="file-browser">
+	<nav class="file-path" aria-label="Path">
+		@if (trail.Count == 0)
+		{
+			<span class="file-crumb file-crumb-current" aria-current="page">@Overview.Name</span>
+		}
+		else
+		{
+			<a class="file-crumb" href="@Href(string.Empty)">@Overview.Name</a>
+			@foreach (BreadcrumbSegment segment in trail)
+			{
+				<span class="file-crumb-separator" aria-hidden="true">/</span>
+				@if (segment == trail[^1])
+				{
+					<span class="file-crumb file-crumb-current" aria-current="page">@segment.Name</span>
+				}
+				else
+				{
+					<a class="file-crumb" href="@Href(segment.Path)">@segment.Name</a>
+				}
+			}
+		}
+	</nav>
+	@if (_error is not null)
+	{
+		<div class="file-alert">
+			<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+		</div>
+	}
+	else if (_notFound)
+	{
+		<div class="file-status">@NotFoundText</div>
+	}
+	else if (_entries is not null)
+	{
+		@if (_entries.Count == 0)
+		{
+			<div class="file-status">This folder is empty.</div>
+		}
+		else
+		{
+			<Table Hoverable Narrow>
+				<TableHeader>
+					<TableRow>
+						<TableHeaderCell>Name</TableHeaderCell>
+						<TableHeaderCell Class="entry-size">Size</TableHeaderCell>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					@foreach (GitTreeEntry entry in _entries)
+					{
+						<TableRow @key="entry.Path">
+							<TableRowCell>
+								@if (entry.Kind == GitTreeEntryKind.Submodule)
+								{
+									<span class="entry entry-inert" title="Submodule"><Icon Name="@IconName.Link" /> @entry.Name</span>
+								}
+								else
+								{
+									<a class="entry" href="@Href(entry.Path)"><Icon Name="@IconFor(entry)" /> @entry.Name</a>
+								}
+							</TableRowCell>
+							<TableRowCell Class="entry-size">@(entry.Size is long size ? FileSize.Format(size) : string.Empty)</TableRowCell>
+						</TableRow>
+					}
+				</TableBody>
+			</Table>
+		}
+	}
+	else if (_file is not null)
+	{
+		<FileViewer Content="@_file" />
+	}
+	else
+	{
+		<div class="file-status">Loading</div>
+	}
+</div>

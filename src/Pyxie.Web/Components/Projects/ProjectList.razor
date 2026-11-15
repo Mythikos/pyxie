@@ -1,0 +1,48 @@
+@if (Projects.Count > 0 || _import is { IsRunning: true })
+{
+	<ul class="project-list">
+		@foreach (ProjectEntry entry in Projects)
+		{
+			<li class="@RowClass(entry)" @key="entry.Project.Id">
+				<div class="project-head">
+					<span class="project-name">@entry.Project.Name</span>
+					@if (entry.Project.IsOpen)
+					{
+						<span class="pyx-chip project-open-chip">Open</span>
+					}
+					@if (entry.Project.IsOpen || entry.IsFolderPresent)
+					{
+						<span class="project-action" title="@ActionBlockedText(entry)">
+							<Button Color="Color.Default" Size="Size.Small" Disabled="@(Busy || ActionBlockedText(entry) is not null)" Loading="@IsChanging(entry)" Clicked="@(() => ToggleAsync(entry))" aria-label="@($"{ActionText(entry)} {entry.Project.Name}")">@ActionText(entry)</Button>
+						</span>
+					}
+					else
+					{
+						<span class="project-action project-gone">Folder is gone</span>
+					}
+				</div>
+				@if (entry.Project.Source.Length > 0)
+				{
+					<span class="project-source">@entry.Project.Source</span>
+				}
+				@if (ErrorOf(entry) is string error)
+				{
+					<div class="project-error" role="alert">@error</div>
+				}
+			</li>
+		}
+		@if (_import is { IsRunning: true } import)
+		{
+			<li class="project-row" @key="ImportKey">
+				<div class="project-head">
+					<span class="project-name">@ImportName(import)</span>
+					<span class="project-action project-importing">Importing</span>
+				</div>
+				<span class="project-source">@ImportOrigin(import)</span>
+				<div class="import-bar" role="progressbar" aria-label="@($"Importing {ImportName(import)}")">
+					<div class="import-bar-fill"></div>
+				</div>
+			</li>
+		}
+	</ul>
+}

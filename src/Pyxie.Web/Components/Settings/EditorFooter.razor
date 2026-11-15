@@ -1,0 +1,20 @@
+<ModalFooter>
+	<div class="editor-footer">
+		@if (_confirmingDelete)
+		{
+			<Button @ref="_cancelDelete" Color="Color.Default" Disabled="@Busy" Clicked="@CancelDelete" aria-label="@($"Cancel deleting {Subject}")">Cancel</Button>
+			<Button Color="Color.Danger" Disabled="@Busy" Clicked="@ConfirmDeleteAsync" aria-label="@($"Confirm deleting {Subject}")">Confirm</Button>
+		}
+		else
+		{
+			@if (Deletable)
+			{
+				<Button @ref="_delete" Color="Color.Danger" Outline Disabled="@Busy" Clicked="@BeginDelete">Delete</Button>
+			}
+			<span class="editor-footer-end">
+				<Button Color="Color.Default" Disabled="@Busy" Clicked="@(() => CancelRequested.InvokeAsync())">Cancel</Button>
+				<Button Color="Color.Primary" Disabled="@Busy" Clicked="@(() => SaveRequested.InvokeAsync())">Save</Button>
+			</span>
+		}
+	</div>
+</ModalFooter>

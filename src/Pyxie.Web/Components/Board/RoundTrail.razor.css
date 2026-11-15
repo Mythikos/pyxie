@@ -1,0 +1,53 @@
+/* The squares are 10x10 with a 3 px gap; a long trail (up to 20 rounds) wraps rather than widening the card. */
+.round-trail {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	min-width: 0;
+}
+
+.trail-square {
+	flex: none;
+	box-sizing: border-box;
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+}
+
+.trail-tone-success {
+	background: var(--pyx-success);
+}
+
+.trail-tone-danger {
+	background: var(--pyx-error);
+}
+
+.trail-tone-warning {
+	background: var(--pyx-amber);
+}
+
+.trail-tone-muted {
+	background: var(--pyx-switch-off);
+}
+
+/* The round running now: a 2 px outline in the color of its stage, nothing inside. */
+.trail-open {
+	border: 2px solid transparent;
+	background: transparent;
+}
+
+.trail-stage-work {
+	border-color: var(--pyx-success);
+}
+
+.trail-stage-gate {
+	border-color: var(--pyx-amber);
+}
+
+.trail-stage-resolve {
+	border-color: var(--pyx-lane-review);
+}
+
+.trail-stage-merge {
+	border-color: var(--pyx-coat-mid);
+}

@@ -1,0 +1,417 @@
+/* Pyxie design system: the tokens from docs/design/README.md, the self-hosted fonts, the Ant Design token mapping, and the few shared classes every screen uses. Components keep their own styles in scoped .razor.css files and read these tokens. */
+
+/* Fonts: SIL OFL (licenses in fonts/), self-hosted because Pyxie runs locally. */
+
+@font-face {
+	font-family: "Inter Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Inter Variable";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("fonts/inter-latin-ext-wght-normal.woff2") format("woff2-variations");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400;
+	src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 400;
+	src: url("fonts/jetbrains-mono-latin-ext-400-normal.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 500;
+	src: url("fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 500;
+	src: url("fonts/jetbrains-mono-latin-ext-500-normal.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Outfit";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600;
+	src: url("fonts/outfit-latin-600-normal.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Outfit";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600;
+	src: url("fonts/outfit-latin-ext-600-normal.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Tokens. :root outranks the html block where Blazorise.AntDesign defines its defaults, so the mapping below wins regardless of stylesheet order. */
+
+:root {
+	/* Colors (docs/design/README.md). */
+	--pyx-coat: #232429;
+	--pyx-coat-mid: #3A3B42;
+	--pyx-coat-light: #7B7C85;
+	--pyx-ground: #F6F6F3;
+	--pyx-surface: #FFFFFF;
+	--pyx-lane: #EDEDE9;
+	--pyx-border: #E3E3DF;
+	--pyx-border-strong: #D6D6D1;
+	--pyx-text: #1E1F23;
+	--pyx-text-2: #4A4C53;
+	--pyx-text-muted: #63656D;
+	--pyx-header-text: #B9BAC2;
+	--pyx-eye: #8DBE5A;
+	--pyx-primary: #3D7336;
+	--pyx-primary-hover: #2F5C29;
+	--pyx-success: #4E8A34;
+	--pyx-success-tint: #EAF3E2;
+	--pyx-nose: #E8939F;
+	--pyx-ear: #F0AEB8;
+	--pyx-pink-tint: #FBE9EC;
+	--pyx-pink-text: #8E2F42;
+	--pyx-error: #C23B3B;
+	--pyx-error-text: #A12D2D;
+	--pyx-error-tint: #FFF7F6;
+	--pyx-error-border: #E8AFAC;
+	--pyx-amber: #D19A2E;
+	--pyx-amber-text: #B7791F;
+	--pyx-switch-off: #CFCFCA;
+
+	/* Lane dots. */
+	--pyx-lane-queue: #8A8C94;
+	--pyx-lane-in-progress: #6FA34A;
+	--pyx-lane-gates: #D19A2E;
+	--pyx-lane-review: #D17F8F;
+	--pyx-lane-complete: #3D7336;
+
+	/* Values the reference screens use in one place each, kept here so no component hardcodes a color. */
+	--pyx-open-row: #F3F8EE;
+	--pyx-open-chip: #DCEBCD;
+	--pyx-segmented-track: #E7E7E3;
+	--pyx-error-button-border: #E0C3C1;
+	--pyx-handle: #9A9BA3;
+	--pyx-editor-border: #2E3036;
+	--pyx-editor-text: #E6E6E3;
+	--pyx-on-coat: #FFFFFF;
+	--pyx-on-coat-faint: rgba(255, 255, 255, 0.08);
+	--pyx-on-coat-hover: rgba(255, 255, 255, 0.10);
+	--pyx-on-coat-border: rgba(255, 255, 255, 0.24);
+	--pyx-running-pill-bg: rgba(141, 190, 90, 0.14);
+	--pyx-running-pill-border: rgba(141, 190, 90, 0.35);
+	--pyx-running-pill-text: #CFE6B8;
+	--pyx-stopped-pill-bg: rgba(255, 255, 255, 0.06);
+	--pyx-stopped-pill-border: rgba(255, 255, 255, 0.14);
+	--pyx-stopped-pill-text: #D9DAE0;
+	/* Amber is too light for text on white; this keeps warnings at 4.5:1. */
+	--pyx-amber-strong: #8F6214;
+
+	/* Type. */
+	--pyx-font-ui: "Inter Variable", "Inter", system-ui, sans-serif;
+	--pyx-font-mono: "JetBrains Mono", ui-monospace, monospace;
+	--pyx-font-display: "Outfit", "Inter Variable", system-ui, sans-serif;
+
+	/* Shape. */
+	--pyx-radius-pill: 999px;
+	--pyx-radius-control: 8px;
+	--pyx-radius-control-sm: 7px;
+	--pyx-radius-card: 10px;
+	--pyx-radius-lane: 12px;
+	--pyx-radius-panel: 14px;
+	--pyx-shadow-running: 0 1px 2px rgba(20, 20, 25, 0.05);
+
+	/* Ant Design palette, mapped onto the tokens. */
+	--ant-primary-color: var(--pyx-primary);
+	--ant-primary-color-hover: var(--pyx-primary-hover);
+	--ant-primary-color-active: var(--pyx-primary-hover);
+	--ant-primary-1: var(--pyx-success-tint);
+	--ant-primary-2: var(--pyx-open-chip);
+	--ant-primary-3: #B5D19F;
+	--ant-primary-4: #7FA870;
+	--ant-primary-5: var(--pyx-primary-hover);
+	--ant-color-primary: var(--pyx-primary);
+	--ant-color-primary-hover: var(--pyx-primary-hover);
+	--ant-color-primary-active: var(--pyx-primary-hover);
+	--ant-color-primary-bg: var(--pyx-success-tint);
+	--ant-color-primary-bg-hover: var(--pyx-open-chip);
+	--ant-color-primary-border: #B5D19F;
+	--ant-color-primary-border-hover: #7FA870;
+	--ant-control-outline: rgba(61, 115, 54, 0.2);
+	--ant-color-link: var(--pyx-primary);
+	--ant-color-link-hover: var(--pyx-primary-hover);
+	--ant-color-link-active: var(--pyx-primary-hover);
+
+	--ant-success-color: var(--pyx-success);
+	--ant-success-color-hover: var(--pyx-success);
+	--ant-success-color-active: var(--pyx-primary-hover);
+	--ant-success-color-outline: rgba(78, 138, 52, 0.2);
+	--ant-success-color-deprecated-bg: var(--pyx-success-tint);
+	--ant-success-color-deprecated-border: #B5D19F;
+	--ant-color-success-text: var(--pyx-primary-hover);
+
+	--ant-error-color: var(--pyx-error);
+	--ant-error-color-hover: var(--pyx-error);
+	--ant-error-color-active: var(--pyx-error-text);
+	--ant-error-color-outline: rgba(194, 59, 59, 0.2);
+	--ant-error-color-deprecated-bg: var(--pyx-error-tint);
+	--ant-error-color-deprecated-border: var(--pyx-error-border);
+	--ant-color-error-text: var(--pyx-error-text);
+	--ant-color-error-border-hover: var(--pyx-error-border);
+
+	--ant-warning-color: var(--pyx-amber);
+	--ant-warning-color-hover: var(--pyx-amber);
+	--ant-warning-color-active: var(--pyx-amber-text);
+	--ant-warning-color-deprecated-bg: #FBF4E6;
+	--ant-warning-color-deprecated-border: #EBD3A2;
+	--ant-color-warning-text: var(--pyx-amber-strong);
+
+	--ant-info-color: var(--pyx-primary);
+	--ant-info-color-deprecated-bg: var(--pyx-success-tint);
+	--ant-info-color-deprecated-border: #B5D19F;
+
+	/* Ant Design text, surfaces, borders, and fills. */
+	--ant-color-text: var(--pyx-text);
+	--ant-color-text-heading: var(--pyx-text);
+	--ant-color-text-secondary: var(--pyx-text-2);
+	--ant-color-text-label: var(--pyx-text-2);
+	--ant-color-text-tertiary: var(--pyx-text-muted);
+	--ant-color-text-description: var(--pyx-text-muted);
+	--ant-color-text-quaternary: var(--pyx-switch-off);
+	--ant-color-text-placeholder: var(--pyx-text-muted);
+	--ant-color-text-disabled: var(--pyx-handle);
+	--ant-color-bg-base: var(--pyx-surface);
+	--ant-color-bg-layout: var(--pyx-ground);
+	--ant-color-bg-container: var(--pyx-surface);
+	--ant-color-bg-elevated: var(--pyx-surface);
+	--ant-color-bg-container-disabled: var(--pyx-ground);
+	--ant-color-border: var(--pyx-border-strong);
+	--ant-color-border-secondary: var(--pyx-border);
+	--ant-color-split: var(--pyx-lane);
+	--ant-color-fill: var(--pyx-border-strong);
+	--ant-color-fill-secondary: var(--pyx-lane);
+	--ant-color-fill-tertiary: var(--pyx-lane);
+	--ant-color-fill-quaternary: var(--pyx-ground);
+	--ant-color-fill-alter: var(--pyx-ground);
+	--ant-color-fill-content: var(--pyx-lane);
+
+	/* Ant Design type, shape, and sizes. */
+	--ant-font-family: var(--pyx-font-ui);
+	--ant-font-family-code: var(--pyx-font-mono);
+	--ant-border-radius-xs: 4px;
+	--ant-border-radius-sm: var(--pyx-radius-control-sm);
+	--ant-border-radius: var(--pyx-radius-control);
+	--ant-border-radius-lg: var(--pyx-radius-card);
+	--ant-control-height: 36px;
+	--ant-control-height-sm: 28px;
+	--ant-control-height-lg: 40px;
+
+	/* The design allows one shadow, on running cards; Ant's elevation shadows are off. */
+	--ant-box-shadow-tertiary: none;
+	--ant-button-default-shadow: none;
+	--ant-button-primary-shadow: none;
+	--ant-button-danger-shadow: none;
+
+	/* Ant Design components. */
+	--ant-button-font-weight: 500;
+	--ant-button-default-color: var(--pyx-text);
+	--ant-button-default-border-color: var(--pyx-border-strong);
+	--ant-button-default-hover-bg: var(--pyx-ground);
+	--ant-button-default-hover-color: var(--pyx-text);
+	--ant-button-default-hover-border-color: var(--pyx-handle);
+	--ant-button-default-active-bg: var(--pyx-lane);
+	--ant-button-default-active-color: var(--pyx-text);
+	--ant-button-default-active-border-color: var(--pyx-handle);
+	--ant-switch-track-height: 24px;
+	--ant-switch-track-min-width: 40px;
+	--ant-switch-track-padding: 3px;
+	--ant-switch-handle-size: 18px;
+	--ant-switch-handle-shadow: none;
+	--ant-tabs-ink-bar-color: var(--pyx-primary);
+	--ant-tabs-item-color: var(--pyx-text-2);
+	--ant-tabs-item-hover-color: var(--pyx-text);
+	--ant-tabs-item-selected-color: var(--pyx-text);
+	--ant-tabs-item-active-color: var(--pyx-text);
+	--ant-table-header-bg: var(--pyx-ground);
+	--ant-table-header-color: var(--pyx-text-2);
+	--ant-table-header-split-color: transparent;
+	--ant-table-border-color: var(--pyx-lane);
+	--ant-table-row-hover-bg: var(--pyx-ground);
+	--ant-segmented-bg: var(--pyx-segmented-track);
+	--ant-segmented-thumb-box-shadow: 0 1px 2px rgba(20, 20, 25, 0.08);
+	--ant-segmented-item-color: var(--pyx-text-2);
+	--ant-segmented-item-selected-color: var(--pyx-text);
+	--ant-tag-default-bg: var(--pyx-lane);
+	--ant-tag-default-color: var(--pyx-text-2);
+	--ant-progress-default-color: var(--pyx-eye);
+	--ant-progress-remaining-color: var(--pyx-lane);
+
+	/* Blazorise's static Ant styles read these first: Color.Dark is the coat (the Import button). */
+	--b-theme-dark: var(--pyx-coat);
+}
+
+/* Base. */
+
+html,
+body {
+	background: var(--pyx-ground);
+	color: var(--pyx-text);
+	font-family: var(--pyx-font-ui);
+}
+
+body {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+code,
+kbd,
+pre,
+samp {
+	font-family: var(--pyx-font-mono);
+}
+
+/* Blazorise's Ant stylesheet draws a tinted box around every code element; Pyxie shows code as plain mono text and boxes only where a component asks for it. */
+code {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	font-size: inherit;
+}
+
+a {
+	color: var(--pyx-primary);
+}
+
+a:hover {
+	color: var(--pyx-primary-hover);
+}
+
+:focus-visible {
+	outline: 2px solid var(--pyx-primary);
+	outline-offset: 2px;
+}
+
+/* Ant's own focus rules would otherwise win: antd.css drops the outline of every focused link (a:focus), and rings buttons, switches and checkboxes in the pale primary border, about 1.5:1 on the ground. Same specificity as Ant's, and this sheet loads after it. */
+a:focus-visible,
+.ant-btn:not(:disabled):focus-visible,
+.ant-switch:focus-visible,
+.ant-checkbox:has(.ant-checkbox-input:focus-visible) {
+	outline: 2px solid var(--pyx-primary);
+	outline-offset: 2px;
+}
+
+/* On the coat the primary green is too dark to see (2.7:1); the header's controls ring in the eye green, as its links do. */
+.app-header .ant-btn:not(:disabled):focus-visible {
+	outline-color: var(--pyx-eye);
+}
+
+h1:focus {
+	outline: none;
+}
+
+/* The design's checkboxes are the browser's own: square-cornered, unlike Ant's, which take the small control radius and read as round. */
+.ant-checkbox {
+	border-radius: var(--ant-border-radius-xs);
+}
+
+/* Ant draws an unchecked checkbox with the control border, too faint to find a box by (WCAG 1.4.11 wants 3:1); the browser's own box is as dark as muted text, like the radios beside it. */
+.ant-checkbox:not(.ant-checkbox-checked):not(.ant-checkbox-disabled) {
+	border-color: var(--pyx-text-muted);
+}
+
+/* Shared classes. */
+
+.pyx-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Chips and pills: radius 999, 11/600. Neutral by default; the color classes match the category colors. */
+.pyx-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	border-radius: var(--pyx-radius-pill);
+	background: var(--pyx-lane);
+	color: var(--pyx-text-2);
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 16px;
+	white-space: nowrap;
+}
+
+.pyx-chip-green {
+	background: var(--pyx-success-tint);
+	color: var(--pyx-primary-hover);
+}
+
+.pyx-chip-pink {
+	background: var(--pyx-pink-tint);
+	color: var(--pyx-pink-text);
+}
+
+.pyx-chip-dark {
+	background: var(--pyx-coat-mid);
+	color: var(--pyx-on-coat);
+}
+
+/* White panels on the ground: Repository and Settings. */
+.pyx-panel {
+	background: var(--pyx-surface);
+	border: 1px solid var(--pyx-border);
+	border-radius: var(--pyx-radius-panel);
+}
+
+.blazor-error-boundary {
+	padding: 12px 16px;
+	border: 1px solid var(--pyx-error-border);
+	border-radius: var(--pyx-radius-card);
+	background: var(--pyx-error-tint);
+	color: var(--pyx-error-text);
+}
+
+.blazor-error-boundary::after {
+	content: "An error has occurred.";
+}

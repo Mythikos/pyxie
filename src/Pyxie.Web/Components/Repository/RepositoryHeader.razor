@@ -1,0 +1,15 @@
+<div class="pyx-panel repo-header">
+	<div class="repo-title">
+		<h1 class="repo-name">@ProjectName</h1>
+		<span class="repo-branch" title="Target branch"><Icon Name="@("lock")" />@Repository.TargetBranch</span>
+	</div>
+	<dl class="repo-facts">
+		<dt>Origin</dt>
+		<dd class="repo-origin">@OriginText</dd>
+		<dt>Hub</dt>
+		<dd class="repo-hub">
+			<code class="repo-path" tabindex="0">@Repository.Path</code>
+			<Button Width="@_copyWidth" Color="Color.Default" Clicked="@CopyAsync"><Icon Name="@("copy")" />@(_copied ? "Copied" : "Copy")</Button>
+		</dd>
+	</dl>
+</div>

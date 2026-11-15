@@ -1,0 +1,36 @@
+.repository-tabs {
+	display: flex;
+	gap: 4px;
+}
+
+.repository-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	height: 48px;
+	padding: 0 12px;
+	border-bottom: 2px solid transparent;
+	color: var(--pyx-text-2);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.repository-tab:hover {
+	color: var(--pyx-text);
+}
+
+.repository-tab:focus-visible {
+	outline-offset: -2px;
+}
+
+.repository-tab-selected {
+	border-bottom-color: var(--pyx-primary);
+	color: var(--pyx-text);
+	font-weight: 600;
+}
+
+.repository-count {
+	padding: 1px 7px;
+}

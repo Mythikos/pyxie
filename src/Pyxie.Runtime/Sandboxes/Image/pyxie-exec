@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs a command with the sandbox's secrets as environment variables: each file in /pyxie/secrets is exported under its own name, so a
+# secret never travels on a command line.
+if [ -d /pyxie/secrets ]; then
+	for file in /pyxie/secrets/*; do
+		[ -f "$file" ] || continue
+		name="$(basename "$file")"
+		value="$(cat "$file")"
+		export "$name=$value"
+	done
+fi
+if ! command -v "$1" >/dev/null 2>&1; then
+	echo "pyxie-exec: $1: command not found" >&2
+	exit 127
+fi
+exec "$@"

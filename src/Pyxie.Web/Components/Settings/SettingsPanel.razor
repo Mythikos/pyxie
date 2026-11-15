@@ -1,0 +1,10 @@
+<section id="@Section.Id" class="@PanelClass" aria-labelledby="@HeadingId" @attributes="AdditionalAttributes">
+	<div class="settings-panel-header">
+		<h2 id="@HeadingId">@Section.Title</h2>
+		@if (Actions is not null)
+		{
+			<div class="settings-panel-actions">@Actions</div>
+		}
+	</div>
+	@ChildContent
+</section>

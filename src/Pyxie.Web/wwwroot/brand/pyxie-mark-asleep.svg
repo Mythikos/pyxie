@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pyxie, asleep">
+<path d="M7 34 C6 24 7 14 9.5 7.5 Q10.6 4.8 13 6.4 L23.5 15.6 Q32 13 40.5 15.6 L51 6.4 Q53.4 4.8 54.5 7.5 C57 14 58 24 57 34 Q56 57 32 59 Q8 57 7 34 Z" fill="#7B7C85"/>
+<path d="M30.5 17 Q32 16.4 33.5 17 L35 31 Q45 37 47 46 Q42 57.5 32 58.6 Q22 57.5 17 46 Q19 37 29 31 Z" fill="#FFFFFF"/>
+<path d="M16.5 34.5 Q21.5 38.5 26.5 34.5M37.5 34.5 Q42.5 38.5 47.5 34.5" stroke="#18191D" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+<path d="M28.6 42.2 Q32 41.2 35.4 42.2 Q34 45.6 32 46.2 Q30 45.6 28.6 42.2 Z" fill="#E8939F"/>
+</svg>

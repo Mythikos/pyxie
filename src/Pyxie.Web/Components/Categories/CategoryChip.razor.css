@@ -1,0 +1,12 @@
+/* In a row of other things the chip is the one that gives way: a name longer than the room it has is cut short with an ellipsis, and the title has all of it. The inner element carries the ellipsis because text-overflow does not apply to bare text in a flex box. */
+.pyx-chip {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.chip-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

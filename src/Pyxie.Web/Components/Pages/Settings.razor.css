@@ -1,0 +1,53 @@
+/* The nav and the panels sit side by side and wrap on narrow screens, the nav above the panels. */
+.settings {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 24px;
+	min-width: 0;
+}
+
+.settings-nav {
+	display: flex;
+	flex: 1 1 200px;
+	flex-direction: column;
+	gap: 2px;
+	max-width: 220px;
+}
+
+.settings-nav a {
+	padding: 9px 12px;
+	border-radius: var(--pyx-radius-control);
+	color: var(--pyx-text-2);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+}
+
+.settings-nav a:hover {
+	color: var(--pyx-text);
+}
+
+.settings-nav a[aria-current="true"] {
+	background: var(--pyx-lane);
+	color: var(--pyx-text);
+	font-weight: 600;
+}
+
+.settings-panels {
+	display: flex;
+	flex: 999 1 640px;
+	flex-direction: column;
+	gap: 20px;
+	min-width: 0;
+	max-width: 1100px;
+}
+
+@media (max-width: 930px) {
+	.settings-nav {
+		flex-basis: 100%;
+		flex-direction: row;
+		flex-wrap: wrap;
+		max-width: none;
+	}
+}

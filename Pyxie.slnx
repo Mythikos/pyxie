@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pyxie.Data.Sqlite/Pyxie.Data.Sqlite.csproj" />
+    <Project Path="src/Pyxie.Data/Pyxie.Data.csproj" />
+    <Project Path="src/Pyxie.Runtime/Pyxie.Runtime.csproj" />
+    <Project Path="src/Pyxie.Web/Pyxie.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pyxie.FakeHarness/Pyxie.FakeHarness.csproj" />
+    <Project Path="tests/Pyxie.Tests/Pyxie.Tests.csproj" />
+  </Folder>
+</Solution>

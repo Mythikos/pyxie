@@ -1,0 +1,56 @@
+<Modal Visible="@Visible" VisibleChanged="@VisibleChanged" Centered>
+	<ModalContent>
+		<ModalHeader>
+			<ModalTitle>@(Agent is null ? "Add agent" : "Edit agent")</ModalTitle>
+		</ModalHeader>
+		<ModalBody>
+			<Field>
+				<FieldLabel>Name</FieldLabel>
+				<TextInput @bind-Value="_model.Name" />
+				@if (_nameError is not null)
+				{
+					<div class="field-error">@_nameError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Harness</FieldLabel>
+				<Select TValue="HarnessKind" Value="@_model.Harness" ValueChanged="@((HarnessKind harness) => _model.ChangeHarness(harness))">
+					@foreach (HarnessKind kind in HarnessInfo.All)
+					{
+						<SelectItem TValue="HarnessKind" Value="@kind">@HarnessInfo.DisplayName(kind)</SelectItem>
+					}
+				</Select>
+			</Field>
+			<Field>
+				<FieldLabel>Command</FieldLabel>
+				<TextInput @bind-Value="_model.Command" />
+				@if (_commandError is not null)
+				{
+					<div class="field-error">@_commandError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Arguments</FieldLabel>
+				<TextInput @bind-Value="_model.Arguments" />
+				@if (_argumentsError is not null)
+				{
+					<div class="field-error">@_argumentsError</div>
+				}
+			</Field>
+			<Field>
+				<Check TValue="bool" @bind-Value="_model.CanWork">Can work</Check>
+			</Field>
+			<Field>
+				<Check TValue="bool" @bind-Value="_model.CanReview">Can review</Check>
+			</Field>
+			<Field>
+				<Check TValue="bool" @bind-Value="_model.CanMerge">Resolves merge conflicts</Check>
+			</Field>
+			@if (_serviceError is not null)
+			{
+				<Alert Color="Color.Danger" Visible="true">@_serviceError</Alert>
+			}
+		</ModalBody>
+		<EditorFooter Subject="@(Agent?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(Agent is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
+	</ModalContent>
+</Modal>

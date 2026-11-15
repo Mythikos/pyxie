@@ -1,0 +1,31 @@
+@page "/"
+@using Pyxie.Data.Enums
+@using Pyxie.Data.Services.Rules
+@using Pyxie.Web.Components.Board
+@using Pyxie.Web.Components.Projects
+
+<PageTitle>Board</PageTitle>
+
+<div class="board-page">
+	@if (_loading)
+	{
+		<div class="board-status">Loading</div>
+	}
+	else if (_project is null)
+	{
+		<NoProjectOpen />
+	}
+	else
+	{
+		<div class="board-scroll">
+			<div class="board" style="--lane-count: @CardLifecycleRules.BoardLanes.Count">
+				@foreach (CardLane lane in CardLifecycleRules.BoardLanes)
+				{
+					<BoardLane @ref="_lanes[lane]" Lane="@lane" Cards="@CardsIn(lane)" CardClicked="@OpenEditor" AddClicked="@OpenNewCard" RetryClicked="@RetryAsync" CloseClicked="@CloseAsync" Refusals="@_refusals" />
+				}
+			</div>
+		</div>
+	}
+</div>
+
+<CardEditor @key="EditorKey" @ref="_editor" Categories="@_categories" Agents="@_agents" Changed="@AnnounceChange" />

@@ -1,0 +1,12 @@
+<li class="signin">
+	<span class="signin-name">@Name</span>
+	@if (Found)
+	{
+		<span class="signin-found"><Icon Name="IconName.Check" />Found</span>
+	}
+	else
+	{
+		<span class="signin-missing">Not found</span>
+		<p class="signin-fix">@Fix</p>
+	}
+</li>

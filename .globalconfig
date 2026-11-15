@@ -1,0 +1,6 @@
+is_global = true
+
+# Source-generated APIs (including Razor component output) are owned by their generator and may lack XML comments.
+# The pinned compiler does not apply file-scoped EditorConfig rules to those trees.
+# .editorconfig re-enables CS1591 for authored C# files; other warnings are unaffected.
+dotnet_diagnostic.CS1591.severity = none

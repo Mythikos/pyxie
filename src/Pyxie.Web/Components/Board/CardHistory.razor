@@ -1,0 +1,44 @@
+@using Pyxie.Data.Entities
+
+<section class="history">
+	<h4 class="history-title">History</h4>
+	<div class="history-summary">@SummaryText</div>
+	<ol class="history-rounds">
+		@foreach (CardRound round in Ordered)
+		{
+			bool expandable = HasDetails(round);
+			bool expanded = expandable && _expanded.Contains(round.Id);
+			<li @key="round.Id" class="round">
+				@if (expandable)
+				{
+					<button type="button" class="round-row round-toggle" aria-expanded="@(expanded ? "true" : "false")" @onclick="@(() => Toggle(round.Id))">
+						<RoundLine Round="@round" />
+					</button>
+				}
+				else
+				{
+					<div class="round-row">
+						<RoundLine Round="@round" />
+					</div>
+				}
+				@if (!string.IsNullOrWhiteSpace(round.Note))
+				{
+					<div class="round-note">@round.Note</div>
+				}
+				@if (expanded)
+				{
+					@if (!string.IsNullOrWhiteSpace(round.Report))
+					{
+						<div class="round-detail-label">Report</div>
+						<pre class="round-detail">@round.Report</pre>
+					}
+					@if (!string.IsNullOrWhiteSpace(round.Briefing))
+					{
+						<div class="round-detail-label">Briefing</div>
+						<pre class="round-detail">@round.Briefing</pre>
+					}
+				}
+			</li>
+		}
+	</ol>
+</section>

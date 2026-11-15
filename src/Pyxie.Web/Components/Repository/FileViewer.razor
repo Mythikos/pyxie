@@ -1,0 +1,19 @@
+@if (Content.IsBinary)
+{
+	<div class="file-notice">This file is binary (@FileSize.Format(Content.Size)).</div>
+}
+else if (Content.IsTooLarge)
+{
+	<div class="file-notice">This file is too large to show (@FileSize.Format(Content.Size)).</div>
+}
+else if (string.IsNullOrEmpty(Content.Text))
+{
+	<div class="file-notice">This file is empty.</div>
+}
+else
+{
+	<div class="file-viewer">
+		<pre class="file-gutter" aria-hidden="true">@_gutter</pre>
+		<pre class="file-text" tabindex="0">@Content.Text</pre>
+	</div>
+}

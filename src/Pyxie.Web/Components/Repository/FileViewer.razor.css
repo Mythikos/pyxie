@@ -1,0 +1,42 @@
+.file-notice {
+	padding: 24px 18px;
+	color: var(--pyx-text-muted);
+}
+
+.file-viewer {
+	display: flex;
+	overflow: hidden;
+	background: var(--pyx-surface);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+	line-height: 20px;
+}
+
+.file-gutter,
+.file-text {
+	margin: 0;
+	padding: 8px 12px;
+	font: inherit;
+	line-height: inherit;
+	white-space: pre;
+	tab-size: 4;
+}
+
+.file-gutter {
+	flex: none;
+	border-right: 1px solid var(--pyx-lane);
+	background: var(--pyx-ground);
+	color: var(--pyx-text-muted);
+	text-align: right;
+	user-select: none;
+}
+
+.file-text {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow-x: auto;
+}
+
+.file-text:focus-visible {
+	outline-offset: -2px;
+}

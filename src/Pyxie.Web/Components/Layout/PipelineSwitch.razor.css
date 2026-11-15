@@ -1,0 +1,80 @@
+.pipeline-switch {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+/* Eyes closed while stopped, open while running. */
+.pipeline-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 12px 4px 6px;
+	border: 1px solid var(--pyx-stopped-pill-border);
+	border-radius: var(--pyx-radius-pill);
+	background: var(--pyx-stopped-pill-bg);
+	white-space: nowrap;
+}
+
+.pipeline-state {
+	color: var(--pyx-stopped-pill-text);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.pipeline-pill-running {
+	border-color: var(--pyx-running-pill-border);
+	background: var(--pyx-running-pill-bg);
+}
+
+.pipeline-pill-running .pipeline-state {
+	color: var(--pyx-running-pill-text);
+}
+
+.pipeline-capacity {
+	color: var(--pyx-header-text);
+	font-size: 12px;
+}
+
+.pipeline-stop-reason {
+	max-width: 360px;
+	color: var(--pyx-amber);
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.pipeline-switch ::deep .ant-btn {
+	gap: 8px;
+	height: 36px;
+	padding: 0 14px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
+
+.pipeline-switch ::deep .pipeline-start {
+	font-weight: 600;
+}
+
+/* Stop: outlined white on the coat. */
+.pipeline-switch ::deep .pipeline-stop,
+.pipeline-switch ::deep .pipeline-stop:not(:disabled):hover,
+.pipeline-switch ::deep .pipeline-stop:not(:disabled):active {
+	border-color: var(--pyx-on-coat-border);
+	background: transparent;
+	color: var(--pyx-on-coat);
+}
+
+.pipeline-switch ::deep .pipeline-stop:not(:disabled):hover {
+	background: var(--pyx-on-coat-faint);
+}
+
+.pipeline-switch ::deep .pipeline-start:disabled {
+	border-color: var(--pyx-on-coat-border);
+	background: var(--pyx-on-coat-faint);
+	color: var(--pyx-header-text);
+}
+
+.pipeline-glyph {
+	flex: none;
+}

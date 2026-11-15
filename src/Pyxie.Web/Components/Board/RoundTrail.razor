@@ -1,0 +1,8 @@
+@using Pyxie.Data.Services.ReadModels
+
+<div class="round-trail" role="img" aria-label="@Label">
+	@foreach (RoundSummary round in Shown)
+	{
+		<span @key="round.Sequence" class="@SquareClass(round)"></span>
+	}
+</div>

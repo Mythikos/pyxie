@@ -1,0 +1,73 @@
+<article class="@TileClass" @onclick="@OpenAsync">
+	<div class="card-top">
+		@if (OpenRound is not null)
+		{
+			<StageBadge Kind="@OpenRound.Kind" />
+		}
+		<CategoryChip Category="@Item.Category" />
+		@if (FinishedText is not null)
+		{
+			<span class="card-finished">@FinishedText</span>
+		}
+		else if (!IsComplete)
+		{
+			<span class="@CountClass">@CountText</span>
+		}
+	</div>
+	<h3 class="card-title"><button type="button" class="card-name" @ref="_name">@Item.Name</button></h3>
+	@if (IsError)
+	{
+		@if (History.StopReason is not null)
+		{
+			<div class="card-reason"><Icon Name="@("exclamation-circle")" /><span class="card-reason-text" title="@History.StopReason">@History.StopReason</span></div>
+		}
+		<div class="card-actions" @onclick:stopPropagation="true">
+			@if (CanRetry)
+			{
+				<Button Color="Color.Primary" Size="Size.Small" Class="card-retry" Clicked="@RetryAsync"><Icon Name="@("reload")" />Retry</Button>
+			}
+			<Button Color="Color.Default" Size="Size.Small" Class="card-edit" Clicked="@OpenAsync">Edit</Button>
+		</div>
+	}
+	else if (IsQueue)
+	{
+		<div class="card-assigned">
+			@if (Item.WorkerAgent is not null)
+			{
+				<span class="card-worker">@Item.WorkerAgent.Name</span>
+				<span aria-hidden="true">·</span>
+			}
+			<span>@(Item.ReviewerAgent?.Name ?? "No reviewer")</span>
+		</div>
+	}
+	else if (IsActive && Rounds.Count > 0)
+	{
+		<div class="card-footer">
+			<RoundTrail Rounds="@Rounds" />
+			@if (OpenRound?.AgentName is not null)
+			{
+				<span class="card-agent">@OpenRound.AgentName</span>
+			}
+			@if (OpenRound is not null)
+			{
+				<span class="card-elapsed">@ElapsedText</span>
+			}
+		</div>
+	}
+	else if (IsComplete)
+	{
+		<div class="card-footer-complete">
+			<span class="card-merged"><Icon Name="@("check")" />Merged</span>
+			@if (CanClose)
+			{
+				<span class="card-action" @onclick:stopPropagation="true">
+					<Button Color="Color.Default" Size="Size.Small" Clicked="@CloseAsync">Close</Button>
+				</span>
+			}
+		</div>
+	}
+	@if (Refusal is not null)
+	{
+		<div class="card-refusal" role="alert">@Refusal</div>
+	}
+</article>

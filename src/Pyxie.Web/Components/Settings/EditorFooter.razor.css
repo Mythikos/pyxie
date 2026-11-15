@@ -1,0 +1,12 @@
+.editor-footer {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	gap: 8px;
+}
+
+.editor-footer-end {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}

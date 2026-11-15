@@ -1,0 +1,101 @@
+.repo-header {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 20px;
+}
+
+.repo-title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.repo-name {
+	margin: 0;
+	font-family: var(--pyx-font-display);
+	font-size: 26px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	overflow-wrap: anywhere;
+}
+
+.repo-branch {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 9px;
+	border-radius: 6px;
+	background: var(--pyx-lane);
+	color: var(--pyx-text);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+}
+
+.repo-branch ::deep .anticon {
+	color: var(--pyx-text-2);
+	font-size: 12px;
+}
+
+.repo-facts {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr);
+	align-items: center;
+	gap: 10px 16px;
+	margin: 0;
+}
+
+.repo-facts dt {
+	color: var(--pyx-text-muted);
+	font-size: 13px;
+	font-weight: 400;
+}
+
+.repo-facts dd {
+	margin: 0;
+}
+
+.repo-origin {
+	font-family: var(--pyx-font-mono);
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+.repo-hub {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.repo-path {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 8px 10px;
+	overflow-x: auto;
+	scrollbar-width: thin;
+	border: 1px solid var(--pyx-border);
+	border-radius: var(--pyx-radius-control);
+	background: var(--pyx-ground);
+	font-family: var(--pyx-font-mono);
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+.repo-hub ::deep .ant-btn {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 36px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.repo-hub ::deep .ant-btn .anticon {
+	font-size: 13px;
+}

@@ -1,0 +1,77 @@
+.history {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--pyx-border);
+}
+
+.history-title {
+	margin: 0 0 4px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.history-summary {
+	margin-bottom: 8px;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.history-rounds {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.round {
+	padding: 6px 0;
+	border-bottom: 1px solid var(--pyx-lane);
+	font-size: 13px;
+}
+
+.round-row {
+	display: grid;
+	grid-template-columns: 28px 64px 76px minmax(0, 1fr) 96px 132px;
+	align-items: baseline;
+	gap: 8px;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.round-toggle {
+	cursor: pointer;
+}
+
+.round-toggle:focus-visible {
+	outline: 2px solid var(--pyx-primary);
+	outline-offset: 2px;
+}
+
+.round-note {
+	margin: 2px 0 0 36px;
+	overflow-wrap: anywhere;
+	white-space: pre-line;
+}
+
+.round-detail-label {
+	margin: 6px 0 2px 36px;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.round-detail {
+	max-height: 180px;
+	margin: 0 0 0 36px;
+	padding: 8px;
+	overflow: auto;
+	border-radius: var(--pyx-radius-control-sm);
+	background: var(--pyx-ground);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

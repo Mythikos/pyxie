@@ -1,0 +1,61 @@
+.app-brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border-radius: var(--pyx-radius-control);
+	color: var(--pyx-on-coat);
+	text-decoration: none;
+}
+
+.app-brand:hover {
+	color: var(--pyx-on-coat);
+}
+
+.app-brand:focus-visible {
+	outline: 2px solid var(--pyx-eye);
+	outline-offset: 4px;
+}
+
+.app-brand-name {
+	font-family: var(--pyx-font-display);
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1;
+}
+
+.app-nav-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.app-nav-list ::deep .app-nav-link {
+	display: block;
+	padding: 8px 14px;
+	border-radius: var(--pyx-radius-control);
+	color: var(--pyx-header-text);
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 20px;
+	text-decoration: none;
+	transition: background-color 0.15s, color 0.15s;
+}
+
+.app-nav-list ::deep .app-nav-link:hover {
+	color: var(--pyx-on-coat);
+	background: var(--pyx-on-coat-faint);
+}
+
+.app-nav-list ::deep .app-nav-link:focus-visible {
+	outline: 2px solid var(--pyx-eye);
+	outline-offset: 2px;
+}
+
+.app-nav-list ::deep .app-nav-link.active {
+	color: var(--pyx-on-coat);
+	background: var(--pyx-on-coat-hover);
+}

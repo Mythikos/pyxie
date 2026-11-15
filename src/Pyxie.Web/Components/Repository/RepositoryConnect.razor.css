@@ -1,0 +1,92 @@
+.connect {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0 16px 14px;
+	padding: 12px;
+	border-radius: var(--pyx-radius-card);
+	background: var(--pyx-ground);
+}
+
+.connect-label {
+	color: var(--pyx-text-2);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.connect-fields {
+	display: flex;
+	gap: 8px;
+	margin-top: -4px;
+}
+
+.connect-error {
+	color: var(--pyx-error-text);
+	font-size: 12.5px;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+/* The segmented control: a two-way switch on a grey track. The selected item is drawn here, on its own, rather than by the thumb Blazorise moves with script, which the first render has not placed yet. */
+.connect ::deep .ant-segmented {
+	--ant-control-height: 30px;
+	display: block;
+	padding: 2px;
+	border-radius: var(--pyx-radius-control);
+	background: var(--pyx-segmented-track);
+}
+
+.connect ::deep .ant-segmented-group {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 2px;
+}
+
+.connect ::deep .ant-segmented-thumb {
+	display: none;
+}
+
+.connect ::deep .ant-segmented-item {
+	min-height: 30px;
+}
+
+.connect ::deep .ant-segmented-item-label {
+	min-height: 30px;
+	border-radius: 6px;
+	color: var(--pyx-text-2);
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 30px;
+	cursor: pointer;
+}
+
+.connect ::deep .ant-segmented-item-selected .ant-segmented-item-label {
+	background: var(--pyx-surface);
+	box-shadow: var(--ant-segmented-thumb-box-shadow);
+	color: var(--pyx-text);
+	font-weight: 600;
+}
+
+.connect ::deep .ant-segmented-item:has(:focus-visible) .ant-segmented-item-label {
+	outline: 2px solid var(--pyx-primary);
+	outline-offset: 1px;
+}
+
+.connect-fields ::deep .ant-input {
+	flex: 1 1 0;
+	min-width: 0;
+	height: 36px;
+	padding: 0 10px;
+	border-color: var(--pyx-border-strong);
+	border-radius: var(--pyx-radius-control);
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+}
+
+.connect-fields ::deep .ant-btn {
+	height: 36px;
+	padding: 0 14px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+	font-weight: 600;
+}

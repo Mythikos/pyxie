@@ -1,0 +1,16 @@
+.field-error {
+	margin-top: 4px;
+	color: var(--pyx-error-text);
+	font-size: 12px;
+}
+
+.card-lane {
+	margin-left: 4px;
+	font-size: 12px;
+	color: var(--pyx-text-muted);
+	font-weight: 400;
+}
+
+.confirm-prompt {
+	margin-right: auto;
+}

@@ -1,0 +1,43 @@
+.branch-picker {
+	display: flex;
+	flex: 0 1 auto;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.branch-label {
+	color: var(--pyx-text-muted);
+	font-size: 13px;
+}
+
+.branch-picker ::deep .b-ant-select-root {
+	flex: 0 1 auto;
+	width: 180px;
+	max-width: 100%;
+}
+
+.branch-picker ::deep .ant-select.ant-select-single {
+	display: block;
+	width: 100%;
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+}
+
+/* 34 high with a 1 px border, so the text sits 32 high inside it. */
+.branch-picker ::deep .ant-select.ant-select-single .ant-select-selector {
+	box-sizing: border-box;
+	height: 34px;
+	min-height: 34px;
+	border-radius: var(--pyx-radius-control);
+}
+
+.branch-picker ::deep .ant-select.ant-select-single .ant-select-selection-item,
+.branch-picker ::deep .ant-select.ant-select-single .ant-select-selection-placeholder {
+	font-size: 12.5px;
+	line-height: 32px;
+}
+
+.branch-picker ::deep .ant-select.ant-select-single .ant-select-selection-search-input {
+	height: 32px;
+}

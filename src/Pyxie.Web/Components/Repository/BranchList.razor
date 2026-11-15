@@ -1,0 +1,42 @@
+<div class="branch-list">
+	@if (Overview.Branches.Count == 0)
+	{
+		<div class="branch-status">The repository has no branches.</div>
+	}
+	else
+	{
+		<Table Hoverable Narrow>
+			<TableHeader>
+				<TableRow>
+					<TableHeaderCell>Branch</TableHeaderCell>
+					<TableHeaderCell>Last commit</TableHeaderCell>
+					<TableHeaderCell Class="branch-date-cell">Date</TableHeaderCell>
+				</TableRow>
+			</TableHeader>
+			<TableBody>
+				@foreach (GitBranch branch in Overview.Branches)
+				{
+					<TableRow @key="branch.Name">
+						<TableRowCell>
+							<a class="branch-name" href="@Href(branch)">@branch.Name</a>
+							@if (branch.Name == Overview.Repository.TargetBranch)
+							{
+								<span class="pyx-chip branch-chip">Target</span>
+							}
+							@if (CardIdOf(branch) is int cardId)
+							{
+								<span class="pyx-chip pyx-chip-green branch-chip">Card @cardId</span>
+								@if (_cardNames.TryGetValue(cardId, out string? cardName) && cardName is not null)
+								{
+									<span class="branch-card">@cardName</span>
+								}
+							}
+						</TableRowCell>
+						<TableRowCell Class="branch-subject-cell">@branch.Subject</TableRowCell>
+						<TableRowCell Class="branch-date-cell">@RepositoryDates.Format(branch.CommittedUtc)</TableRowCell>
+					</TableRow>
+				}
+			</TableBody>
+		</Table>
+	}
+</div>

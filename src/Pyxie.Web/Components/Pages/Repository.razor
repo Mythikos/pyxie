@@ -1,0 +1,75 @@
+@page "/repository"
+@using Pyxie.Runtime.Repositories
+@using Pyxie.Web.Components.Projects
+@using Pyxie.Web.Components.Repository
+@using Pyxie.Web.Components.Repository.Navigation
+
+<PageTitle>Repository</PageTitle>
+
+<div class="repository-page">
+	@if (!_loaded)
+	{
+		<div class="repository-status">Loading</div>
+	}
+	else
+	{
+		<aside class="pyx-panel repository-projects" aria-label="Projects">
+			<h2 class="repository-projects-title">Projects</h2>
+			<RepositoryConnect ProjectOpen="@_state.HasOpenProject" />
+			<ProjectList Projects="@_state.Projects" />
+		</aside>
+		@if (!IsRefreshing && _state.Repository is { } repository && OpenProject.Current is { } project)
+		{
+			<section class="repository-column" aria-label="Repository">
+				<RepositoryHeader ProjectName="@project.Name" Repository="@repository" />
+				@if (_state.Error is not null)
+				{
+					<Alert Color="Color.Danger" Visible="true">@_state.Error</Alert>
+				}
+				else if (_state.Overview is RepositoryOverview overview)
+				{
+					<div class="pyx-panel repository-views">
+						<div class="repository-bar">
+							<RepositoryTabs Location="@_location" BranchCount="@overview.Branches.Count" />
+							@if (ShowsBranchTools)
+							{
+								<BranchTools Overview="@overview" Location="@_location" />
+							}
+						</div>
+						<div class="repository-content">
+							@if (_location.Tab == RepositoryTab.Branches)
+							{
+								<BranchList Overview="@overview" />
+							}
+							else if (_location.Branch.Length == 0)
+							{
+								<div class="repository-status">The repository has no branches.</div>
+							}
+							else
+							{
+								@if (_branchMissing)
+								{
+									<div class="repository-notice">
+										<Alert Color="Color.Warning" Visible="true">The branch @_requested.Branch does not exist.</Alert>
+									</div>
+								}
+								@if (_location.Tab == RepositoryTab.History && _location.Commit.Length > 0)
+								{
+									<CommitDetail Overview="@overview" Location="@_location" />
+								}
+								else if (_location.Tab == RepositoryTab.History)
+								{
+									<CommitList Overview="@overview" Location="@_location" />
+								}
+								else
+								{
+									<FileBrowser Overview="@overview" Location="@_location" />
+								}
+							}
+						</div>
+					</div>
+				}
+			</section>
+		}
+	}
+</div>

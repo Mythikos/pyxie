@@ -1,0 +1,44 @@
+@using Pyxie.Runtime.Sandboxes
+
+<SettingsPanel Section="SettingsSections.Sandbox" style="--settings-panel-gap: 16px; --settings-panel-bottom: 20px">
+	@if (_error is not null)
+	{
+		<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+	}
+	<div class="sandbox-columns">
+		<div class="sandbox-editor">
+			<label for="sandbox-dockerfile" class="sandbox-label">Dockerfile</label>
+			<MemoInput ElementId="sandbox-dockerfile" @bind-Value="@_dockerfile" Rows="13" Class="sandbox-dockerfile" spellcheck="false" />
+			<div class="sandbox-actions">
+				@if (_builtTag is not null)
+				{
+					<span class="sandbox-built"><Icon Name="IconName.CheckCircle" IconStyle="IconStyle.Solid" />Built</span>
+					@if (_builtTag.Length > 0)
+					{
+						<code class="sandbox-tag">@_builtTag</code>
+					}
+				}
+				<div class="sandbox-buttons">
+					<span title="@BuildBlockedText">
+						<Button Color="Color.Default" Disabled="@(HasChanges || _busy)" Loading="@_building" Clicked="@BuildAsync">Build</Button>
+					</span>
+					<Button Class="sandbox-save" Color="Color.Primary" Disabled="@(!HasChanges || _busy)" Clicked="@SaveAsync">Save</Button>
+				</div>
+			</div>
+			@if (_buildLog is not null)
+			{
+				<pre class="sandbox-build-log">@_buildLog</pre>
+			}
+		</div>
+		@if (_signIns is SandboxSignInStatus signIns)
+		{
+			<div class="sandbox-side">
+				<h3 class="sandbox-side-title">Sign-ins</h3>
+				<ul class="sandbox-signins">
+					<SignInRow Name="Claude Code token" Found="@signIns.ClaudeTokenFound" Fix="@($"Run claude setup-token and save the token in {signIns.ClaudeTokenPath}.")" />
+					<SignInRow Name="Codex sign-in" Found="@signIns.CodexSignInFound" Fix="@($"Run codex login; Pyxie copies {signIns.CodexSignInPath} into each sandbox.")" />
+				</ul>
+			</div>
+		}
+	</div>
+</SettingsPanel>

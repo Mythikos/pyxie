@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Pyxie.Data\Pyxie.Data.csproj" />
+    <ProjectReference Include="..\..\src\Pyxie.Data.Sqlite\Pyxie.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\Pyxie.Runtime\Pyxie.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Pyxie.Web\Pyxie.Web.csproj" />
+    <ProjectReference Include="..\Pyxie.FakeHarness\Pyxie.FakeHarness.csproj" />
+  </ItemGroup>
+
+</Project>

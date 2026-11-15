@@ -1,0 +1,106 @@
+.project-list {
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--pyx-lane);
+	list-style: none;
+}
+
+.project-row {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px 16px;
+}
+
+.project-row + .project-row {
+	border-top: 1px solid var(--pyx-lane);
+}
+
+.project-row-open {
+	border-left: 3px solid var(--pyx-primary);
+	background: var(--pyx-open-row);
+}
+
+.project-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.project-name {
+	min-width: 0;
+	font-size: 14px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.project-open-chip {
+	background: var(--pyx-open-chip);
+	color: var(--pyx-primary-hover);
+}
+
+.project-action {
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+.project-action ::deep .ant-btn {
+	height: 28px;
+	padding: 0 10px;
+	border-radius: var(--pyx-radius-control-sm);
+	font-size: 12.5px;
+	font-weight: 500;
+}
+
+.project-source {
+	color: var(--pyx-text-muted);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.project-gone,
+.project-importing {
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.project-error {
+	color: var(--pyx-error-text);
+	font-size: 12.5px;
+	overflow-wrap: anywhere;
+}
+
+/* The import reports no progress, only that it runs, so the bar slides and shows no figure. */
+.import-bar {
+	height: 4px;
+	overflow: hidden;
+	border-radius: var(--pyx-radius-pill);
+	background: var(--pyx-lane);
+}
+
+.import-bar-fill {
+	width: 40%;
+	height: 100%;
+	border-radius: var(--pyx-radius-pill);
+	background: var(--pyx-eye);
+	animation: import-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes import-slide {
+	from {
+		transform: translateX(-100%);
+	}
+
+	to {
+		transform: translateX(250%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.import-bar-fill {
+		width: 100%;
+		animation: none;
+		opacity: 0.5;
+	}
+}

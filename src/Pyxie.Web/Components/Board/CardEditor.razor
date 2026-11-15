@@ -1,0 +1,158 @@
+@using Pyxie.Data.Entities
+@using Pyxie.Data.Limits
+@using Pyxie.Web.Components.Board.Models
+
+<Modal @bind-Visible="@_visible" Centered Scrollable Size="@(_rounds.Count > 0 ? ModalSize.Large : ModalSize.Default)">
+	<ModalContent>
+		<ModalHeader>
+			<ModalTitle>
+				@Title
+				@if (LaneLabel is not null)
+				{
+					@(" ")
+					<span class="card-lane">@LaneLabel</span>
+				}
+			</ModalTitle>
+		</ModalHeader>
+		<ModalBody>
+			@if (StopReason is not null)
+			{
+				<Alert Color="Color.Danger" Visible="true" Margin="Margin.Is3.FromBottom">@StopReason</Alert>
+			}
+			<Field>
+				<FieldLabel RequiredIndicator="@(!ReadOnly)">Name</FieldLabel>
+				<TextInput @bind-Value="@_form.Name" MaxLength="@PyxieLimits.MaxNameLength" ReadOnly="@ReadOnly" />
+				@if (NameError is not null)
+				{
+					<div class="field-error">@NameError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel RequiredIndicator="@(!ReadOnly)">Category</FieldLabel>
+				@if (ReviewedCard is not null)
+				{
+					<TextInput Value="@ReviewedCard.Category.Name" ReadOnly />
+				}
+				else
+				{
+					<Select TValue="int" @bind-Value="@_form.CategoryId">
+						<SelectItem TValue="int" Value="@CardFormModel.NoSelection">None</SelectItem>
+						@foreach (Category category in Categories)
+						{
+							<SelectItem TValue="int" Value="@category.Id">@category.Name</SelectItem>
+						}
+					</Select>
+				}
+				@if (CategoryError is not null)
+				{
+					<div class="field-error">@CategoryError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel RequiredIndicator="@(!ReadOnly)">Worker</FieldLabel>
+				@if (ReviewedCard is not null)
+				{
+					<TextInput Value="@(ReviewedCard.WorkerAgent?.Name ?? "None")" ReadOnly />
+				}
+				else
+				{
+					<Select TValue="int" @bind-Value="@_form.WorkerAgentId">
+						<SelectItem TValue="int" Value="@CardFormModel.NoSelection">None</SelectItem>
+						@foreach (Agent agent in Agents.Where(agent => agent.CanWork))
+						{
+							<SelectItem TValue="int" Value="@agent.Id">@agent.Name</SelectItem>
+						}
+					</Select>
+				}
+				@if (WorkerError is not null)
+				{
+					<div class="field-error">@WorkerError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Reviewer</FieldLabel>
+				@if (ReviewedCard is not null)
+				{
+					<TextInput Value="@(ReviewedCard.ReviewerAgent?.Name ?? "None")" ReadOnly />
+				}
+				else
+				{
+					<Select TValue="int" @bind-Value="@_form.ReviewerAgentId">
+						<SelectItem TValue="int" Value="@CardFormModel.NoSelection">None</SelectItem>
+						@foreach (Agent agent in Agents.Where(agent => agent.CanReview))
+						{
+							<SelectItem TValue="int" Value="@agent.Id">@agent.Name</SelectItem>
+						}
+					</Select>
+				}
+			</Field>
+			<Field>
+				<FieldLabel>Attempts</FieldLabel>
+				@if (ReviewedCard is not null)
+				{
+					<TextInput Value="@AttemptsText" ReadOnly />
+				}
+				else
+				{
+					<NumericPicker TValue="int" @bind-Value="@_form.AttemptLimit" Min="1" Max="@PyxieLimits.MaxAttemptLimit" />
+				}
+				@if (AttemptLimitError is not null)
+				{
+					<div class="field-error">@AttemptLimitError</div>
+				}
+			</Field>
+			<Field>
+				<FieldLabel RequiredIndicator="@(!ReadOnly)">Description</FieldLabel>
+				<MemoInput @bind-Value="@_form.Description" Rows="6" ReadOnly="@ReadOnly" />
+				@if (DescriptionError is not null)
+				{
+					<div class="field-error">@DescriptionError</div>
+				}
+			</Field>
+			@if (_card is not null && _rounds.Count > 0)
+			{
+				<CardHistory Summary="@_summary" Rounds="@_rounds" />
+			}
+			@if (_error is not null)
+			{
+				<div class="field-error">@_error</div>
+			}
+		</ModalBody>
+		<ModalFooter>
+			@if (_confirming)
+			{
+				<span class="confirm-prompt">@(ReadOnly ? "Remove this card from the board?" : "Delete this card?")</span>
+				<Button @ref="@_confirmBack" Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@CancelConfirmation">Back</Button>
+				@if (ReadOnly)
+				{
+					<Button Width="@_actionWidth" Color="Color.Primary" Disabled="@_busy" Clicked="@CloseCardAsync">Close card</Button>
+				}
+				else
+				{
+					<Button Width="@_actionWidth" Color="Color.Danger" Disabled="@_busy" Clicked="@DeleteAsync">Delete</Button>
+				}
+			}
+			else if (ReadOnly)
+			{
+				@if (CanCloseCard)
+				{
+					<Button @ref="@_confirmOpener" Width="@_actionWidth" Color="Color.Primary" Outline Disabled="@_busy" Clicked="@BeginConfirmation">Close card</Button>
+				}
+				<Button Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@HideAsync">Back</Button>
+			}
+			else
+			{
+				@if (_card is not null)
+				{
+					<Button @ref="@_confirmOpener" Width="@_actionWidth" Color="Color.Danger" Outline Disabled="@_busy" Clicked="@BeginConfirmation">Delete</Button>
+				}
+				<Button Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@HideAsync">Cancel</Button>
+				@if (CanRetry)
+				{
+					<Button Width="@_actionWidth" Color="Color.Primary" Outline Disabled="@_busy" Clicked="@RetryAsync">Retry</Button>
+				}
+				<Button Width="@_actionWidth" Color="Color.Primary" Disabled="@_busy" Clicked="@SaveAsync">Save</Button>
+			}
+		</ModalFooter>
+	</ModalContent>
+</Modal>

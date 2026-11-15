@@ -1,0 +1,124 @@
+.sandbox-columns {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+}
+
+.sandbox-editor {
+	display: flex;
+	flex: 999 1 460px;
+	flex-direction: column;
+	gap: 10px;
+	min-width: 0;
+}
+
+.sandbox-label {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+/* The Dockerfile is code on the coat color. Ant's input states set their own background and border, so the dark ones are set for every state. */
+.sandbox-editor ::deep .sandbox-dockerfile {
+	box-sizing: border-box;
+	width: 100%;
+	padding: 14px 16px;
+	border: 1px solid var(--pyx-editor-border);
+	border-radius: 10px;
+	background: var(--pyx-coat);
+	color: var(--pyx-editor-text);
+	caret-color: var(--pyx-editor-text);
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+	line-height: 1.65;
+	resize: vertical;
+}
+
+.sandbox-editor ::deep .sandbox-dockerfile:focus {
+	border-color: var(--pyx-eye);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--pyx-eye) 35%, transparent);
+	outline: none;
+}
+
+.sandbox-editor ::deep .sandbox-dockerfile::selection {
+	background: color-mix(in srgb, var(--pyx-eye) 40%, transparent);
+	color: var(--pyx-editor-text);
+}
+
+.sandbox-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.sandbox-built {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--pyx-primary-hover);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.sandbox-built ::deep .anticon {
+	color: var(--pyx-success);
+	font-size: 14px;
+}
+
+.sandbox-tag {
+	color: var(--pyx-text-2);
+	font-size: 12px;
+}
+
+.sandbox-buttons {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.sandbox-buttons ::deep .ant-btn {
+	height: 36px;
+	padding: 0 14px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
+
+.sandbox-buttons ::deep .sandbox-save.ant-btn {
+	padding: 0 16px;
+	font-weight: 600;
+}
+
+/* The end of a failed build's log, where docker says what went wrong. */
+.sandbox-build-log {
+	max-height: 320px;
+	margin: 0;
+	padding: 10px;
+	overflow: auto;
+	border-radius: var(--pyx-radius-control);
+	background: var(--pyx-ground);
+	font-size: 12px;
+	white-space: pre-wrap;
+}
+
+.sandbox-side {
+	display: flex;
+	flex: 1 1 260px;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.sandbox-side-title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sandbox-signins {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	border: 1px solid var(--pyx-border);
+	border-radius: var(--pyx-radius-card);
+	list-style: none;
+}

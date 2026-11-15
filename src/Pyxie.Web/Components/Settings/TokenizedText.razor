@@ -1,0 +1,11 @@
+@foreach (ArgumentTextPart part in AgentArgumentTokens.Split(Text))
+{
+	if (part.IsToken)
+	{
+		<span class="argument-token">@part.Text</span>
+	}
+	else
+	{
+		@part.Text
+	}
+}

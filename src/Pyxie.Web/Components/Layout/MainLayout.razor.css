@@ -1,0 +1,95 @@
+/* The document scrolls; the header wraps on narrow screens rather than hiding anything. */
+.app-shell {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	min-height: 100dvh;
+	background: var(--pyx-ground);
+}
+
+.app-shell ::deep .app-layout {
+	display: flex;
+	flex-direction: column;
+	flex: 1 0 auto;
+	min-width: 0;
+	background: var(--pyx-ground);
+}
+
+.app-shell ::deep .app-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 28px;
+	flex: none;
+	height: auto;
+	min-height: 56px;
+	padding: 10px 24px;
+	background: var(--pyx-coat);
+	color: var(--pyx-on-coat);
+	line-height: normal;
+}
+
+.app-header-spacer {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.app-shell ::deep .app-content {
+	display: flex;
+	flex-direction: column;
+	flex: 1 0 auto;
+	min-width: 0;
+	padding: 20px 24px 28px;
+}
+
+@media (max-width: 600px) {
+	.app-shell ::deep .app-header {
+		gap: 10px 16px;
+		padding: 10px 16px;
+	}
+
+	.app-shell ::deep .app-content {
+		padding: 16px 16px 24px;
+	}
+}
+
+#blazor-error-ui {
+	position: fixed;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 1000;
+	display: none;
+	box-sizing: border-box;
+	padding: 12px 48px 12px 24px;
+	border-top: 1px solid var(--pyx-error-border);
+	background: var(--pyx-error-tint);
+	color: var(--pyx-error-text);
+	font-size: 14px;
+}
+
+#blazor-error-ui .reload {
+	margin-left: 8px;
+	color: var(--pyx-primary);
+	font-weight: 500;
+}
+
+#blazor-error-ui .dismiss {
+	position: absolute;
+	top: 50%;
+	right: 12px;
+	width: 28px;
+	height: 28px;
+	transform: translateY(-50%);
+	border: none;
+	border-radius: var(--pyx-radius-control-sm);
+	background: transparent;
+	color: var(--pyx-error-text);
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+#blazor-error-ui .dismiss:hover {
+	background: color-mix(in srgb, var(--pyx-error-text) 8%, transparent);
+}

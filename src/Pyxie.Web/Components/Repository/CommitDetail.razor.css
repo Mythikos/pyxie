@@ -1,0 +1,102 @@
+.commit-head {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px 18px 18px;
+}
+
+.commit-back {
+	align-self: flex-start;
+	color: var(--pyx-primary);
+	text-decoration: none;
+}
+
+.commit-back:hover {
+	color: var(--pyx-primary-hover);
+	text-decoration: underline;
+}
+
+.commit-status {
+	color: var(--pyx-text-muted);
+}
+
+.commit-title {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.commit-body {
+	margin: 0;
+	font: inherit;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.commit-facts {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 16px;
+	margin: 0;
+}
+
+.commit-facts dt {
+	color: var(--pyx-text-muted);
+	font-weight: 400;
+}
+
+.commit-facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.commit-email {
+	color: var(--pyx-text-muted);
+}
+
+.commit-hash,
+.commit-parent {
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+}
+
+.commit-parent {
+	margin-right: 8px;
+	color: var(--pyx-primary);
+	text-decoration: none;
+}
+
+.commit-parent:hover {
+	color: var(--pyx-primary-hover);
+	text-decoration: underline;
+}
+
+.commit ::deep .ant-table-cell {
+	padding: 10px 18px;
+}
+
+.commit ::deep .commit-file-cell {
+	font-family: var(--pyx-font-mono);
+	font-size: 12.5px;
+	overflow-wrap: anywhere;
+}
+
+.commit ::deep .commit-count-cell {
+	width: 120px;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.commit-added {
+	margin-right: 8px;
+	color: var(--pyx-primary);
+}
+
+.commit-removed {
+	color: var(--pyx-error-text);
+}
+
+.commit-binary {
+	color: var(--pyx-text-muted);
+}

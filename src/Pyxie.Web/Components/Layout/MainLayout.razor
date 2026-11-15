@@ -1,0 +1,24 @@
+@inherits LayoutComponentBase
+@using Pyxie.Web.Components.Projects
+
+<div class="app-shell">
+	<Layout Class="app-layout">
+		<LayoutHeader Class="app-header">
+			<NavMenu />
+			<div class="app-header-spacer"></div>
+			<OpenProjectView Context="project">
+				<ProjectLabel Project="@project" />
+			</OpenProjectView>
+			<PipelineSwitch />
+		</LayoutHeader>
+		<LayoutContent Class="app-content">
+			@Body
+		</LayoutContent>
+	</Layout>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+	An unhandled error has occurred.
+	<a href="." class="reload">Reload</a>
+	<button type="button" class="dismiss" aria-label="Dismiss">×</button>
+</div>

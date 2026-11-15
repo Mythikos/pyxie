@@ -1,0 +1,9 @@
+<div class="branch-picker">
+	<label id="@LabelId" class="branch-label">Branch</label>
+	<Select TValue="string" Value="@Location.Branch" ValueChanged="@OnChanged" AriaLabelledBy="@LabelId">
+		@foreach (string name in Names)
+		{
+			<SelectItem @key="name" TValue="string" Value="@name">@name</SelectItem>
+		}
+	</Select>
+</div>

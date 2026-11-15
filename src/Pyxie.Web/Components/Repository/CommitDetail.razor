@@ -1,0 +1,78 @@
+<div class="commit">
+	<div class="commit-head">
+		<a class="commit-back" href="@BackHref"><Icon Name="@IconName.ArrowLeft" /> History</a>
+		@if (_error is not null)
+		{
+			<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+		}
+		else if (_missing)
+		{
+			<div class="commit-status">This commit does not exist.</div>
+		}
+		else if (_detail is GitCommitDetail detail)
+		{
+			(string subject, string body) = CommitText.Split(detail.Message);
+			<h2 class="commit-title">@subject</h2>
+			@if (body.Length > 0)
+			{
+				<pre class="commit-body">@body</pre>
+			}
+			<dl class="commit-facts">
+				<dt>Author</dt>
+				<dd>@detail.Commit.AuthorName <span class="commit-email">&lt;@detail.Commit.AuthorEmail&gt;</span></dd>
+				<dt>Date</dt>
+				<dd>@RepositoryDates.Format(detail.Commit.AuthoredUtc)</dd>
+				<dt>Commit</dt>
+				<dd class="commit-hash">@detail.Commit.Sha</dd>
+				@if (detail.Commit.ParentShas.Count > 0)
+				{
+					<dt>@(detail.Commit.ParentShas.Count == 1 ? "Parent" : "Parents")</dt>
+					<dd>
+						@foreach (string parent in detail.Commit.ParentShas)
+						{
+							<a class="commit-parent" href="@ParentHref(parent)">@CommitText.Abbreviate(parent, detail.Commit.ShortSha.Length)</a>
+						}
+					</dd>
+				}
+			</dl>
+		}
+		else
+		{
+			<div class="commit-status">Loading</div>
+		}
+	</div>
+	@if (_error is null && !_missing && _detail is GitCommitDetail loaded)
+	{
+		@if (loaded.Files.Count > 0)
+		{
+			<Table Narrow>
+				<TableHeader>
+					<TableRow>
+						<TableHeaderCell>Changed files</TableHeaderCell>
+						<TableHeaderCell Class="commit-count-cell"></TableHeaderCell>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					@foreach (GitChangedFile file in loaded.Files)
+					{
+						<TableRow @key="file.Path">
+							<TableRowCell Class="commit-file-cell">@(file.OldPath is null ? file.Path : $"{file.OldPath} → {file.Path}")</TableRowCell>
+							<TableRowCell Class="commit-count-cell">
+								@if (file.Additions is int additions && file.Deletions is int deletions)
+								{
+									<span class="commit-added">+@additions</span>
+									<span class="commit-removed">-@deletions</span>
+								}
+								else
+								{
+									<span class="commit-binary">binary</span>
+								}
+							</TableRowCell>
+						</TableRow>
+					}
+				</TableBody>
+			</Table>
+		}
+		<DiffView Patch="@loaded.Patch" />
+	}
+</div>

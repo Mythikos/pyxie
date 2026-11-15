@@ -1,0 +1,8 @@
+@using Pyxie.Data.Enums
+
+<span class="round-number">@Round.Sequence</span>
+<span class="round-kind">@Round.Kind.DisplayName()</span>
+<span class="round-attempt">@AttemptText</span>
+<span class="round-agent">@Round.Agent?.Name</span>
+<span class="@OutcomeClass">@Round.Outcome.DisplayName()</span>
+<span class="round-time">@Time</span>

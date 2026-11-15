@@ -1,0 +1,6 @@
+.argument-token {
+	padding: 1px 4px;
+	border-radius: 4px;
+	background: var(--pyx-pink-tint);
+	color: var(--pyx-pink-text);
+}

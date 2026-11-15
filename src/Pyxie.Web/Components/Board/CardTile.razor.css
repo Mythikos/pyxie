@@ -1,0 +1,230 @@
+.card-tile {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid var(--pyx-border);
+	border-radius: var(--pyx-radius-card);
+	background: var(--pyx-surface);
+	cursor: pointer;
+}
+
+.card-tile-active {
+	gap: 9px;
+}
+
+/* The one shadow the design allows: a card an agent or Pyxie is working on right now. */
+.card-tile-running {
+	box-shadow: var(--pyx-shadow-running);
+}
+
+.card-tile:hover {
+	border-color: var(--pyx-border-strong);
+}
+
+/* A card the pipeline stopped. Declared after the hover rule so the red border survives it. */
+.card-tile-error {
+	border-color: var(--pyx-error-border);
+	background: var(--pyx-error-tint);
+}
+
+.card-tile-error:hover {
+	border-color: var(--pyx-error);
+}
+
+/* Where :has is supported the keyboard focus rings the whole tile, which is what opens; elsewhere the name button keeps its own ring. */
+@supports selector(:has(*)) {
+	.card-name:focus-visible {
+		outline: none;
+	}
+
+	.card-tile:has(.card-name:focus-visible) {
+		outline: 2px solid var(--pyx-primary);
+		outline-offset: 2px;
+	}
+}
+
+/* The stage badge and the count keep their size. The category chip is the one that shrinks when its name is long. */
+.card-top {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.card-count {
+	flex: none;
+	margin-left: auto;
+	color: var(--pyx-text);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+}
+
+.card-count-idle {
+	color: var(--pyx-text-muted);
+}
+
+.card-count-error {
+	color: var(--pyx-error-text);
+	font-weight: 500;
+}
+
+.card-finished {
+	flex: none;
+	margin-left: auto;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.card-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.35;
+}
+
+.card-name {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	overflow-wrap: anywhere;
+}
+
+/* Queue: who works on the card, and who reviews it. */
+.card-assigned {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.card-assigned span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.card-worker {
+	color: var(--pyx-text);
+	font-weight: 500;
+}
+
+/* Error: why the pipeline stopped the card, and what to do about it. */
+.card-reason {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	color: var(--pyx-error-text);
+	font-size: 12.5px;
+	line-height: 1.45;
+}
+
+.card-reason ::deep .anticon {
+	flex: none;
+	margin-top: 2px;
+	font-size: 14px;
+}
+
+/* A long reason is cut short on the board; the card dialog has all of it. */
+.card-reason-text {
+	display: -webkit-box;
+	min-width: 0;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 4;
+	overflow-wrap: anywhere;
+}
+
+.card-actions {
+	display: flex;
+	gap: 8px;
+	padding-top: 2px;
+}
+
+.card-actions ::deep .ant-btn {
+	gap: 6px;
+	height: 30px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control-sm);
+	font-size: 13px;
+}
+
+.card-actions ::deep .anticon {
+	font-size: 13px;
+}
+
+.card-actions ::deep .card-retry {
+	font-weight: 600;
+}
+
+/* Only the border takes the tint: the label keeps the button's own text color. */
+.card-actions ::deep .card-edit {
+	--ant-btn-border-color: var(--pyx-error-button-border);
+}
+
+/* In Progress, Gates, Review: the round trail, the agent running the round, and how long it has run. */
+.card-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	color: var(--pyx-text-muted);
+	font-size: 12px;
+}
+
+.card-agent {
+	min-width: 0;
+	color: var(--pyx-text);
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.card-elapsed {
+	margin-left: auto;
+	font-family: var(--pyx-font-mono);
+}
+
+/* Complete: merged, and the way to close the card out. */
+.card-footer-complete {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.card-merged {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--pyx-primary-hover);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.card-merged ::deep .anticon {
+	color: var(--pyx-primary);
+	font-size: 13px;
+}
+
+.card-action {
+	display: inline-flex;
+	margin-left: auto;
+}
+
+.card-action ::deep .ant-btn {
+	height: 28px;
+	padding: 0 10px;
+	border-radius: var(--pyx-radius-control-sm);
+	font-size: 12.5px;
+}
+
+/* Why a Retry or Close was refused. */
+.card-refusal {
+	color: var(--pyx-error-text);
+	font-size: 12.5px;
+	line-height: 1.45;
+}

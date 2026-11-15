@@ -1,0 +1,13 @@
+.page-message {
+	margin: 0;
+	font-family: var(--pyx-font-display);
+	font-size: 26px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.page-detail {
+	margin: 12px 0 0;
+	color: var(--pyx-text-muted);
+	font-size: 13px;
+}

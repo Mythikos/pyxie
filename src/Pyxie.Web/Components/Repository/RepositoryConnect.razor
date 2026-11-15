@@ -1,0 +1,15 @@
+<form class="connect" @onsubmit="@Submit">
+	<RadioGroup TValue="RepositorySource" Name="import-source" Buttons Color="Color.Default" Value="@_mode" ValueChanged="@OnModeChanged" Disabled="@Running" aria-label="Import from">
+		<Radio Value="RepositorySource.Folder">Folder</Radio>
+		<Radio Value="RepositorySource.Url">URL</Radio>
+	</RadioGroup>
+	<label class="connect-label" for="@InputId">@ModeLabel</label>
+	<span class="connect-fields" title="@BlockedText">
+		<TextInput ElementId="@InputId" Value="@Entry" ValueChanged="@OnEntryChanged" Placeholder="@Placeholder" Disabled="@Blocked" />
+		<Button Type="ButtonType.Submit" Color="Color.Dark" Disabled="@Blocked" Loading="@Running">Import</Button>
+	</span>
+	@if (ErrorOf(_mode) is string error)
+	{
+		<div class="connect-error" role="alert">@error</div>
+	}
+</form>

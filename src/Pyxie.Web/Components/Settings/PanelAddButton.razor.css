@@ -1,0 +1,13 @@
+.panel-add ::deep .ant-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 34px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
+
+.panel-add ::deep .anticon {
+	font-size: 12px;
+}

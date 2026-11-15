@@ -1,0 +1,27 @@
+.app-project-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	color: var(--pyx-header-text);
+	font-size: 13px;
+}
+
+.app-project {
+	min-width: 0;
+	max-width: 240px;
+	overflow: hidden;
+	color: var(--pyx-on-coat);
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.app-project-branch {
+	padding: 3px 8px;
+	border-radius: 6px;
+	background: var(--pyx-on-coat-faint);
+	font-family: var(--pyx-font-mono);
+	font-size: 12px;
+	white-space: nowrap;
+}

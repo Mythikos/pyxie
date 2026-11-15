@@ -1,0 +1,4 @@
+/* The wrapper exists for its key alone; its content lays out as if it were not there. */
+.open-project {
+	display: contents;
+}

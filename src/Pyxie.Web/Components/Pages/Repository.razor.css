@@ -1,0 +1,56 @@
+/* Two columns that wrap: the projects panel, which is always there, and the open project's repository. */
+.repository-page {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+	min-width: 0;
+}
+
+.repository-status {
+	padding: 24px 18px;
+	color: var(--pyx-text-muted);
+}
+
+.repository-projects {
+	display: flex;
+	flex: 1 1 300px;
+	flex-direction: column;
+	max-width: 360px;
+	overflow: hidden;
+}
+
+.repository-projects-title {
+	margin: 0;
+	padding: 16px 16px 12px;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.repository-column {
+	display: flex;
+	flex: 999 1 640px;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+
+.repository-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	padding: 0 16px;
+	border-bottom: 1px solid var(--pyx-lane);
+}
+
+/* The panel does not clip, because the branch menu opens below the tab bar and may be taller than a short list under it. The content clips instead, to keep its rows inside the rounded corners. */
+.repository-content {
+	min-width: 0;
+	overflow: hidden;
+	border-radius: 0 0 var(--pyx-radius-panel) var(--pyx-radius-panel);
+}
+
+.repository-notice {
+	padding: 16px 18px 0;
+}

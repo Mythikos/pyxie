@@ -1,0 +1,37 @@
+.settings-panel {
+	min-width: 0;
+}
+
+/* Tables and lists run edge to edge, so the panel clips them to its rounded corners. */
+.settings-panel-flush {
+	overflow: hidden;
+}
+
+.settings-panel-flush .settings-panel-header {
+	padding: 18px 20px;
+}
+
+/* A section can change the spacing with --settings-panel-gap and --settings-panel-bottom. */
+.settings-panel-padded {
+	display: flex;
+	flex-direction: column;
+	gap: var(--settings-panel-gap, 14px);
+	padding: 18px 20px var(--settings-panel-bottom, 18px);
+}
+
+.settings-panel-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.settings-panel-header h2 {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.settings-panel-actions {
+	margin-left: auto;
+}

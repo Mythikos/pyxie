@@ -1,0 +1,12 @@
+<div class="repository-tabs" role="tablist" aria-label="Repository views">
+	@foreach (RepositoryTab tab in RepositoryTabNames.All)
+	{
+		<a @key="tab" class="@ClassOf(tab)" role="tab" href="@Href(tab)" aria-selected="@SelectedText(tab)">
+			@RepositoryTabNames.Label(tab)
+			@if (tab == RepositoryTab.Branches)
+			{
+				<span class="pyx-chip repository-count">@BranchCount</span>
+			}
+		</a>
+	}
+</div>

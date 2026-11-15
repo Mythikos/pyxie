@@ -1,0 +1,10 @@
+@if (_project is Project project)
+{
+	<div class="open-project" @key="project.Id">
+		@ChildContent?.Invoke(project)
+	</div>
+}
+else
+{
+	@Closed
+}

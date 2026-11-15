@@ -1,0 +1,23 @@
+/* A badge keeps its size in a row of other things, such as the head of a card's tile. */
+.pyx-chip {
+	flex: none;
+}
+
+/* A live dot with a soft ring in the success color. */
+.stage-dot {
+	flex: none;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--pyx-success);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--pyx-success) 20%, transparent);
+}
+
+.stage-resolve ::deep .anticon {
+	font-size: 11px;
+}
+
+/* The mark sits close to the left edge of the pill, so the pill is tighter there. */
+.stage-merging {
+	padding: 2px 8px 2px 4px;
+}

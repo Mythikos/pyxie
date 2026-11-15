@@ -1,0 +1,37 @@
+<SettingsPanel Section="SettingsSections.Categories">
+	@if (_error is not null)
+	{
+		<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+	}
+	<div class="category-row">
+		@foreach (Category category in _categories)
+		{
+			@if (_editingId == category.Id)
+			{
+				<form @key="category.Id" class="@($"category-editor {CategoryChipClasses.Of(_editColor)}")" @onsubmit="@SaveEditAsync">
+					<TextInput @ref="_editInput" @bind-Value="_editName" Disabled="@_busy" aria-label="@($"New name for {category.Name}")" />
+					<div class="category-colors" role="radiogroup" aria-label="Color">
+						@foreach (CategoryColor color in Enum.GetValues<CategoryColor>())
+						{
+							<input type="radio" name="category-color" class="@SwatchClass(color)" checked="@(_editColor == color)" disabled="@_busy" aria-label="@color" @onchange="@(() => ChooseColor(color))" />
+						}
+					</div>
+					<Button Type="ButtonType.Submit" Color="Color.Primary" Size="Size.Small" Disabled="@_busy" aria-label="@($"Save {category.Name}")">Save</Button>
+					<Button Type="ButtonType.Button" Color="Color.Default" Size="Size.Small" Disabled="@_busy" Clicked="@CancelEdit" aria-label="@($"Cancel editing {category.Name}")">Cancel</Button>
+				</form>
+			}
+			else
+			{
+				<span @key="category.Id" class="@($"category-chip {CategoryChipClasses.Of(category.Color)}")">
+					<button type="button" class="category-name" @ref="_chips[category.Id]" disabled="@_busy" aria-label="@($"Edit {category.Name}")" @onclick="@(() => BeginEdit(category))">@category.Name</button>
+					<button type="button" class="category-remove" disabled="@_busy" aria-label="@($"Delete {category.Name}")" @onclick="@(() => DeleteAsync(category))"><Icon Name="IconName.Times" /></button>
+				</span>
+			}
+		}
+		<form class="category-add" @onsubmit="@AddAsync">
+			<label for="new-category" class="pyx-visually-hidden">New category</label>
+			<TextInput @ref="_newInput" ElementId="new-category" @bind-Value="_newName" Disabled="@_busy" Placeholder="New category" />
+			<Button Type="ButtonType.Submit" Color="Color.Default" Disabled="@_busy">Add</Button>
+		</form>
+	</div>
+</SettingsPanel>

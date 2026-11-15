@@ -1,0 +1,140 @@
+.category-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+/* A chip is as big as the design's, 13/600, with the remove button inside its right edge. It is never wider than the panel: a long name wraps inside it, so all of it can be read here. */
+.category-chip {
+	gap: 4px;
+	min-width: 0;
+	max-width: 100%;
+	padding: 4px 4px 4px 12px;
+	font-size: 13px;
+	line-height: 20px;
+}
+
+.category-name {
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	overflow-wrap: anywhere;
+	text-align: left;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.category-name:hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.category-remove {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	font-size: 10px;
+	cursor: pointer;
+}
+
+.category-remove:hover {
+	background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.category-name:disabled,
+.category-remove:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+/* The chip that is being edited stays in the color that is chosen, so the choice shows at once. */
+.category-editor {
+	flex-wrap: wrap;
+	gap: 6px 8px;
+	min-width: 0;
+	max-width: 100%;
+	padding: 4px 6px;
+	border-radius: var(--pyx-radius-card);
+	font-size: 13px;
+	line-height: 20px;
+}
+
+.category-editor ::deep .ant-input {
+	width: 150px;
+	height: 28px;
+	padding: 0 8px;
+	border-radius: var(--pyx-radius-control-sm);
+	font-size: 13px;
+}
+
+.category-colors {
+	display: flex;
+	gap: 6px;
+}
+
+/* The swatches are the chip colors themselves: the tint, ringed in the chip's text color, and filled with it while chosen. */
+.category-swatch {
+	appearance: none;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	border-radius: 50%;
+	cursor: pointer;
+	--swatch-tint: var(--pyx-lane);
+	--swatch-ink: var(--pyx-text-2);
+	border: 1.5px solid var(--swatch-ink);
+	background: var(--swatch-tint);
+}
+
+.category-swatch-green {
+	--swatch-tint: var(--pyx-success-tint);
+	--swatch-ink: var(--pyx-primary-hover);
+}
+
+.category-swatch-pink {
+	--swatch-tint: var(--pyx-pink-tint);
+	--swatch-ink: var(--pyx-pink-text);
+}
+
+.category-swatch:checked {
+	background: var(--swatch-ink);
+	box-shadow: inset 0 0 0 3px var(--swatch-tint);
+}
+
+.category-swatch:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+.category-add {
+	display: flex;
+	gap: 6px;
+	margin: 0 0 0 4px;
+}
+
+.category-add ::deep .ant-input {
+	width: 160px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
+
+.category-add ::deep .ant-btn {
+	height: 32px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
