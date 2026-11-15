@@ -62,7 +62,7 @@ public sealed class GitClientHistoryShapeTests
 		await repository.RunGitAsync("merge", "--no-ff", "--message", "Merge the feature", "feature");
 		await repository.CommitFileAsync("after.txt", "after", "Commit after the merge");
 
-		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, $"{start}..main", 10, Token);
+		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, $"{start}..main", skip: 0, 10, Token);
 
 		Assert.Equal(["Commit after the merge", "Merge the feature", "Main commit"], landed.Select(commit => commit.Subject));
 	}
@@ -76,7 +76,7 @@ public sealed class GitClientHistoryShapeTests
 		await repository.CommitFileAsync("landed-one.txt", "one", "Landed one");
 		await repository.CommitFileAsync("landed-two.txt", "two", "Landed two");
 
-		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, "card..main", 10, Token);
+		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, "card..main", skip: 0, 10, Token);
 
 		Assert.Equal(["Landed two", "Landed one"], landed.Select(commit => commit.Subject));
 	}
@@ -87,9 +87,35 @@ public sealed class GitClientHistoryShapeTests
 		await using TempGitRepository repository = await TempGitRepository.CreateAsync();
 		await EmptyCommits.AddAsync(repository, "main", 5);
 
-		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, "main", 2, Token);
+		IReadOnlyList<GitCommit> landed = await repository.Git.LogFirstParentAsync(repository.Folder, "main", skip: 0, 2, Token);
 
 		Assert.Equal(["Commit 5", "Commit 4"], landed.Select(commit => commit.Subject));
+	}
+
+	// The first-parent line of main is, newest first: After 2, After 1, Merge the feature, Main commit, Initial commit. Feature two and Feature one are reachable only through the merge's second parent, and a log of every commit would list them after Main commit.
+	[Theory]
+	[InlineData(0, 2, "After 2,After 1")]
+	[InlineData(2, 2, "Merge the feature,Main commit")]
+	[InlineData(3, 5, "Main commit,Initial commit")]
+	[InlineData(4, 1, "Initial commit")]
+	[InlineData(5, 2, "")]
+	[InlineData(0, 10, "After 2,After 1,Merge the feature,Main commit,Initial commit")]
+	public async Task LogFirstParentAsync_WithASkipAndATake_PagesAlongTheFirstParentAndNeverEntersAMergesSecondParent(int skip, int take, string expected)
+	{
+		await using TempGitRepository repository = await TempGitRepository.CreateAsync();
+		await repository.CreateBranchAsync("feature");
+		await repository.CheckoutAsync("feature");
+		await repository.CommitFileAsync("one.txt", "one", "Feature one");
+		await repository.CommitFileAsync("two.txt", "two", "Feature two");
+		await repository.CheckoutAsync("main");
+		await repository.CommitFileAsync("main.txt", "main", "Main commit");
+		await repository.RunGitAsync("merge", "--no-ff", "--message", "Merge the feature", "feature");
+		await repository.CommitFileAsync("after-1.txt", "1", "After 1");
+		await repository.CommitFileAsync("after-2.txt", "2", "After 2");
+
+		IReadOnlyList<GitCommit> page = await repository.Git.LogFirstParentAsync(repository.Folder, "main", skip, take, Token);
+
+		Assert.Equal(expected, string.Join(',', page.Select(commit => commit.Subject)));
 	}
 
 	[Fact]
@@ -97,7 +123,7 @@ public sealed class GitClientHistoryShapeTests
 	{
 		await using TempGitRepository repository = await TempGitRepository.CreateAsync();
 
-		Assert.Empty(await repository.Git.LogFirstParentAsync(repository.Folder, "main..main", 10, Token));
-		Assert.Empty(await repository.Git.LogFirstParentAsync(repository.Folder, "nothing..main", 10, Token));
+		Assert.Empty(await repository.Git.LogFirstParentAsync(repository.Folder, "main..main", skip: 0, 10, Token));
+		Assert.Empty(await repository.Git.LogFirstParentAsync(repository.Folder, "nothing..main", skip: 0, 10, Token));
 	}
 }

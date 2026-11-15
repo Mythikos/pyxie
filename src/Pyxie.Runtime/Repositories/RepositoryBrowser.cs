@@ -70,7 +70,7 @@ public sealed class RepositoryBrowser
 		return _git.ReadFileAsync(repository.Path, revision, path, MaxFileBytes, cancellationToken);
 	}
 
-	/// <summary>Gets one page of history from a revision, newest first.</summary>
+	/// <summary>Gets one page of history from a revision, newest first, along the first parent: what landed on the branch. On the target branch that is each card as the one merge commit that landed it, among people's own commits; the commits a merge brought in are reached from its parents.</summary>
 	/// <param name="repository">The connected repository.</param>
 	/// <param name="revision">A branch or commit.</param>
 	/// <param name="page">The zero-based page.</param>
@@ -78,7 +78,7 @@ public sealed class RepositoryBrowser
 	/// <returns>Up to <see cref="CommitsPerPage"/> commits.</returns>
 	public Task<IReadOnlyList<GitCommit>> GetHistoryAsync(Repository repository, string revision, int page, CancellationToken cancellationToken)
 	{
-		return _git.LogAsync(repository.Path, revision, Math.Max(0, page) * CommitsPerPage, CommitsPerPage, cancellationToken);
+		return _git.LogFirstParentAsync(repository.Path, revision, Math.Max(0, page) * CommitsPerPage, CommitsPerPage, cancellationToken);
 	}
 
 	/// <summary>Writes the files of a branch to a zip file inside a folder named after the repository, for a person to download. The zip lives in the system's temporary folder and is deleted when the returned stream is closed.</summary>

@@ -57,7 +57,7 @@ public sealed class GitClientCardTrailerTests
 		await repository.CommitFileAsync("one.txt", "1", "Merge pyxie/card-3: Three\n\nPyxie-Card: 3");
 		await repository.CommitFileAsync("plain.txt", "p", "Merge pyxie/card-4: Not written by Pyxie");
 
-		IReadOnlyList<GitCommit> commits = await repository.Git.LogFirstParentAsync(repository.Folder, $"{start}..main", 10, Token);
+		IReadOnlyList<GitCommit> commits = await repository.Git.LogFirstParentAsync(repository.Folder, $"{start}..main", skip: 0, 10, Token);
 
 		Assert.Equal([null, 3], commits.Select(commit => commit.CardId));
 	}

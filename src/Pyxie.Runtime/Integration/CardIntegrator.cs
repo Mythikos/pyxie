@@ -93,7 +93,7 @@ public sealed class CardIntegrator
 			report.Append("- ").AppendLine(file);
 		}
 
-		IReadOnlyList<GitCommit> landed = await _git.LogFirstParentAsync(hub, $"{cardTip}..{targetTip}", MaxLandedEntries + 1, cancellationToken);
+		IReadOnlyList<GitCommit> landed = await _git.LogFirstParentAsync(hub, $"{cardTip}..{targetTip}", skip: 0, MaxLandedEntries + 1, cancellationToken);
 		if (landed.Count == 0)
 		{
 			return report.ToString().TrimEnd();

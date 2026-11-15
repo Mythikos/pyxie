@@ -65,7 +65,7 @@ Use the SVGs as they are (embed inline, or reference them from `wwwroot`).
 
 - **Header**: mark at 32 px plus the `pyxie` wordmark, linking to the Board.
 - **Pipeline status** (header, left of Start/Stop): a pill holding the mark at 22 px, eyes open while the pipeline runs (`Running`, with `n of Pipeline:Workers`), closed while it is stopped (`Stopped`). Running pill: background `rgba(141,190,90,0.14)`, border `rgba(141,190,90,0.35)`, label `#CFE6B8`. Stopped pill: background `rgba(255,255,255,0.06)`, border `rgba(255,255,255,0.14)`, label `#D9DAE0`.
-- **Pyxie's own work**: the Merge round's badge on a card ("Merging") and merge commits Pyxie wrote in Repository history use the mark as their avatar, since only Pyxie writes the target branch. People's commits get an initial in a `--pyx-lane` circle.
+- **Pyxie's own work**: the Merge round's badge on a card ("Merging") and merge commits Pyxie wrote in Repository history (the merges that land cards, and her merges of the target branch into a card's branch) use the mark as their avatar. Every other commit gets its author's initial in a `--pyx-lane` circle, including an agent's commit signed with Pyxie's name.
 - **Favicon**: `pyxie-mark-small.svg`.
 
 Nowhere else. No mascot in empty states or helper text (see UI restraint in AGENTS.md).
@@ -99,7 +99,7 @@ One header bar in `--pyx-coat`, wrapping on narrow screens: mark and wordmark, n
 - Projects panel: title, then an import box on `--pyx-ground` with a Folder/URL segmented control, a labelled mono input and a dark Import button. Then the project list: the open project highlighted (`#F3F8EE` background, 3 px `--pyx-primary` left border, "Open" chip, Close button); others show Open. A background import shows "Importing" and a thin progress bar. Open and Close are disabled while the pipeline runs; follow the existing service rule and show its message.
 - Repository header panel: project name in Outfit, the target branch in a mono chip with a lock icon, then Origin and Hub rows. The hub path is a mono code box with a Copy button.
 - Tabs: Files, History, Branches (with count), with the selected tab underlined in `--pyx-primary`. To the right: a labelled branch select and a Zip download button.
-- History rows: avatar (the mark for Pyxie's merge commits, an initial otherwise), commit subject, a "Card N" chip on Pyxie's merges, author and relative time, and the short SHA in mono on the right.
+- History lists the branch's first-parent line, which is what landed on it. Rows: avatar (the mark for Pyxie's merge commits, an initial otherwise), commit subject, a "Card N" chip on the merges that landed a card, author and relative time, and the short SHA in mono on the right.
 
 ## Settings
 

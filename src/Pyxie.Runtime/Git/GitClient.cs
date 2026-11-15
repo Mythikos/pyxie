@@ -213,15 +213,16 @@ public sealed class GitClient
 		return await ReadLogAsync(directory, revision, skip, take, firstParentOnly: false, cancellationToken);
 	}
 
-	/// <summary>Lists the commits of a range along the first parent only, newest first: for a target branch, what landed on it, each merge as one entry instead of every commit the merge brought in.</summary>
+	/// <summary>Lists commits along the first parent only, newest first: what landed on a branch, each merge as one entry instead of every commit the merge brought in.</summary>
 	/// <param name="directory">A directory of the repository.</param>
-	/// <param name="range">A revision range, such as <c>cardTip..targetTip</c>: the commits reachable from the second that are not reachable from the first.</param>
+	/// <param name="revision">The commit to start from, or a revision range such as <c>cardTip..targetTip</c>: the commits reachable from the second that are not reachable from the first.</param>
+	/// <param name="skip">How many commits to skip, for paging.</param>
 	/// <param name="take">How many commits to return.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
-	/// <returns>The commits; empty when the range does not exist or holds none.</returns>
-	public async Task<IReadOnlyList<GitCommit>> LogFirstParentAsync(string directory, string range, int take, CancellationToken cancellationToken)
+	/// <returns>The commits; empty when the revision or range does not exist or holds none.</returns>
+	public async Task<IReadOnlyList<GitCommit>> LogFirstParentAsync(string directory, string revision, int skip, int take, CancellationToken cancellationToken)
 	{
-		return await ReadLogAsync(directory, range, skip: 0, take, firstParentOnly: true, cancellationToken);
+		return await ReadLogAsync(directory, revision, skip, take, firstParentOnly: true, cancellationToken);
 	}
 
 	/// <summary>Gets a commit's parents.</summary>

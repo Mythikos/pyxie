@@ -21,7 +21,7 @@
 				@foreach (GitCommit commit in _commits)
 				{
 					<li class="commit-row" @key="commit.Sha">
-						@if (commit.CardId is not null)
+						@if (commit.IsPyxieMerge)
 						{
 							<span class="commit-avatar commit-avatar-pyxie"><PyxieMark Drawing="PyxieMarkDrawing.Small" Size="22" Label="Pyxie" /></span>
 						}

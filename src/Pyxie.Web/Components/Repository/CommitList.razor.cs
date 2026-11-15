@@ -12,7 +12,7 @@ using RepositoryEntity = Pyxie.Data.Entities.Repository;
 
 namespace Pyxie.Web.Components.Repository;
 
-/// <summary>The History tab: one page of the selected branch's commits, newest first, with paging. Pyxie's own merge commits carry her mark and the card they landed; the commits of people carry an initial.</summary>
+/// <summary>The History tab: one page of the selected branch's first-parent history, newest first, with paging, so a card shows as the merge that landed it rather than as the commits inside it. Pyxie's merge commits carry her mark, and those that landed a card name it; every other commit carries its author's initial.</summary>
 public partial class CommitList : ComponentBase, IDisposable
 {
 	private const string IsoPattern = "yyyy-MM-dd'T'HH:mm:ss'Z'";

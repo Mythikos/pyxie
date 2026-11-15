@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Web.Rendering;
 
-/// <summary>The history list of a real git repository a test made, rendered on a clock the test controls, so "2 hours ago" is not a guess. The repository is connected as the open project's hub, with its first page of history on the target branch.</summary>
+/// <summary>The history list of a real git repository a test made, rendered on a clock the test controls, so "2 hours ago" is not a guess. The repository is connected as the open project's hub, with its first page of history on the target branch unless a test chooses another.</summary>
 internal sealed class CommitListHost : IAsyncDisposable
 {
 	private readonly RepositoryRig _rig;
@@ -30,16 +30,24 @@ internal sealed class CommitListHost : IAsyncDisposable
 	/// <summary>Gets the clock the relative times are measured against.</summary>
 	public TestClock Clock { get; }
 
-	/// <summary>Renders the history of a repository's target branch.</summary>
+	/// <summary>Renders the history of a branch of a repository.</summary>
 	/// <param name="source">The repository, which becomes the hub.</param>
 	/// <param name="page">The zero-based page of history.</param>
 	/// <param name="clockOffset">How far past 2030-01-01T00:00:00Z the clock stands when the list renders; none unless given.</param>
+	/// <param name="branch">The branch to list, which must exist in the hub; the target branch unless given.</param>
 	/// <returns>The rendered list.</returns>
-	public static async Task<CommitListHost> RenderAsync(TempGitRepository source, int page = 0, TimeSpan? clockOffset = null)
+	public static async Task<CommitListHost> RenderAsync(TempGitRepository source, int page = 0, TimeSpan? clockOffset = null, string branch = TempGitRepository.MainBranch)
 	{
 		RepositoryRig rig = new();
 		await rig.ConnectAsync(source.Folder);
 		RepositoryOverview overview = await rig.Browser.GetOverviewAsync(TestContext.Current.CancellationToken) ?? throw new InvalidOperationException("The repository was not connected.");
+		if (!overview.Branches.Any(candidate => candidate.Name == branch))
+		{
+			await rig.DisposeAsync();
+
+			throw new InvalidOperationException($"The hub has no branch \"{branch}\", so the list would render as empty: it has {string.Join(", ", overview.Branches.Select(candidate => candidate.Name))}.");
+		}
+
 		TestClock clock = new();
 		if (clockOffset is TimeSpan offset)
 		{
@@ -55,7 +63,7 @@ internal sealed class CommitListHost : IAsyncDisposable
 		RenderedComponent<CommitList> list = await harness.RenderAsync<CommitList>(new Dictionary<string, object>
 		{
 			[nameof(CommitList.Overview)] = overview,
-			[nameof(CommitList.Location)] = new RepositoryLocation(RepositoryTab.History, TempGitRepository.MainBranch, string.Empty, string.Empty, page),
+			[nameof(CommitList.Location)] = new RepositoryLocation(RepositoryTab.History, branch, string.Empty, string.Empty, page),
 		});
 
 		return new CommitListHost(rig, harness, list, clock);
