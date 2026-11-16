@@ -10,30 +10,27 @@ using Pyxie.Runtime.Workspaces;
 
 namespace Pyxie.Web.Components.Settings;
 
-/// <summary>The open project's sandbox settings: the Dockerfile of its image, a build of that image on request, and whether the sign-ins agents' sandboxes get are on this machine (see <c>docs/sandboxing.md</c>). Which image was built is known only from a build in this session, so nothing says so before one.</summary>
-public partial class SandboxSettingsEditor
+/// <summary>The open project's sandbox settings: the Dockerfile of its image, a build of that image on request, and whether the sign-ins agents' sandboxes get are on this machine (see <c>docs/sandboxing.md</c>). Builds belong to <see cref="SandboxImageBuilds"/>, not to the page: one keeps running when the person leaves, the page shows it again when they come back, and it shows the pipeline's builds as well. Built is asked of the engine, so it shows whenever the image for the saved Dockerfile is on the machine, however and whenever it was built, and not once anything removed it. A failed build of the saved Dockerfile shows until a later build of it succeeds, whatever other projects built since; Pyxie remembers it only while it runs. Both can show: a rebuild that failed leaves the image it would have replaced.</summary>
+public partial class SandboxSettingsEditor : IDisposable
 {
-	// The end of a failed build's log is where docker says what went wrong.
-	private const int LogTailLines = 20;
-
+	private readonly CancellationTokenSource _disposed = new();
 	private SandboxSettings _settings = new();
 	private string _dockerfile = string.Empty;
 	private string? _error;
 
-	// The tag of the image the last build made, once that build succeeded, and the end of its log when it failed. Saving makes both obsolete, because they describe the Dockerfile as it was.
-	private string? _builtTag;
-	private string? _buildLog;
+	// The tag of the image for the saved Dockerfile, when the engine had it at the last lookup, and which lookup is the latest: a save and a build that ended can each start one, and only the latest counts.
+	private string? _imageTag;
+	private int _imageLookups;
 	private SandboxSignInStatus? _signIns;
-	private bool _busy;
-	private bool _building;
+	private bool _saving;
 
 	/// <summary>Gets or sets the sandbox settings service, supplied by the framework.</summary>
 	[Inject]
 	public required ISandboxSettingsService SettingsService { get; set; }
 
-	/// <summary>Gets or sets the sandboxes, which build the image, supplied by the framework.</summary>
+	/// <summary>Gets or sets the image builds, which build the image and report every build, supplied by the framework.</summary>
 	[Inject]
-	public required ISandboxes Sandboxes { get; set; }
+	public required SandboxImageBuilds ImageBuilds { get; set; }
 
 	/// <summary>Gets or sets the sign-ins agents' sandboxes get, supplied by the framework.</summary>
 	[Inject]
@@ -43,33 +40,105 @@ public partial class SandboxSettingsEditor
 	[Inject]
 	public required OpenProject OpenProject { get; set; }
 
+	private bool HasChanges => Normalized(_dockerfile) != Normalized(_settings.Dockerfile);
+
+	private string? ProjectKey => OpenProject.Current is Project project ? SandboxNames.ProjectKey(project.Folder) : null;
+
+	// This project's build that runs now, or the last of its builds that finished; another project's says nothing about this one.
+	private SandboxImageBuild? ProjectBuild => ProjectKey is string projectKey ? ImageBuilds.Latest(projectKey) : null;
+
+	// A person's build that waits for the pipeline's is building as far as they are concerned.
+	private bool IsBuilding => ProjectBuild is { IsRunning: true } || CanCancel;
+
+	private bool CanCancel => ImageBuilds.PersonBuild is SandboxImageBuild build && build.ProjectKey == ProjectKey;
+
+	// A build of the project that runs shows only itself; the image it would replace is still there meanwhile.
+	private string? BuiltTag => IsBuilding ? null : _imageTag;
+
+	// A build's outcome describes the Dockerfile it built, so it is shown only while that Dockerfile is the saved one.
+	private SandboxImageBuild? FailedBuild => ProjectBuild is { State: SandboxImageBuildState.Failed } build && build.Builds(build.ProjectKey, _settings.Dockerfile) ? build : null;
+
+	// A build uses the saved Dockerfile, so unsaved changes are saved first. Builds run one at a time, so another project's build holds this one back; the disabled button says why.
+	private string? BuildBlockedText => HasChanges
+		? "Save the Dockerfile first."
+		: ImageBuilds.Building is SandboxImageBuild other && other.ProjectKey != ProjectKey ? "Another project's image is building." : null;
+
+	/// <inheritdoc/>
+	public void Dispose()
+	{
+		ImageBuilds.Changed -= OnBuildsChanged;
+		_disposed.Cancel();
+		_disposed.Dispose();
+	}
+
 	/// <inheritdoc/>
 	protected override async Task OnInitializedAsync()
 	{
+		ImageBuilds.Changed += OnBuildsChanged;
 		_signIns = SignIns.GetStatus();
 		await LoadAsync();
+
+		// Prerendering waits for this method, and an engine that is starting can be slow to answer, so the image is asked for once the page is interactive; an interactive page renders while it waits.
+		if (RendererInfo.IsInteractive)
+		{
+			await FindImageAsync();
+		}
 	}
-
-	private bool HasChanges => Normalized(_dockerfile) != Normalized(_settings.Dockerfile);
-
-	// A build uses the saved Dockerfile, so unsaved changes are saved first; the disabled button says so.
-	private string? BuildBlockedText => HasChanges ? "Save the Dockerfile first." : null;
 
 	private static string Normalized(string text)
 	{
 		return text.ReplaceLineEndings("\n").Trim();
 	}
 
-	private static string? Tail(string path)
+	private void OnBuildsChanged()
 	{
-		if (!File.Exists(path))
+		_ = InvokeAsync(OnBuildsChangedAsync);
+	}
+
+	// A build of the project that ended can have made its image; while one runs, the image is not shown anyway.
+	private async Task OnBuildsChangedAsync()
+	{
+		StateHasChanged();
+		if (!IsBuilding)
 		{
-			return null;
+			await FindImageAsync();
+			StateHasChanged();
+		}
+	}
+
+	// Asks the engine for the image of the saved Dockerfile. An engine that does not answer has no image to show; Build says what is wrong when it is pressed. A page that is gone asks nothing; this runs on the page's own context, as Dispose does, so the check holds until the lookup starts.
+	private async Task FindImageAsync()
+	{
+		if (_disposed.IsCancellationRequested)
+		{
+			return;
 		}
 
-		string[] lines = File.ReadAllLines(path);
+		if (OpenProject.Current is not Project project)
+		{
+			_imageTag = null;
+			return;
+		}
 
-		return string.Join('\n', lines.Skip(Math.Max(0, lines.Length - LogTailLines)));
+		int lookup = ++_imageLookups;
+		string? tag;
+		try
+		{
+			tag = await ImageBuilds.FindImageAsync(project.Folder, _settings.Dockerfile, _disposed.Token);
+		}
+		catch (SandboxUnavailableException)
+		{
+			tag = null;
+		}
+		catch (OperationCanceledException) when (_disposed.IsCancellationRequested)
+		{
+			return;
+		}
+
+		if (lookup == _imageLookups)
+		{
+			_imageTag = tag;
+		}
 	}
 
 	private async Task LoadAsync()
@@ -80,7 +149,7 @@ public partial class SandboxSettingsEditor
 
 	private async Task SaveAsync()
 	{
-		_busy = true;
+		_saving = true;
 		_error = null;
 		try
 		{
@@ -89,8 +158,8 @@ public partial class SandboxSettingsEditor
 			{
 				_settings = saved.Value;
 				_dockerfile = saved.Value.Dockerfile;
-				_builtTag = null;
-				_buildLog = null;
+				_imageTag = null;
+				await FindImageAsync();
 			}
 			else
 			{
@@ -99,46 +168,26 @@ public partial class SandboxSettingsEditor
 		}
 		finally
 		{
-			_busy = false;
+			_saving = false;
 		}
 	}
 
-	// Rebuilds from scratch, which also brings the agents' command lines in Pyxie's base image up to date.
-	private async Task BuildAsync()
+	// Rebuilds from scratch in the background, which also brings the agents' command lines in Pyxie's base image up to date. The button is disabled while any build runs, so a refusal only means another began a moment ago, which the page then shows.
+	private Task Build()
 	{
-		if (OpenProject.Current is not Project project)
+		if (OpenProject.Current is Project project)
 		{
-			return;
+			_error = null;
+			ImageBuilds.TryStart(project.Folder, _settings.Dockerfile);
 		}
 
-		_busy = true;
-		_building = true;
-		_error = null;
-		_builtTag = null;
-		_buildLog = null;
-		string logPath = WorkspaceLayout.ImageLogPath(project.Folder);
-		try
-		{
-			ServiceResult<string> built = await Sandboxes.EnsureImageAsync(new SandboxImageRequest(SandboxNames.ProjectKey(project.Folder), _settings.Dockerfile, Rebuild: true, logPath), CancellationToken.None);
+		return Task.CompletedTask;
+	}
 
-			if (built.Succeeded)
-			{
-				_builtTag = built.Value ?? string.Empty;
-			}
-			else
-			{
-				_error = built.Error;
-				_buildLog = Tail(logPath);
-			}
-		}
-		catch (SandboxUnavailableException exception)
-		{
-			_error = exception.Message;
-		}
-		finally
-		{
-			_busy = false;
-			_building = false;
-		}
+	private Task Cancel()
+	{
+		ImageBuilds.Cancel();
+
+		return Task.CompletedTask;
 	}
 }

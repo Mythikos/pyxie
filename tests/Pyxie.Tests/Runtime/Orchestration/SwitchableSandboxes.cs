@@ -55,6 +55,18 @@ public sealed class SwitchableSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task<string?> FindImageAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return Local.FindImageAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public Task<bool> RemoveUnusedImagesAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return Local.RemoveUnusedImagesAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public Task<ISandbox> StartAsync(SandboxSpec spec, CancellationToken cancellationToken)
 	{
 		return _startFailure is Exception failure ? Task.FromException<ISandbox>(failure) : Local.StartAsync(spec, cancellationToken);

@@ -5,7 +5,7 @@ using Pyxie.Runtime.Sandboxes;
 
 namespace Pyxie.Tests.Runtime.Workspaces;
 
-/// <summary>Sandboxes that pass everything to another <see cref="ISandboxes"/> except the image, whose answer the test chooses; every image request is remembered.</summary>
+/// <summary>Sandboxes that pass everything to another <see cref="ISandboxes"/> except the image, whose answer the test chooses: every image request gets it, and finding the image answers with its tag when it is one and with nothing when it is a failure. Every image request is remembered.</summary>
 public sealed class SettableImageSandboxes : ISandboxes
 {
 	private readonly ISandboxes _inner;
@@ -36,6 +36,18 @@ public sealed class SettableImageSandboxes : ISandboxes
 		_requests.Enqueue(request);
 
 		return Task.FromResult(_image);
+	}
+
+	/// <inheritdoc/>
+	public Task<string?> FindImageAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return Task.FromResult(_image.Succeeded ? _image.Value : null);
+	}
+
+	/// <inheritdoc/>
+	public Task<bool> RemoveUnusedImagesAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return _inner.RemoveUnusedImagesAsync(projectKey, dockerfile, cancellationToken);
 	}
 
 	/// <inheritdoc/>

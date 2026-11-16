@@ -1,6 +1,10 @@
 # Pyxie's base sandbox image. A project's image starts FROM it and adds the project's own build tools.
 FROM node:22-bookworm-slim
 
+# Every later RUN, here and in each project's image built on this one, runs through this link to /bin/sh. The build cache records its path with each step, which is how Pyxie finds and removes the cache its old builds left (SandboxNames.BuildShell).
+RUN ln -s /bin/sh /usr/local/bin/pyxie-build-sh
+SHELL ["/usr/local/bin/pyxie-build-sh", "-c"]
+
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends git ca-certificates curl procps iptables ipset dnsutils python3 \
 	&& rm -rf /var/lib/apt/lists/*

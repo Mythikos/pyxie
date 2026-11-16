@@ -202,6 +202,25 @@ public sealed class SandboxSettingsEditorBuildTests
 	}
 
 	[Fact]
+	public async Task Save_ThatIsRefusedAfterAFailedBuild_ShowsWhyAboveTheBuildsErrorAndItsLog()
+	{
+		await using TestDatabase database = new();
+		await using SandboxEditorHost editor = await SandboxEditorHost.StartAsync(database);
+		editor.Sandboxes.Result = ServiceResult<string>.Failure(BuildFailed);
+		editor.Sandboxes.LogLines = ["ERROR: failed to solve"];
+		await editor.BuildAsync();
+
+		await editor.TypeDockerfileAsync("FROM node:22-bookworm-slim\n");
+		await editor.SaveAsync();
+
+		IReadOnlyList<string> alerts = await editor.Host.AlertsAsync();
+		Assert.Equal(2, alerts.Count);
+		Assert.Contains("FROM ${PYXIE_BASE}", alerts[0], StringComparison.Ordinal);
+		Assert.Equal(BuildFailed, alerts[1]);
+		Assert.Equal("ERROR: failed to solve", await editor.BuildLogAsync());
+	}
+
+	[Fact]
 	public async Task Save_AfterASuccessfulBuild_ClearsTheBuiltMessage()
 	{
 		await using TestDatabase database = new();
@@ -217,29 +236,39 @@ public sealed class SandboxSettingsEditorBuildTests
 	}
 
 	[Fact]
-	public async Task Build_WhileItRuns_KeepsBuildAndSaveDisabled()
+	public async Task Build_WhileItRuns_ShowsBuildingAndCancelAndKeepsBuildDisabledWhileSaveFollowsTheUnsavedChanges()
 	{
 		await using TestDatabase database = new();
 		await using SandboxEditorHost editor = await SandboxEditorHost.StartAsync(database);
+		Assert.Null(await editor.CancelButtonAsync());
 		TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 		editor.Sandboxes.Hold = release.Task;
 
-		Task build = editor.BuildAsync();
+		await editor.StartBuildAsync();
 		try
 		{
 			await editor.Sandboxes.Started.WaitAsync(RuntimeTestTimeouts.Wait, TestContext.Current.CancellationToken);
+
+			Assert.False((await editor.BuildButtonAsync("Building")).IsClickable, "A second build cannot start while one runs.");
+			Assert.True((await editor.CancelButtonAsync())?.IsClickable, "A person's build that runs can be cancelled.");
+			Assert.False((await editor.SaveButtonAsync()).IsClickable, "Nothing was changed, so there is nothing to save.");
+			Assert.Null(await editor.BuiltStatusAsync());
+
 			await editor.TypeDockerfileAsync(Typed);
 
-			Assert.False((await editor.BuildButtonAsync()).IsClickable, "A second build cannot start while one runs.");
-			Assert.False((await editor.SaveButtonAsync()).IsClickable, "The Dockerfile being built cannot be replaced while the build runs.");
+			Assert.False((await editor.BuildButtonAsync("Building")).IsClickable, "A second build cannot start while one runs.");
+			Assert.Equal(SaveFirst, await editor.BuildTitleAsync());
+			Assert.True((await editor.SaveButtonAsync()).IsClickable, "A build in the background does not hold the Dockerfile, so a change typed meanwhile can be saved.");
 		}
 		finally
 		{
 			release.TrySetResult();
-			await build;
+			await editor.ImageBuilds.Running.WaitAsync(RuntimeTestTimeouts.Wait, TestContext.Current.CancellationToken);
 		}
 
 		Assert.Equal("Built", await editor.BuiltStatusAsync());
+		Assert.Null(await editor.CancelButtonAsync());
+		Assert.False((await editor.BuildButtonAsync()).IsClickable, "The change typed meanwhile still has to be saved before it can be built.");
 		Assert.True((await editor.SaveButtonAsync()).IsClickable, "Once the build ended, the change typed meanwhile can be saved.");
 		Assert.Single(editor.Sandboxes.Requests);
 	}

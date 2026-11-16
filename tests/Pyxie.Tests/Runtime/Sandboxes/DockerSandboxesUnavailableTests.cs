@@ -31,6 +31,7 @@ public sealed class DockerSandboxesUnavailableTests
 
 	[Theory]
 	[InlineData(nameof(DockerSandboxes.EnsureImageAsync))]
+	[InlineData(nameof(DockerSandboxes.FindImageAsync))]
 	[InlineData(nameof(DockerSandboxes.StartAsync))]
 	[InlineData(nameof(DockerSandboxes.RemoveCardAsync))]
 	[InlineData(nameof(DockerSandboxes.RemoveLeftoverRoundsAsync))]
@@ -46,6 +47,7 @@ public sealed class DockerSandboxesUnavailableTests
 		Func<Task> run = operation switch
 		{
 			nameof(DockerSandboxes.EnsureImageAsync) => () => sandboxes.EnsureImageAsync(new SandboxImageRequest(key, SandboxDefaults.Dockerfile, Rebuild: false, scratch.Combine("image.log")), Token),
+			nameof(DockerSandboxes.FindImageAsync) => () => sandboxes.FindImageAsync(key, SandboxDefaults.Dockerfile, Token),
 			nameof(DockerSandboxes.StartAsync) => () => sandboxes.StartAsync(GateSpec(key, scratch), Token),
 			nameof(DockerSandboxes.RemoveCardAsync) => () => sandboxes.RemoveCardAsync(key, 1, Token),
 			nameof(DockerSandboxes.RemoveLeftoverRoundsAsync) => () => sandboxes.RemoveLeftoverRoundsAsync(key, Token),
@@ -71,6 +73,7 @@ public sealed class DockerSandboxesUnavailableTests
 	// The operations whose arguments a batch file can be given (cmd.exe cannot pass quotes), so the stand-in works on Windows too.
 	[Theory]
 	[InlineData(nameof(DockerSandboxes.EnsureImageAsync))]
+	[InlineData(nameof(DockerSandboxes.FindImageAsync))]
 	[InlineData(nameof(DockerSandboxes.RemoveCardAsync))]
 	[InlineData(nameof(DockerSandboxes.RemoveLeftoverRoundsAsync))]
 	public async Task Operation_EngineNotRunning_ThrowsSandboxUnavailableNotSandboxException(string operation)
@@ -84,6 +87,7 @@ public sealed class DockerSandboxesUnavailableTests
 		Func<Task> run = operation switch
 		{
 			nameof(DockerSandboxes.EnsureImageAsync) => () => sandboxes.EnsureImageAsync(new SandboxImageRequest(key, SandboxDefaults.Dockerfile, Rebuild: false, scratch.Combine("image.log")), Token),
+			nameof(DockerSandboxes.FindImageAsync) => () => sandboxes.FindImageAsync(key, SandboxDefaults.Dockerfile, Token),
 			nameof(DockerSandboxes.RemoveCardAsync) => () => sandboxes.RemoveCardAsync(key, 1, Token),
 			_ => () => sandboxes.RemoveLeftoverRoundsAsync(key, Token),
 		};

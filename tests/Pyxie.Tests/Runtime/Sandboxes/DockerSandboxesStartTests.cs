@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Pyxie.Data.Services.Results;
 using Pyxie.Runtime.Processes;
 using Pyxie.Runtime.Sandboxes;
@@ -7,10 +9,15 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Sandboxes;
 
-/// <summary><see cref="DockerSandboxes"/> with a real engine, around starting a sandbox: the engine is reported available, a container and its volumes carry the labels a cleanup finds them by, and a sandbox that cannot start is a <see cref="SandboxException"/> saying why, with nothing left running.</summary>
+/// <summary><see cref="DockerSandboxes"/> with a real engine, around starting a sandbox: the engine is reported available, a container and its volumes carry the labels a cleanup finds them by, and a sandbox that cannot start is a <see cref="SandboxException"/> saying why, with nothing left running: one the engine refuses to make, one whose start script fails, and one whose image is not on the machine, which is refused at once without asking a registry for it.</summary>
 [Collection(DockerSandboxCollection.Name)]
 public sealed class DockerSandboxesStartTests
 {
+	// An address in the range reserved for documentation, so a pull from its registry would hang rather than fail at once.
+	private const string MissingImage = "192.0.2.1:5000/pyxie-test/missing:latest";
+
+	private static readonly TimeSpan s_quickly = TimeSpan.FromSeconds(10);
+
 	private readonly DockerImageFixture _image;
 
 	public DockerSandboxesStartTests(DockerImageFixture image)
@@ -50,15 +57,30 @@ public sealed class DockerSandboxesStartTests
 	}
 
 	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
-	public async Task StartAsync_ImageThatCannotBeUsed_ThrowsSandboxExceptionSayingWhy()
+	public async Task StartAsync_ContainerTheEngineRefuses_ThrowsSandboxExceptionSayingWhy()
 	{
 		await using DockerSandboxRig rig = new(_image);
-		SandboxSpec spec = rig.Spec(1, SandboxRole.Review) with { Image = "Pyxie-Test-Not-A-Valid-Reference" };
+		SandboxSpec spec = rig.Spec(1, SandboxRole.Review) with { Name = "pyxie test: not a valid container name" };
 
 		SandboxException exception = await Assert.ThrowsAsync<SandboxException>(() => rig.Sandboxes.StartAsync(spec, Token));
 
 		Assert.StartsWith("The sandbox could not start:", exception.Message, StringComparison.Ordinal);
-		Assert.False(await rig.Docker.ContainerExistsAsync(spec.Name), "A sandbox that could not start left a container behind.");
+		Assert.Empty(await rig.Docker.RunCheckedAsync("ps", "--all", "--quiet", "--filter", $"label={SandboxNames.ProjectLabel}={rig.ProjectKey}"));
+	}
+
+	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
+	public async Task StartAsync_ImageNotOnThisMachine_ThrowsSandboxExceptionAtOnceWithoutPulling()
+	{
+		await using DockerSandboxRig rig = new(_image);
+		SandboxSpec spec = rig.Spec(1, SandboxRole.Review) with { Image = MissingImage };
+		Stopwatch watch = Stopwatch.StartNew();
+
+		SandboxException exception = await Assert.ThrowsAsync<SandboxException>(() => rig.Sandboxes.StartAsync(spec, Token));
+
+		Assert.Contains(MissingImage, exception.Message, StringComparison.Ordinal);
+		Assert.Contains("is not on this machine", exception.Message, StringComparison.Ordinal);
+		Assert.True(watch.Elapsed < s_quickly, $"Refusing the missing image took {watch.Elapsed}; the registry at that address never answers, so the engine was asked to pull it.");
+		Assert.Empty(await rig.Docker.RunCheckedAsync("ps", "--all", "--quiet", "--filter", $"label={SandboxNames.ProjectLabel}={rig.ProjectKey}"));
 	}
 
 	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]

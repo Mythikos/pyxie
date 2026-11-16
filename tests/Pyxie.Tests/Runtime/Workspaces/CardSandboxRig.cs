@@ -36,7 +36,8 @@ public sealed class CardSandboxRig : IAsyncDisposable
 		RepositoryLock = new RepositoryLock();
 		Sandboxes = new LocalSandboxes(runner, root.Combine("engine"));
 		Engine = decorate?.Invoke(Sandboxes) ?? Sandboxes;
-		Cards = new CardSandboxes(Engine, signIns, Git, RepositoryLock);
+		ImageBuilds = new SandboxImageBuilds(Engine, TimeProvider.System);
+		Cards = new CardSandboxes(Engine, ImageBuilds, signIns, Git, RepositoryLock);
 		Repository = new Repository { Id = 1, Source = RepositorySource.Folder, Path = hub.Folder, Origin = source.Folder, TargetBranch = targetBranch };
 		Context = new CardRoundContext(projectFolder, ProjectKey, Repository, SandboxDefaults.Dockerfile);
 	}
@@ -64,6 +65,9 @@ public sealed class CardSandboxRig : IAsyncDisposable
 
 	/// <summary>Gets the sandboxes the card sandboxes were given: <see cref="Sandboxes"/>, or what the test wrapped it in.</summary>
 	public ISandboxes Engine { get; }
+
+	/// <summary>Gets the image builds the card sandboxes get their image through, over <see cref="Engine"/>.</summary>
+	public SandboxImageBuilds ImageBuilds { get; }
 
 	/// <summary>Gets the card sandboxes under test.</summary>
 	public CardSandboxes Cards { get; }
@@ -345,6 +349,7 @@ public sealed class CardSandboxRig : IAsyncDisposable
 	/// <returns>A task that completes when the rig's folders are gone.</returns>
 	public async ValueTask DisposeAsync()
 	{
+		ImageBuilds.Dispose();
 		RepositoryLock.Dispose();
 		await Hub.DisposeAsync();
 		_runner.Dispose();

@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Sandboxes;
 
-/// <summary>Runs the <c>docker</c> command line directly, beside the code under test, so a test can look at what a sandbox left in the engine and clean up whatever happens to the code it tests. Cleanup only ever touches what carries a test's own project key; images are only untagged by name, so Pyxie's shared base image is never removed.</summary>
+/// <summary>Runs the <c>docker</c> command line directly, beside the code under test, so a test can look at what a sandbox left in the engine and clean up whatever happens to the code it tests. Cleanup only ever touches what carries a test's own project key, by name or by label, so Pyxie's shared base image and every other project's images are never removed.</summary>
 public sealed class DockerProcess : IDisposable
 {
 	private static readonly TimeSpan s_timeout = TimeSpan.FromMinutes(2);
@@ -55,7 +55,61 @@ public sealed class DockerProcess : IDisposable
 		return (await RunAsync("volume", "inspect", "--format", "{{.Name}}", name)).Succeeded;
 	}
 
-	/// <summary>Removes everything a test project left in the engine: its containers and volumes, found by its label and by its name prefix, and its project images, untagged by name only.</summary>
+	/// <summary>Gets whether an image exists, by tag or by identifier.</summary>
+	/// <param name="reference">The image's tag or identifier.</param>
+	/// <returns><see langword="true"/> when it exists.</returns>
+	public async Task<bool> ImageExistsAsync(string reference)
+	{
+		return (await RunAsync("image", "inspect", "--format", "{{.Id}}", reference)).Succeeded;
+	}
+
+	/// <summary>Gets an image's identifier, which changes when a tag is moved to another image.</summary>
+	/// <param name="reference">The image's tag.</param>
+	/// <returns>The identifier.</returns>
+	public Task<string> ImageIdAsync(string reference)
+	{
+		return RunCheckedAsync("image", "inspect", "--format", "{{.Id}}", reference);
+	}
+
+	/// <summary>Gets what one of an image's labels says, or an empty text when it has none.</summary>
+	/// <param name="reference">The image's tag.</param>
+	/// <param name="label">The label's name.</param>
+	/// <returns>The label's value.</returns>
+	public Task<string> ImageLabelAsync(string reference, string label)
+	{
+		return RunCheckedAsync("image", "inspect", "--format", $"{{{{index .Config.Labels \"{label}\"}}}}", reference);
+	}
+
+	/// <summary>Gets the identifiers of the images that carry a test project's label, tagged or not, which is how an image a tag was moved away from is still found.</summary>
+	/// <param name="projectKey">The test project's key.</param>
+	/// <returns>The identifiers.</returns>
+	public async Task<IReadOnlySet<string>> ProjectImageIdsAsync(string projectKey)
+	{
+		return Lines(await RunAsync("image", "ls", "--all", "--no-trunc", "--quiet", "--filter", $"label={SandboxNames.ProjectLabel}={projectKey}")).ToHashSet(StringComparer.Ordinal);
+	}
+
+	/// <summary>Builds a small image from a Dockerfile on standard input, so the test needs no build folder, and labels it as a test project's image the way Pyxie labels its own.</summary>
+	/// <param name="tag">The tag the image gets, where building again under the same tag moves it to the new image; <see langword="null"/> leaves the image without a tag.</param>
+	/// <param name="dockerfile">The Dockerfile.</param>
+	/// <param name="projectKey">The test project's key, which labels the image so cleanup finds it even when it has no tag.</param>
+	/// <returns>The image's identifier.</returns>
+	public async Task<string> BuildAsync(string? tag, string dockerfile, string projectKey)
+	{
+		List<string> arguments = ["build", "--quiet", "--label", $"{SandboxNames.ImageLabel}={SandboxNames.ProjectImageKind}", "--label", $"{SandboxNames.ProjectLabel}={projectKey}"];
+		if (tag is not null)
+		{
+			arguments.AddRange(["--tag", tag]);
+		}
+
+		arguments.Add("-");
+		ProcessResult result = await _runner.RunAsync(new ProcessRequest("docker", arguments, Path.GetTempPath()) { Timeout = s_timeout, StandardInput = dockerfile }, CancellationToken.None);
+
+		Assert.True(result.Succeeded, $"docker build of {tag ?? "an untagged image"} failed ({result.Outcome}, exit code {result.ExitCode}): {result.StartError ?? result.Output}");
+
+		return result.StandardOutput.Trim();
+	}
+
+	/// <summary>Removes everything a test project left in the engine: its containers and volumes, found by its label and by its name prefix, and its project images, untagged by name and then removed by the label they carry, which also takes an image a tag was moved away from. Only what carries the test's own key is touched.</summary>
 	/// <param name="projectKey">The test project's key.</param>
 	/// <returns>A task that completes when they are gone.</returns>
 	public async Task RemoveProjectAsync(string projectKey)
@@ -81,6 +135,11 @@ public sealed class DockerProcess : IDisposable
 
 		ProcessResult images = await RunAsync("image", "ls", "--filter", $"reference={SandboxNames.ProjectImage(projectKey)}", "--format", "{{.Repository}}:{{.Tag}}");
 		foreach (string image in Lines(images))
+		{
+			await RunAsync("image", "rm", image);
+		}
+
+		foreach (string image in await ProjectImageIdsAsync(projectKey))
 		{
 			await RunAsync("image", "rm", image);
 		}

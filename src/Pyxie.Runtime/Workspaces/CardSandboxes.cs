@@ -33,18 +33,21 @@ public sealed class CardSandboxes
 	private static readonly string[] s_lockFiles = ["index.lock", "HEAD.lock", "config.lock", "packed-refs.lock", "shallow.lock"];
 
 	private readonly ISandboxes _sandboxes;
+	private readonly SandboxImageBuilds _imageBuilds;
 	private readonly ISandboxSignIns _signIns;
 	private readonly GitClient _git;
 	private readonly RepositoryLock _repositoryLock;
 
 	/// <summary>Initializes a new instance of the <see cref="CardSandboxes"/> class.</summary>
 	/// <param name="sandboxes">Makes the sandboxes.</param>
+	/// <param name="imageBuilds">Gets the project's image, and reports the build when one is needed.</param>
 	/// <param name="signIns">Decides what an agent's sandbox gets to sign in.</param>
 	/// <param name="git">The git client, for the hub.</param>
 	/// <param name="repositoryLock">The lock that serializes moves of the hub's branches.</param>
-	public CardSandboxes(ISandboxes sandboxes, ISandboxSignIns signIns, GitClient git, RepositoryLock repositoryLock)
+	public CardSandboxes(ISandboxes sandboxes, SandboxImageBuilds imageBuilds, ISandboxSignIns signIns, GitClient git, RepositoryLock repositoryLock)
 	{
 		_sandboxes = sandboxes;
+		_imageBuilds = imageBuilds;
 		_signIns = signIns;
 		_git = git;
 		_repositoryLock = repositoryLock;
@@ -73,7 +76,7 @@ public sealed class CardSandboxes
 		string target = context.Repository.TargetBranch;
 		string branch = PipelineContract.BranchName(work.CardId);
 
-		ServiceResult<string> image = await _sandboxes.EnsureImageAsync(new SandboxImageRequest(context.ProjectKey, context.Dockerfile, Rebuild: false, WorkspaceLayout.ImageLogPath(context.ProjectFolder)), cancellationToken);
+		ServiceResult<string> image = await _imageBuilds.EnsureAsync(context.ProjectFolder, context.Dockerfile, cancellationToken);
 		if (!image.Succeeded || image.Value is null)
 		{
 			throw new SandboxException(image.Error ?? "The project's sandbox image could not be built.");

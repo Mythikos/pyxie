@@ -8,6 +8,7 @@ using Pyxie.Data.Services;
 using Pyxie.Runtime.Orchestration;
 using Pyxie.Runtime.Processes;
 using Pyxie.Runtime.Sandboxes;
+using Pyxie.Runtime.Workspaces;
 using Pyxie.Tests.Support;
 
 namespace Pyxie.Tests.Web.Rendering;
@@ -38,6 +39,7 @@ internal sealed class ProjectPageHost : IAsyncDisposable
 			services.AddSingleton<ICategoryService>(new CategoryService(database.ContextFactory));
 			services.AddSingleton<ISandboxSettingsService>(new SandboxSettingsService(database.ContextFactory, database.Clock));
 			services.AddSingleton<ISandboxes, LocalSandboxes>(_ => new LocalSandboxes(new ProcessRunner(TimeProvider.System), Path.Combine(Path.GetTempPath(), $"pyxie-page-sandboxes-{Guid.NewGuid():N}")));
+			services.AddSingleton(provider => new SandboxImageBuilds(provider.GetRequiredService<ISandboxes>(), database.Clock));
 			services.AddSingleton<ISandboxSignIns, StandInSignIns>();
 		});
 	}

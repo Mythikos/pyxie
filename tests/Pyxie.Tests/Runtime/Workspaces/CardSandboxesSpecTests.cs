@@ -179,7 +179,8 @@ public sealed class CardSandboxesSpecTests
 
 		Assert.Equal("pyxie-project-test:abc", rig.Sandboxes.Started[^1].Image);
 		SandboxImageRequest request = Assert.Single(images?.Requests ?? []);
-		Assert.Equal(new SandboxImageRequest(rig.ProjectKey, SandboxDefaults.Dockerfile, Rebuild: false, WorkspaceLayout.ImageLogPath(rig.ProjectFolder)), request);
+		Assert.NotNull(request.BuildStarting);
+		Assert.Equal(new SandboxImageRequest(rig.ProjectKey, SandboxDefaults.Dockerfile, Rebuild: false, WorkspaceLayout.ImageLogPath(rig.ProjectFolder)), request with { BuildStarting = null });
 	}
 
 	[Fact]

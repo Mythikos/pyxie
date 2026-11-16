@@ -1,33 +1,40 @@
 @using Pyxie.Runtime.Sandboxes
+@using Pyxie.Runtime.Workspaces
 
 <SettingsPanel Section="SettingsSections.Sandbox" style="--settings-panel-gap: 16px; --settings-panel-bottom: 20px">
 	@if (_error is not null)
 	{
 		<Alert Color="Color.Danger" Visible="true">@_error</Alert>
 	}
+	@* A failed build's error goes with its log below, so a refused save never leaves the log without it. *@
+	@if (FailedBuild is SandboxImageBuild failed)
+	{
+		<Alert Color="Color.Danger" Visible="true">@failed.Error</Alert>
+	}
 	<div class="sandbox-columns">
 		<div class="sandbox-editor">
 			<label for="sandbox-dockerfile" class="sandbox-label">Dockerfile</label>
 			<MemoInput ElementId="sandbox-dockerfile" @bind-Value="@_dockerfile" Rows="13" Class="sandbox-dockerfile" spellcheck="false" />
 			<div class="sandbox-actions">
-				@if (_builtTag is not null)
+				@if (BuiltTag is string tag)
 				{
 					<span class="sandbox-built"><Icon Name="IconName.CheckCircle" IconStyle="IconStyle.Solid" />Built</span>
-					@if (_builtTag.Length > 0)
-					{
-						<code class="sandbox-tag">@_builtTag</code>
-					}
+					<code class="sandbox-tag">@tag</code>
 				}
 				<div class="sandbox-buttons">
 					<span title="@BuildBlockedText">
-						<Button Color="Color.Default" Disabled="@(HasChanges || _busy)" Loading="@_building" Clicked="@BuildAsync">Build</Button>
+						<Button Color="Color.Default" Disabled="@(HasChanges || !ImageBuilds.CanStart)" Loading="@IsBuilding" Clicked="@Build">@(IsBuilding ? "Building" : "Build")</Button>
 					</span>
-					<Button Class="sandbox-save" Color="Color.Primary" Disabled="@(!HasChanges || _busy)" Clicked="@SaveAsync">Save</Button>
+					@if (CanCancel)
+					{
+						<Button Color="Color.Default" Clicked="@Cancel">Cancel</Button>
+					}
+					<Button Class="sandbox-save" Color="Color.Primary" Disabled="@(!HasChanges || _saving)" Clicked="@SaveAsync">Save</Button>
 				</div>
 			</div>
-			@if (_buildLog is not null)
+			@if (FailedBuild?.LogTail is string log)
 			{
-				<pre class="sandbox-build-log">@_buildLog</pre>
+				<pre class="sandbox-build-log">@log</pre>
 			}
 		</div>
 		@if (_signIns is SandboxSignInStatus signIns)

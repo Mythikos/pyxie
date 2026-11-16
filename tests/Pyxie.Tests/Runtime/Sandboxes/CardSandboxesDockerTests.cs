@@ -54,7 +54,8 @@ public sealed class CardSandboxesDockerTests
 		await using TempGitRepository hub = await CreateHubAsync(source, rig);
 		using ProcessRunner runner = new(TimeProvider.System);
 		using RepositoryLock repositoryLock = new();
-		CardSandboxes cards = new(rig.Sandboxes, new StandInSignIns(), new GitClient(runner), repositoryLock);
+		using SandboxImageBuilds imageBuilds = new(rig.Sandboxes, TimeProvider.System);
+		CardSandboxes cards = new(rig.Sandboxes, imageBuilds, new StandInSignIns(), new GitClient(runner), repositoryLock);
 		CardRoundContext context = Context(rig, hub);
 		PipelineWork work = Work(sequence: 1, FirstRoundArguments);
 		string mainTip = await hub.GetHashAsync(TempGitRepository.MainBranch);
@@ -95,7 +96,8 @@ public sealed class CardSandboxesDockerTests
 		await using TempGitRepository hub = await CreateHubAsync(source, rig);
 		using ProcessRunner runner = new(TimeProvider.System);
 		using RepositoryLock repositoryLock = new();
-		CardSandboxes cards = new(rig.Sandboxes, new StandInSignIns(), new GitClient(runner), repositoryLock);
+		using SandboxImageBuilds imageBuilds = new(rig.Sandboxes, TimeProvider.System);
+		CardSandboxes cards = new(rig.Sandboxes, imageBuilds, new StandInSignIns(), new GitClient(runner), repositoryLock);
 		CardRoundContext context = Context(rig, hub);
 
 		await using (CardSandbox card = await cards.OpenAsync(context, Work(sequence: 1, FirstRoundArguments), Token))
@@ -123,7 +125,8 @@ public sealed class CardSandboxesDockerTests
 		await using TempGitRepository hub = await CreateHubAsync(source, rig);
 		using ProcessRunner runner = new(TimeProvider.System);
 		using RepositoryLock repositoryLock = new();
-		CardSandboxes cards = new(rig.Sandboxes, new StandInSignIns(), new GitClient(runner), repositoryLock);
+		using SandboxImageBuilds imageBuilds = new(rig.Sandboxes, TimeProvider.System);
+		CardSandboxes cards = new(rig.Sandboxes, imageBuilds, new StandInSignIns(), new GitClient(runner), repositoryLock);
 		CardRoundContext context = Context(rig, hub);
 		string worker = SandboxNames.Container(rig.ProjectKey, CardId, SandboxRole.Worker);
 
@@ -157,7 +160,8 @@ public sealed class CardSandboxesDockerTests
 		await using TempGitRepository hub = await CreateHubAsync(source, rig);
 		using ProcessRunner runner = new(TimeProvider.System);
 		using RepositoryLock repositoryLock = new();
-		CardSandboxes cards = new(rig.Sandboxes, new StandInSignIns(), new GitClient(runner), repositoryLock);
+		using SandboxImageBuilds imageBuilds = new(rig.Sandboxes, TimeProvider.System);
+		CardSandboxes cards = new(rig.Sandboxes, imageBuilds, new StandInSignIns(), new GitClient(runner), repositoryLock);
 		CardRoundContext context = Context(rig, hub);
 		string resolveContainer = SandboxNames.Container(rig.ProjectKey, CardId, SandboxRole.Resolve);
 

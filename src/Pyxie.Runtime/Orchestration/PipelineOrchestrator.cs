@@ -30,12 +30,16 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 	private readonly PipelineActivity _activity;
 	private readonly CardSandboxes _cards;
 	private readonly ISandboxes _sandboxes;
+	private readonly SandboxImageBuilds _imageBuilds;
 	private readonly TimeProvider _timeProvider;
 	private readonly PipelineOptions _options;
 	private readonly ILogger<PipelineOrchestrator> _logger;
 
 	// The project whose leftover rounds were marked interrupted. Only the loop in ExecuteAsync reads and writes it.
 	private int? _recoveredProjectId;
+
+	// How many image builds had succeeded when unused images were last removed. Only the loop in ExecuteAsync reads and writes it.
+	private int _sweptBuilds;
 
 	/// <summary>Initializes a new instance of the <see cref="PipelineOrchestrator"/> class.</summary>
 	/// <param name="scopes">Creates a scope per operation for the scoped data services.</param>
@@ -44,10 +48,11 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 	/// <param name="activity">Announces card changes, and wakes idle workers when people change cards.</param>
 	/// <param name="cards">Runs cards' rounds in sandboxes and removes what finished cards left.</param>
 	/// <param name="sandboxes">Makes the sandboxes; the pipeline does not start while it cannot.</param>
+	/// <param name="imageBuilds">The builds of projects' images, whose leftovers the pipeline removes while no round runs.</param>
 	/// <param name="timeProvider">The clock idle workers wait on.</param>
 	/// <param name="options">The pipeline options.</param>
 	/// <param name="logger">The logger.</param>
-	public PipelineOrchestrator(IServiceScopeFactory scopes, OpenProject openProject, PipelineController controller, PipelineActivity activity, CardSandboxes cards, ISandboxes sandboxes, TimeProvider timeProvider, IOptions<PipelineOptions> options, ILogger<PipelineOrchestrator> logger)
+	public PipelineOrchestrator(IServiceScopeFactory scopes, OpenProject openProject, PipelineController controller, PipelineActivity activity, CardSandboxes cards, ISandboxes sandboxes, SandboxImageBuilds imageBuilds, TimeProvider timeProvider, IOptions<PipelineOptions> options, ILogger<PipelineOrchestrator> logger)
 	{
 		_scopes = scopes;
 		_openProject = openProject;
@@ -55,6 +60,8 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 		_activity = activity;
 		_cards = cards;
 		_sandboxes = sandboxes;
+		_imageBuilds = imageBuilds;
+		_sweptBuilds = imageBuilds.SucceededBuilds;
 		_timeProvider = timeProvider;
 		_options = options.Value;
 		_logger = logger;
@@ -68,12 +75,14 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 			// Taken before anything is checked, so a change that lands meanwhile still wakes the waits below.
 			Task stateChanged = _controller.NextChangeAsync();
 			Task activityChanged = _activity.NextChangeAsync();
+			Task buildEnded = _imageBuilds.NextEndAsync();
 
 			if (!_controller.IsRunning)
 			{
-				// A project opened while the pipeline is stopped announces itself, which wakes this wait, so its leftover rounds are marked interrupted at once.
+				// A project opened while the pipeline is stopped announces itself, which wakes this wait, so its leftover rounds are marked interrupted at once. A build that ends wakes it too, so what the build left is removed at once.
 				await RecoverWhileStoppedAsync(stoppingToken);
-				await Task.WhenAny(stateChanged, activityChanged).WaitAsync(stoppingToken);
+				await RemoveUnusedImagesWhileStoppedAsync(stoppingToken);
+				await Task.WhenAny(stateChanged, activityChanged, buildEnded).WaitAsync(stoppingToken);
 				continue;
 			}
 
@@ -107,6 +116,9 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "Could not remove the workspaces of cards that no longer need them; they are removed the next time the pipeline starts.")]
 	private static partial void LogReconcileFailed(ILogger logger, Exception exception);
+
+	[LoggerMessage(Level = LogLevel.Warning, Message = "Could not remove the sandbox images and build cache that nothing needs; they are removed the next time the pipeline starts.")]
+	private static partial void LogImageCleanupFailed(ILogger logger, Exception exception);
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "Could not remove the workspace of merged card {CardId}; it is removed the next time the pipeline starts.")]
 	private static partial void LogCleanupFailed(ILogger logger, int cardId, Exception exception);
@@ -213,6 +225,7 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 		}
 
 		await RemoveAbandonedWorkspacesAsync(projectFolder, stoppingToken);
+		await RemoveUnusedImagesAsync(projectFolder, stoppingToken);
 
 		try
 		{
@@ -425,5 +438,47 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 		{
 			LogReconcileFailed(_logger, exception);
 		}
+	}
+
+	// A build that succeeded since the last removal can leave images and build cache nothing needs. While the pipeline is stopped no round can be starting a sandbox, so they go at once; the open project is held meanwhile.
+	private async Task RemoveUnusedImagesWhileStoppedAsync(CancellationToken stoppingToken)
+	{
+		if (_imageBuilds.SucceededBuilds == _sweptBuilds || !_controller.TryBeginWork(requireRunning: false))
+		{
+			return;
+		}
+
+		try
+		{
+			if (_openProject.Current is Project project)
+			{
+				await RemoveUnusedImagesAsync(project.Folder, stoppingToken);
+			}
+		}
+		finally
+		{
+			_controller.EndWork();
+		}
+	}
+
+	// Runs only from the loop in ExecuteAsync, before a session's first round or while the pipeline is stopped, because a round that already found its image must not find it gone when it starts the sandbox. A build that is running makes it do nothing; the build's end wakes the loop to try again. A failure (Docker not running, say) is logged and not tried again before the next session or build.
+	private async Task RemoveUnusedImagesAsync(string projectFolder, CancellationToken stoppingToken)
+	{
+		int builds = _imageBuilds.SucceededBuilds;
+		try
+		{
+			await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
+			SandboxSettings settings = await scope.ServiceProvider.GetRequiredService<ISandboxSettingsService>().GetAsync(stoppingToken);
+			if (!await _sandboxes.RemoveUnusedImagesAsync(SandboxNames.ProjectKey(projectFolder), settings.Dockerfile, stoppingToken))
+			{
+				return;
+			}
+		}
+		catch (Exception exception) when (exception is not OperationCanceledException)
+		{
+			LogImageCleanupFailed(_logger, exception);
+		}
+
+		_sweptBuilds = builds;
 	}
 }

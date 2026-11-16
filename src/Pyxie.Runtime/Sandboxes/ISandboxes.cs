@@ -10,12 +10,30 @@ public interface ISandboxes
 	/// <returns>Success, or what is wrong, in words for a person.</returns>
 	Task<ServiceResult> CheckAvailableAsync(CancellationToken cancellationToken);
 
-	/// <summary>Gets a project's image, building Pyxie's base image and the project's image when they are not there yet or a rebuild is asked for.</summary>
+	/// <summary>Gets a project's image, building Pyxie's base image and the project's image when they are not there yet or a rebuild is asked for. Builds run one at a time; a request waits for the one ahead of it, and calls <see cref="SandboxImageRequest.BuildStarting"/> when its own build begins.</summary>
 	/// <param name="request">The project's image.</param>
-	/// <param name="cancellationToken">A token to cancel the build.</param>
+	/// <param name="cancellationToken">A token to cancel the build, which stops it in the engine and leaves the images as they were.</param>
 	/// <returns>The image's tag, or why it could not be built; the log says more.</returns>
 	/// <exception cref="SandboxUnavailableException">The container engine does not answer.</exception>
+	/// <exception cref="OperationCanceledException">The build was cancelled.</exception>
 	Task<ServiceResult<string>> EnsureImageAsync(SandboxImageRequest request, CancellationToken cancellationToken);
+
+	/// <summary>Finds a project's image for a Dockerfile on Pyxie's current base image, which is the image a round would use. It is asked of the engine every time, because an image can be removed by Pyxie or by anyone else at any moment.</summary>
+	/// <param name="projectKey">The project's key.</param>
+	/// <param name="dockerfile">The project's Dockerfile.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>The image's tag, or <see langword="null"/> when the engine does not have it.</returns>
+	/// <exception cref="SandboxUnavailableException">The container engine does not answer.</exception>
+	Task<string?> FindImageAsync(string projectKey, string dockerfile, CancellationToken cancellationToken);
+
+	/// <summary>Removes what Pyxie's image builds left that nothing needs any more: the project's images other than the one for its Dockerfile, Pyxie's base images other than the current one that no remaining project image is built on, and the build cache of Pyxie's images that no image uses. An image a container still uses stays, and is removed by a later call once that container is gone. Nothing is forced, and only what Pyxie built is touched.</summary>
+	/// <remarks>Call it only while no round can be starting a sandbox: a round that already found its image would otherwise find it gone when it starts the container. It does not wait for a build that is running; it does nothing then and says so.</remarks>
+	/// <param name="projectKey">The project's key.</param>
+	/// <param name="dockerfile">The project's Dockerfile, whose image stays.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns><see langword="true"/> when it ran; <see langword="false"/> when a build was running, so nothing was removed.</returns>
+	/// <exception cref="SandboxUnavailableException">The container engine does not answer.</exception>
+	Task<bool> RemoveUnusedImagesAsync(string projectKey, string dockerfile, CancellationToken cancellationToken);
 
 	/// <summary>Starts a sandbox, or picks up a kept one that is still running from the same image.</summary>
 	/// <param name="spec">What the sandbox is made from and given.</param>

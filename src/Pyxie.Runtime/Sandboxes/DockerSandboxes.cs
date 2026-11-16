@@ -55,11 +55,26 @@ public sealed class DockerSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task<string?> FindImageAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return _images.FindAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public Task<bool> RemoveUnusedImagesAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return _images.RemoveUnusedAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public async Task<ISandbox> StartAsync(SandboxSpec spec, CancellationToken cancellationToken)
 	{
 		Directory.CreateDirectory(spec.InputFolder);
 		Directory.CreateDirectory(spec.OutputFolder);
-		string specHash = SpecHash(spec);
+
+		// The image is named by its tag, and a rebuild moves the tag to a new image, so a kept sandbox is matched on the image itself.
+		string imageId = await _images.ImageIdAsync(spec.Image, cancellationToken) ?? throw new SandboxException($"The sandbox image {spec.Image} is not on this machine.");
+		string specHash = SpecHash(spec, imageId);
 
 		string? existing = await InspectAsync(spec.Name, cancellationToken);
 		if (existing is not null)
@@ -146,11 +161,12 @@ public sealed class DockerSandboxes : ISandboxes
 		return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 	}
 
-	// Everything a container is made with, so a kept one is picked up again only when the round would make the same one.
-	private static string SpecHash(SandboxSpec spec)
+	// Everything a container is made with, so a kept one is picked up again only when the round would make the same one: a rebuilt image under the same tag makes a new one, so a rebuild reaches kept workers too.
+	private static string SpecHash(SandboxSpec spec, string imageId)
 	{
 		StringBuilder text = new();
 		text.AppendLine(spec.Image);
+		text.AppendLine(imageId);
 		foreach (SandboxVolume volume in spec.Volumes)
 		{
 			text.Append("volume ").Append(volume.Name).Append(' ').AppendLine(volume.PathInside);
@@ -188,6 +204,9 @@ public sealed class DockerSandboxes : ISandboxes
 			"--label", $"{SandboxNames.SpecLabel}={specHash}",
 			"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW", "--security-opt", "no-new-privileges",
 			"--user", "root",
+
+			// Pyxie's images exist only on this machine; a missing one is never looked for in a registry.
+			"--pull", "never",
 		];
 
 		foreach ((string name, string value) in spec.Environment)

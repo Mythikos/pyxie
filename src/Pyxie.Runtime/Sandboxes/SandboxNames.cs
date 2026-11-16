@@ -19,8 +19,20 @@ public static class SandboxNames
 	/// <summary>The label that carries a hash of everything a sandbox was made with, so a kept one is only picked up again when nothing changed.</summary>
 	public const string SpecLabel = "pyxie.spec";
 
+	/// <summary>The label that says which kind of Pyxie image an image is: <see cref="BaseImageKind"/> or <see cref="ProjectImageKind"/>. A project's image also carries <see cref="ProjectLabel"/>. The labels outlive the image's tag, so an image a rebuild left untagged is still recognized as Pyxie's.</summary>
+	public const string ImageLabel = "pyxie.image";
+
+	/// <summary>The <see cref="ImageLabel"/> value of Pyxie's base image.</summary>
+	public const string BaseImageKind = "base";
+
+	/// <summary>The <see cref="ImageLabel"/> value of a project's image.</summary>
+	public const string ProjectImageKind = "project";
+
 	/// <summary>The repository name of Pyxie's base image.</summary>
 	public const string BaseImage = "pyxie-base";
+
+	/// <summary>The shell Pyxie's base image runs <c>RUN</c> instructions with, a link to <c>/bin/sh</c> under a name of its own. Every image built on the base inherits it, a project's image included, so the build cache records this path with every <c>RUN</c> step of a Pyxie image. That is how Pyxie finds its own cache entries among everything else built on the machine: those steps and every entry built on them (see <see cref="DockerImages.UnusedBuildCache"/>). It must match the base image's Dockerfile.</summary>
+	public const string BuildShell = "/usr/local/bin/pyxie-build-sh";
 
 	/// <summary>Gets a project's key: a short hash of its folder, stable for as long as the folder is.</summary>
 	/// <param name="projectFolder">The project's folder.</param>

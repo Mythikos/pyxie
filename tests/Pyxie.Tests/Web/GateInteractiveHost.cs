@@ -37,6 +37,9 @@ public sealed class GateInteractiveHost : Renderer
 	/// <inheritdoc/>
 	public override Dispatcher Dispatcher { get; }
 
+	/// <summary>Gets what the components are told about where they render: interactively on the server, as the application's pages do once the circuit is up, after prerendering.</summary>
+	protected override RendererInfo RendererInfo { get; } = new("Server", isInteractive: true);
+
 	/// <summary>Renders a component as the root of the tree and waits until it has finished loading.</summary>
 	/// <typeparam name="TComponent">The component to render.</typeparam>
 	/// <param name="parameters">The component parameters by name, or <see langword="null"/> for none.</param>

@@ -10,11 +10,12 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Orchestration;
 
-/// <summary>A database failure never stops the host. The failures here are database failures (a locked file), which the orchestrator used to tolerate only when they were I/O or git failures: one at start-up is logged and retried before the pipeline claims anything, and one while cleaning up abandoned workspaces is logged and the pipeline goes on. <see cref="DatabaseFailureRig"/> makes the context factory fail on demand.</summary>
+/// <summary>A database failure never stops the host. The failures here are database failures (a locked file), which the orchestrator used to tolerate only when they were I/O or git failures: one at start-up is logged and retried before the pipeline claims anything, and one while cleaning up abandoned workspaces or removing the sandbox images nothing needs is logged and the pipeline goes on. <see cref="DatabaseFailureRig"/> makes the context factory fail on demand.</summary>
 public sealed class PipelineOrchestratorDatabaseFailureTests
 {
 	private const string RecoveryFailed = "Could not mark the rounds left running by the previous run of Pyxie as interrupted";
 	private const string CleanupFailed = "Could not remove the workspaces of cards that no longer need them";
+	private const string ImageCleanupFailed = "Could not remove the sandbox images and build cache that nothing needs";
 	private const string ClaimFailed = "Claiming the next card failed";
 
 	private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -120,12 +121,13 @@ public sealed class PipelineOrchestratorDatabaseFailureTests
 		await rig.StartOrchestratorAsync();
 		await rig.WaitUntilAsync(async () => (await rig.ReadRoundsAsync(card.Id)).Single().Outcome == RoundOutcome.Interrupted, "the start-up recovery to finish");
 
-		rig.Factory.FailNext(3);
+		rig.Factory.FailNext(4);
 		rig.Controller.Start();
 		await rig.WaitUntilAsync(async () => (await rig.ReadLaneAsync(card.Id)).Lane == CardLane.Complete && (await rig.ReadLaneAsync(waiting.Id)).Lane == CardLane.Complete, "both cards to be merged after the failed claims");
 
-		Assert.Equal(3, rig.Factory.Failures);
+		Assert.Equal(4, rig.Factory.Failures);
 		Assert.Equal(1, rig.Logs.Count(LogLevel.Warning, CleanupFailed));
+		Assert.Equal(1, rig.Logs.Count(LogLevel.Warning, ImageCleanupFailed));
 		Assert.Equal(2, rig.Logs.Count(LogLevel.Error, ClaimFailed));
 		Assert.False(rig.Orchestrator.ExecuteTask?.IsCompleted, "Failed claims must not end the pipeline.");
 	}

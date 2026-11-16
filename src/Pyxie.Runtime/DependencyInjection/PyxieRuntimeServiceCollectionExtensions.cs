@@ -34,6 +34,7 @@ public static class PyxieRuntimeServiceCollectionExtensions
 		services.AddSingleton<WorkspaceLayout>();
 		services.AddSingleton<RepositoryLock>();
 		services.AddSingleton<ISandboxes, DockerSandboxes>();
+		services.AddSingleton<SandboxImageBuilds>();
 		services.AddSingleton<ISandboxSignIns, SandboxSignIns>();
 		services.AddSingleton<CardSandboxes>();
 		services.AddSingleton<HarnessRunner>();

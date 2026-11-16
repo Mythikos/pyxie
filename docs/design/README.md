@@ -107,7 +107,7 @@ One header bar in `--pyx-coat`, wrapping on narrow screens: mark and wordmark, n
 - **Agents**: a table in a horizontal scroll box with the columns Name, Harness, Command (mono, with `{TOKEN}`s highlighted on the pink tint), Work, Review, Resolve, and an icon-only Edit button with an `aria-label`. Work and Review are checkboxes; Resolve is a radio group, because only one agent can be the merge agent. "Add agent" sits in the panel header.
 - **Gates**: an ordered list with a drag handle, name, mono command, timeout, and an on/off switch (`role="switch"`). Disabled gates render in `--pyx-text-muted`. "Add gate" sits in the panel header.
 - **Categories**: chips with a remove button each, plus an inline input and Add button.
-- **Sandbox**: the Dockerfile in a dark mono editor (`--pyx-coat` background, `#E6E6E3` text). Under it: build status (check and "Built" plus the image tag in mono, or the end of the log when the build failed), then Build (secondary) and Save (primary). Beside it: Sign-ins, listing the Claude Code token and the Codex sign-in as Found (green check) or Not found.
+- **Sandbox**: the Dockerfile in a dark mono editor (`--pyx-coat` background, `#E6E6E3` text). Under it: check and "Built" plus the image tag in mono while the image for the saved Dockerfile is on the machine, and the error and the end of the log when its last build failed, then Build (secondary) and Save (primary). While the image builds, whoever started the build, Build reads Building with a spinner and is disabled. A build started from this page adds Cancel. Beside it: Sign-ins, listing the Claude Code token and the Codex sign-in as Found (green check) or Not found.
 
 ## Open questions: raise these rather than invent an answer
 

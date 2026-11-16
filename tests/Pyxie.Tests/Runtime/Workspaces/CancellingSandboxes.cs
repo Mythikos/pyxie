@@ -36,6 +36,18 @@ public sealed class CancellingSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task<string?> FindImageAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return _inner.FindImageAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public Task<bool> RemoveUnusedImagesAsync(string projectKey, string dockerfile, CancellationToken cancellationToken)
+	{
+		return _inner.RemoveUnusedImagesAsync(projectKey, dockerfile, cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public async Task<ISandbox> StartAsync(SandboxSpec spec, CancellationToken cancellationToken)
 	{
 		ISandbox sandbox = await _inner.StartAsync(spec, cancellationToken);
