@@ -69,7 +69,7 @@ public sealed class CardPipelineServiceResolveTests
 	public async Task RecordResultAsync_OfAConflictedMergeWithAMergeAgent_GivesTheResolveRoundTheMergeAgentAndNotTheCardsWorkerOrReviewer()
 	{
 		await using PipelineRig rig = await CreateRigAsync();
-		Agent worker = await TestData.AddAgentAsync(rig.Database, "Wanda", canWork: true, canReview: false, HarnessKind.OpenCode, "opencode");
+		Agent worker = await TestData.AddAgentAsync(rig.Database, "Wanda", canWork: true, canReview: false, HarnessKind.DeepSeek, "dsh");
 		Agent reviewer = await TestData.AddAgentAsync(rig.Database, "Rita", canWork: false, canReview: true, HarnessKind.Other, "reviewer");
 		await rig.CreateCardAsync("Card", worker.Id, reviewer.Id);
 

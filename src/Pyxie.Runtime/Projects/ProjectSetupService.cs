@@ -62,56 +62,85 @@ public sealed class ProjectSetupService
 	/// <param name="path">The folder.</param>
 	/// <param name="cancellationToken">A token to cancel the import.</param>
 	/// <returns>The imported project's repository, or a failure saying what is wrong with the folder or why the project could not be imported.</returns>
-	public async Task<ServiceResult<Repository>> ImportFolderAsync(string path, CancellationToken cancellationToken)
+	public async Task<ServiceResult<Repository>> ImportFolderAsync(string path, CancellationToken cancellationToken) => RepositoryOf(await ImportProjectAsync(RepositorySource.Folder, path, cancellationToken));
+
+	/// <summary>Imports a repository from a URL by cloning it.</summary>
+	/// <param name="url">The URL to clone.</param>
+	/// <param name="cancellationToken">A token to cancel the clone.</param>
+	/// <returns>The connected repository, or a failure explaining why the project could not be imported.</returns>
+	public async Task<ServiceResult<Repository>> CloneAsync(string url, CancellationToken cancellationToken) => RepositoryOf(await ImportProjectAsync(RepositorySource.Url, url, cancellationToken));
+
+	/// <summary>Imports a repository and returns its identity from the same project change that opened it.</summary>
+	/// <param name="kind">Whether to import a local worktree or clone a URL.</param>
+	/// <param name="source">The worktree folder or clone URL.</param>
+	/// <param name="cancellationToken">A token to cancel the import.</param>
+	/// <returns>The imported project and repository, or the reason the import failed.</returns>
+	public async Task<ServiceResult<ImportedProject>> ImportProjectAsync(RepositorySource kind, string source, CancellationToken cancellationToken)
+	{
+		if (kind == RepositorySource.Folder)
+		{
+			ServiceResult<string> folder = await FindWorktreeAsync(source, cancellationToken);
+			if (!folder.Succeeded || folder.Value is null)
+			{
+				return ServiceResult<ImportedProject>.Failure(folder.Error ?? "The repository folder could not be opened.");
+			}
+
+			source = folder.Value;
+		}
+		else if (kind == RepositorySource.Url)
+		{
+			source = source.Trim();
+			if (source.Length == 0)
+			{
+				return ServiceResult<ImportedProject>.Failure("Enter the URL to clone.");
+			}
+		}
+		else
+		{
+			return ServiceResult<ImportedProject>.Failure("Unknown repository source.");
+		}
+
+		return await ImportAsync(source, kind, cancellationToken);
+	}
+
+	private static ServiceResult<Repository> RepositoryOf(ServiceResult<ImportedProject> result) =>
+		result.Value is { } imported ? ServiceResult<Repository>.Success(imported.Repository) : ServiceResult<Repository>.Failure(result.Error ?? "The repository could not be imported.");
+
+	private async Task<ServiceResult<string>> FindWorktreeAsync(string path, CancellationToken cancellationToken)
 	{
 		string folder = path.Trim().Trim('"');
 		if (folder.Length == 0)
 		{
-			return ServiceResult<Repository>.Failure("Enter the folder of a git repository.");
+			return ServiceResult<string>.Failure("Enter the folder of a git repository.");
 		}
 
 		if (!Path.IsPathFullyQualified(folder))
 		{
-			return ServiceResult<Repository>.Failure("Enter the folder's full path.");
+			return ServiceResult<string>.Failure("Enter the folder's full path.");
 		}
 
 		if (!Directory.Exists(folder))
 		{
-			return ServiceResult<Repository>.Failure($"The folder {folder} does not exist.");
+			return ServiceResult<string>.Failure($"The folder {folder} does not exist.");
 		}
 
 		if (await _git.FindTopLevelAsync(folder, cancellationToken) is not string top)
 		{
-			return ServiceResult<Repository>.Failure($"The folder {folder} is not in a git repository.");
+			return ServiceResult<string>.Failure($"The folder {folder} is not in a git repository.");
 		}
 
 		if (IsUnder(top, _layout.Root))
 		{
-			return ServiceResult<Repository>.Failure("That folder is inside Pyxie's own workspace folder.");
+			return ServiceResult<string>.Failure("That folder is inside Pyxie's own workspace folder.");
 		}
 
 		// Checked on the source, so the message names the folder the person knows rather than the hub.
 		if (await TargetBranchProblemAsync(top, $"in {top}", cancellationToken) is string problem)
 		{
-			return ServiceResult<Repository>.Failure(problem);
+			return ServiceResult<string>.Failure(problem);
 		}
 
-		return await ImportAsync(top, RepositorySource.Folder, cancellationToken);
-	}
-
-	/// <summary>Imports a repository from a URL by cloning it.</summary>
-	/// <param name="url">The URL to clone.</param>
-	/// <param name="cancellationToken">A token to cancel the clone.</param>
-	/// <returns>The imported project's repository, or a failure with git's reason or why the project could not be imported.</returns>
-	public async Task<ServiceResult<Repository>> CloneAsync(string url, CancellationToken cancellationToken)
-	{
-		string source = url.Trim();
-		if (source.Length == 0)
-		{
-			return ServiceResult<Repository>.Failure("Enter the URL to clone.");
-		}
-
-		return await ImportAsync(source, RepositorySource.Url, cancellationToken);
+		return ServiceResult<string>.Success(top);
 	}
 
 	private static bool IsUnder(string path, string folder)
@@ -150,17 +179,17 @@ public sealed class ProjectSetupService
 	}
 
 	// Only one project changes at a time, and an import does not start while a project is open, so the project it opens is the one it imported.
-	private async Task<ServiceResult<Repository>> ImportAsync(string source, RepositorySource kind, CancellationToken cancellationToken)
+	private async Task<ServiceResult<ImportedProject>> ImportAsync(string source, RepositorySource kind, CancellationToken cancellationToken)
 	{
 		if (_openProject.Current is not null)
 		{
-			return ServiceResult<Repository>.Failure(ProjectOpenMessage);
+			return ServiceResult<ImportedProject>.Failure(ProjectOpenMessage);
 		}
 
 		ServiceResult change = await _controller.BeginProjectChangeAsync(cancellationToken);
 		if (!change.Succeeded)
 		{
-			return ServiceResult<Repository>.Failure(change.Error ?? ProjectOpenMessage);
+			return ServiceResult<ImportedProject>.Failure(change.Error ?? ProjectOpenMessage);
 		}
 
 		// Set once the project is in the catalog. A page can read the catalog while the import runs, so a project that was listed is announced even when the import then took it away again.
@@ -181,15 +210,16 @@ public sealed class ProjectSetupService
 	}
 
 	// Clones the hub, creates the database, and adds, opens, and connects the project; when any step fails, everything done so far is undone.
-	private async Task<ServiceResult<Repository>> ImportDuringChangeAsync(string source, RepositorySource kind, StrongBox<bool> listed, CancellationToken cancellationToken)
+	private async Task<ServiceResult<ImportedProject>> ImportDuringChangeAsync(string source, RepositorySource kind, StrongBox<bool> listed, CancellationToken cancellationToken)
 	{
 		// Read again now that no other change can run: another tab may have opened a project since the first check.
 		if (await _catalog.GetOpenAsync(cancellationToken) is not null)
 		{
-			return ServiceResult<Repository>.Failure(ProjectOpenMessage);
+			return ServiceResult<ImportedProject>.Failure(ProjectOpenMessage);
 		}
 
-		(string name, string folder) = await ChooseFolderAsync(source, cancellationToken);
+		string displaySource = GitUrl.DisplaySource(source);
+		(string name, string folder) = await ChooseFolderAsync(displaySource, cancellationToken);
 		string hub = WorkspaceLayout.HubPath(folder);
 		Project? added = null;
 		bool opened = false;
@@ -200,24 +230,29 @@ public sealed class ProjectSetupService
 			ProcessResult clone = await _git.CloneBareAsync(source, hub, cancellationToken);
 			if (!clone.Succeeded)
 			{
-				string reason = clone.Outcome == ProcessOutcome.Exited ? LastLine(clone.Output) : clone.StartError ?? "git timed out.";
-
-				return ServiceResult<Repository>.Failure($"git could not clone {GitUrl.WithoutCredentials(source)}: {reason}");
+				string reason = source == displaySource
+					? clone.Outcome == ProcessOutcome.Exited ? LastLine(clone.Output) : clone.StartError ?? "git timed out."
+					: "Check the repository address, credentials and connectivity.";
+				return ServiceResult<ImportedProject>.Failure($"git could not clone {displaySource}: {reason}");
 			}
 
-			if (await TargetBranchProblemAsync(hub, $"in {GitUrl.WithoutCredentials(source)}", cancellationToken) is string problem)
+			if (await TargetBranchProblemAsync(hub, $"in {displaySource}", cancellationToken) is string problem)
 			{
-				return ServiceResult<Repository>.Failure(problem);
+				return ServiceResult<ImportedProject>.Failure(problem);
 			}
 
 			string branch = await _git.GetCurrentBranchAsync(hub, cancellationToken) ?? string.Empty;
 			await _git.SetUpHubAsync(hub, branch, cancellationToken);
-			await _projectDatabase.MigrateAsync(folder, cancellationToken);
+			ServiceResult migration = await _projectDatabase.MigrateAsync(folder, cancellationToken);
+			if (!migration.Succeeded)
+			{
+				return ServiceResult<ImportedProject>.Failure(migration.Error ?? "The project's database could not be created.");
+			}
 
-			ServiceResult<Project> add = await _catalog.AddAsync(name, folder, GitUrl.WithoutCredentials(source), cancellationToken);
+			ServiceResult<Project> add = await _catalog.AddAsync(name, folder, displaySource, cancellationToken);
 			if (!add.Succeeded || add.Value is null)
 			{
-				return ServiceResult<Repository>.Failure(add.Error ?? "The project could not be added.");
+				return ServiceResult<ImportedProject>.Failure(add.Error ?? "The project could not be added.");
 			}
 
 			added = add.Value;
@@ -227,14 +262,18 @@ public sealed class ProjectSetupService
 			ServiceResult<Project> open = await _catalog.OpenAsync(added.Id, cancellationToken);
 			if (!open.Succeeded)
 			{
-				return ServiceResult<Repository>.Failure(open.Error ?? "The project could not be opened.");
+				return ServiceResult<ImportedProject>.Failure(open.Error ?? "The project could not be opened.");
 			}
 
 			opened = true;
-			ServiceResult<Repository> result = await _repositories.ConnectAsync(new RepositoryInput(kind, hub, source, branch), cancellationToken);
-			connected = result.Succeeded;
+			ServiceResult<Repository> result = await _repositories.ConnectAsync(new RepositoryInput(kind, hub, displaySource, branch), cancellationToken);
+			if (!result.Succeeded || result.Value is null)
+			{
+				return ServiceResult<ImportedProject>.Failure(result.Error ?? "The repository could not be connected.");
+			}
 
-			return result;
+			connected = true;
+			return ServiceResult<ImportedProject>.Success(new ImportedProject(added.Id, result.Value));
 		}
 		finally
 		{

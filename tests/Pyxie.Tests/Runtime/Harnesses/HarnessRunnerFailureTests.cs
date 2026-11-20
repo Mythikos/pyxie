@@ -112,7 +112,7 @@ public sealed class HarnessRunnerFailureTests
 		await using HarnessRig rig = await HarnessRig.CreateAsync();
 		string command = $"pyxie-no-such-agent-{Guid.NewGuid():N}";
 
-		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Ghost", HarnessKind.Codex, command, "exec"));
+		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Ghost", HarnessKind.Codex, command, "exec", AgentAuthentication.Account));
 
 		Assert.Equal(RoundResult.Blocked, verdict.Result);
 		Assert.Equal($"Agent 'Ghost' could not start: The command {command} was not found.", verdict.Note);
@@ -127,7 +127,7 @@ public sealed class HarnessRunnerFailureTests
 		string broken = rig.Combine(OperatingSystem.IsWindows() ? "broken.exe" : "broken");
 		await File.WriteAllTextAsync(broken, "this is not a program", TestContext.Current.CancellationToken);
 
-		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Broken", HarnessKind.Other, broken, string.Empty));
+		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Broken", HarnessKind.Other, broken, string.Empty, AgentAuthentication.None));
 
 		Assert.Equal(RoundResult.Blocked, verdict.Result);
 		Assert.NotNull(verdict.Note);
@@ -140,7 +140,7 @@ public sealed class HarnessRunnerFailureTests
 		await using HarnessRig rig = await HarnessRig.CreateAsync();
 		string script = await BatchScript.WriteAsync(rig.Folder, "agent.cmd", "@echo ran");
 
-		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Codex", HarnessKind.Codex, script, "exec --note 100%"));
+		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Codex", HarnessKind.Codex, script, "exec --note 100%", AgentAuthentication.Account));
 
 		Assert.Equal(RoundResult.Blocked, verdict.Result);
 		Assert.NotNull(verdict.Note);

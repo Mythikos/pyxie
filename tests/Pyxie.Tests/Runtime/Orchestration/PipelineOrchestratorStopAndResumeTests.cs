@@ -120,7 +120,7 @@ public sealed class PipelineOrchestratorStopAndResumeTests
 		await harness.ConnectRepositoryAsync(source);
 		(string started, string survivor) = Marks(harness);
 		string script = await harness.WriteScriptAsync(["--record", started, "--sleep", SleepMilliseconds, "--write", $"{survivor}=alive"], ["--exit", "0"]);
-		await harness.AddGateAsync(new GateInput("Check", FakeHarnessAgent.Command, FakeHarnessAgent.ScriptArguments(HarnessKind.Other, script), TimeoutMinutes: 5, IsEnabled: true));
+		await harness.AddGateAsync(new GateInput("Check", FakeHarnessAgent.Command, FakeHarnessAgent.ScriptArguments(script), TimeoutMinutes: 5, IsEnabled: true));
 		Agent worker = await harness.AddWorkerAsync("Worker", "--write", "feature.txt=hello");
 		WorkCard card = await harness.AddCardAsync("Interrupted gate", worker);
 		await harness.StartPipelineAsync();

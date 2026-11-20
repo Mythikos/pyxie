@@ -152,7 +152,7 @@ public sealed class SandboxRig : IAsyncDisposable
 	/// <returns>The stored gate.</returns>
 	public async Task<Gate> AddGateAsync(string name, params string[] fakeArguments)
 	{
-		return await AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(HarnessKind.Other, fakeArguments), TimeoutMinutes: 5, IsEnabled: true));
+		return await AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(fakeArguments), TimeoutMinutes: 5, IsEnabled: true));
 	}
 
 	/// <summary>Adds a fake agent that can work, with the <see cref="HarnessKind.Other"/> harness.</summary>

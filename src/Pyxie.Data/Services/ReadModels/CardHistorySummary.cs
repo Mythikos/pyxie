@@ -32,20 +32,38 @@ public sealed record CardHistorySummary(
 	/// <returns>The summary.</returns>
 	public static CardHistorySummary From(CardState state, IEnumerable<RoundSummary> rounds)
 	{
-		List<RoundSummary> ordered = [.. rounds.OrderBy(round => round.Sequence)];
-		if (ordered.Count == 0)
+		IReadOnlyCollection<RoundSummary> history = rounds as IReadOnlyCollection<RoundSummary> ?? rounds.ToArray();
+		var counts = history.GroupBy(round => (round.Kind, round.Outcome)).Select(group => (group.Key.Kind, group.Key.Outcome, group.Count()));
+		return FromCounts(state, counts, history.MaxBy(round => round.Sequence));
+	}
+
+	internal static CardHistorySummary FromCounts(CardState state, IEnumerable<(RoundKind Kind, RoundOutcome? Outcome, int Count)> counts, RoundSummary? last)
+	{
+		var groups = counts.ToArray();
+		if (groups.Length == 0)
 		{
 			return state == CardState.Error ? Empty with { StopReason = StoppedNote } : Empty;
 		}
 
-		List<RoundSummary> held = [.. ordered.Where(round => round.Outcome != RoundOutcome.Skipped)];
-
-		return new CardHistorySummary(WorkRounds: held.Count(round => round.Kind == RoundKind.Work), GateRounds: held.Count(round => round.Kind == RoundKind.Gate), ReviewRounds: held.Count(round => round.Kind == RoundKind.Review), ResolveRounds: held.Count(round => round.Kind == RoundKind.Resolve), SendBacks: ordered.Count(round => round.Outcome is RoundOutcome outcome && outcome.IsSendBack()), IsRunning: ordered.Any(round => round.Outcome is null), StopReason: state == CardState.Error ? StopReasonOf(ordered[^1]) : null);
+		int Held(RoundKind kind) => groups.Where(group => group.Kind == kind && group.Outcome != RoundOutcome.Skipped).Sum(group => group.Count);
+		return new CardHistorySummary(
+			WorkRounds: Held(RoundKind.Work),
+			GateRounds: Held(RoundKind.Gate),
+			ReviewRounds: Held(RoundKind.Review),
+			ResolveRounds: Held(RoundKind.Resolve),
+			SendBacks: groups.Where(group => group.Outcome is RoundOutcome outcome && outcome.IsSendBack()).Sum(group => group.Count),
+			IsRunning: groups.Any(group => group.Outcome is null),
+			StopReason: state == CardState.Error ? StopReasonOf(last) : null);
 	}
 
 	// A blocked round says what it needs; a card that ran out of attempts says how many it used and what the last setback was.
-	private static string StopReasonOf(RoundSummary last)
+	private static string StopReasonOf(RoundSummary? last)
 	{
+		if (last is null)
+		{
+			return StoppedNote;
+		}
+
 		if (last.Outcome == RoundOutcome.Blocked)
 		{
 			return last.Note ?? StoppedNote;

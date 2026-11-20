@@ -3,8 +3,11 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Persistence;
+using Pyxie.Data.Services;
 using Pyxie.Tests.Support;
+using Pyxie.Web.Components.Categories.Colors;
 using Pyxie.Web.Components.Settings;
 
 using Xunit;
@@ -24,6 +27,18 @@ public sealed class CategoryListTests
 		string html = await GateRenderHost.RenderAsync<CategoryList>(database);
 
 		Assert.Matches($@"<span class=""category-chip {expectedClasses}""[^>]*>\s*<button\b[^>]*aria-label=""Edit {category}""[^>]*>{category}</button>", html);
+	}
+
+	[Fact]
+	public async Task Render_ShowsACategoryInAColorOfItsOwnAsAChipInThatColor()
+	{
+		HexColor color = HexColor.Parse("#E3F0FF");
+		await using TestDatabase database = new();
+		await new CategoryService(database.ContextFactory).CreateAsync("Docs", color, TestContext.Current.CancellationToken);
+
+		string html = await GateRenderHost.RenderAsync<CategoryList>(database);
+
+		Assert.Matches($@"<span class=""category-chip pyx-chip pyx-chip-custom"" style=""--chip-tint: #E3F0FF; --chip-ink: {ChipInk.For(color)}""[^>]*>\s*<button\b[^>]*aria-label=""Edit Docs""[^>]*>Docs</button>", html);
 	}
 
 	[Fact]

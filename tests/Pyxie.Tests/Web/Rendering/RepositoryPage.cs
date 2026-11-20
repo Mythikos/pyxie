@@ -36,7 +36,7 @@ internal sealed class RepositoryPage : IAsyncDisposable
 	/// <summary>Gets the controller that starts and stops the pipeline, which the projects panel follows.</summary>
 	public PipelineController Controller { get; }
 
-	/// <summary>Gets the service the page opens and closes projects with, over <see cref="Controller"/>.</summary>
+	/// <summary>Gets the service the page opens, closes, and removes projects with, over <see cref="Controller"/>.</summary>
 	public ProjectSessions Sessions { get; }
 
 	/// <summary>Renders the page.</summary>
@@ -54,7 +54,7 @@ internal sealed class RepositoryPage : IAsyncDisposable
 
 		ImportsHost imports = new(rig);
 		PipelineController controller = new(rig.OpenProject);
-		ProjectSessions sessions = new(rig.Catalog, new SqliteProjectDatabase(), controller, rig.Activity);
+		ProjectSessions sessions = new(rig.Catalog, new SqliteProjectDatabase(), controller, rig.Activity, rig.Sandboxes, rig.ImageBuilds, rig.Layout, rig.Media);
 		ComponentHarness harness = new(services =>
 		{
 			services.AddSingleton<ICardService, NoCardService>();

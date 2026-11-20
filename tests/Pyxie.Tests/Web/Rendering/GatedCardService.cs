@@ -6,7 +6,7 @@ using Pyxie.Data.Services.Results;
 
 namespace Pyxie.Tests.Web.Rendering;
 
-/// <summary>The card service of the board with its reads of the board counted and holdable by a test; every operation does what the real service does.</summary>
+/// <summary>The card service of the board with its reads of the board and its creates counted and holdable by a test; every operation does what the real service does.</summary>
 internal sealed class GatedCardService : ICardService
 {
 	private readonly ICardService _inner;
@@ -20,6 +20,12 @@ internal sealed class GatedCardService : ICardService
 
 	/// <summary>Gets the probe that counts and holds the reads of the board.</summary>
 	public CallProbe BoardReads { get; } = new();
+
+	/// <summary>Gets the probe that counts and holds the creates of cards.</summary>
+	public CallProbe Creates { get; } = new();
+
+	/// <inheritdoc/>
+	public Task<IReadOnlyList<BoardCardSummary>> GetBoardPageAsync(int afterId, int count, CancellationToken cancellationToken) => _inner.GetBoardPageAsync(afterId, count, cancellationToken);
 
 	/// <inheritdoc/>
 	public async Task<IReadOnlyList<BoardCard>> GetBoardAsync(CancellationToken cancellationToken)
@@ -42,9 +48,11 @@ internal sealed class GatedCardService : ICardService
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult<WorkCard>> CreateAsync(CardInput input, CancellationToken cancellationToken)
+	public async Task<ServiceResult<WorkCard>> CreateAsync(CardInput input, CancellationToken cancellationToken)
 	{
-		return _inner.CreateAsync(input, cancellationToken);
+		await Creates.EnterAsync(cancellationToken);
+
+		return await _inner.CreateAsync(input, cancellationToken);
 	}
 
 	/// <inheritdoc/>
@@ -54,9 +62,9 @@ internal sealed class GatedCardService : ICardService
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken, int? expectedVersion = null)
 	{
-		return _inner.DeleteAsync(id, cancellationToken);
+		return _inner.DeleteAsync(id, cancellationToken, expectedVersion);
 	}
 
 	/// <inheritdoc/>
@@ -70,4 +78,10 @@ internal sealed class GatedCardService : ICardService
 	{
 		return _inner.CloseAsync(id, cancellationToken);
 	}
+
+	public Task<int> CloseCompletedAsync(CancellationToken cancellationToken) => _inner.CloseCompletedAsync(cancellationToken);
+
+	public Task<ServiceResult<IReadOnlyList<CardRound>>> GetHistoryPageAsync(int id, int firstSequence, int count, CancellationToken cancellationToken) => _inner.GetHistoryPageAsync(id, firstSequence, count, cancellationToken);
+
+	public Task<IReadOnlyList<CompletedCard>> GetCompletedAsync(DateTime fromUtc, DateTime untilUtc, int offset, int count, CancellationToken cancellationToken) => _inner.GetCompletedAsync(fromUtc, untilUtc, offset, count, cancellationToken);
 }

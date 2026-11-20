@@ -81,22 +81,24 @@ public sealed class ProjectListTests
 	}
 
 	[Fact]
-	public async Task Render_DisablesOpenAndCloseWhileThePipelineRunsAndSaysWhyUntilItStops()
+	public async Task Render_DisablesOpenCloseAndRemoveWhileThePipelineRunsAndSaysWhyUntilItStops()
 	{
 		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
-		Assert.Equal([string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
+		Assert.Equal([string.Empty, string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
 
 		ResultAssert.Succeeded(list.Controller.Start());
 
 		Assert.False((await list.Host.FindButtonAsync("Close app")).IsClickable, "The pipeline works in the open project, so it stays open.");
 		Assert.False((await list.Host.FindButtonAsync("Open web")).IsClickable, "Nothing is opened while the pipeline runs.");
-		Assert.Equal([StopPipelineFirst, StopPipelineFirst], await TitlesOfActionsAsync(list));
+		Assert.False((await list.Host.FindButtonAsync("Remove web")).IsClickable, "Nothing is removed while the pipeline runs.");
+		Assert.Equal([StopPipelineFirst, StopPipelineFirst, StopPipelineFirst], await TitlesOfActionsAsync(list));
 
 		list.Controller.Stop();
 
 		Assert.True((await list.Host.FindButtonAsync("Close app")).IsClickable, "Close is offered again once the pipeline stopped.");
 		Assert.True((await list.Host.FindButtonAsync("Open web")).IsClickable, "Open is offered again once the pipeline stopped.");
-		Assert.Equal([string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
+		Assert.True((await list.Host.FindButtonAsync("Remove web")).IsClickable, "Remove is offered again once the pipeline stopped.");
+		Assert.Equal([string.Empty, string.Empty, string.Empty], await TitlesOfActionsAsync(list, includeUntitled: true));
 	}
 
 	[Fact]
@@ -256,6 +258,107 @@ public sealed class ProjectListTests
 	}
 
 	[Fact]
+	public async Task Close_PressedAgainBeforeTheBrowserShowedOpen_LeavesTheProjectClosed()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		GateRenderedElement close = await list.Host.FindButtonAsync("Close app");
+		await list.Host.HoldAcknowledgementsAsync();
+
+		await list.Host.ClickAsync(close);
+		await list.ReloadAsync();
+		await list.Host.ClickAsync(close);
+		await list.Host.AcknowledgeAsync();
+
+		Assert.Null(list.Rig.OpenProject.Current);
+		Assert.Equal(1, announcements);
+		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
+	}
+
+	[Fact]
+	public async Task Open_PressedAgainBeforeTheBrowserShowedClose_LeavesTheProjectOpen()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenAsync(("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		GateRenderedElement open = await list.Host.FindButtonAsync("Open web");
+		await list.Host.HoldAcknowledgementsAsync();
+
+		await list.Host.ClickAsync(open);
+		await list.ReloadAsync();
+		await list.Host.ClickAsync(open);
+		await list.Host.AcknowledgeAsync();
+
+		Assert.Equal("web", list.Rig.OpenProject.Current?.Name);
+		Assert.Equal(1, announcements);
+		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
+	}
+
+	[Fact]
+	public async Task Close_DoubleClicked_ClosesTheProjectOnce()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Close app"));
+		await list.ReloadAsync();
+
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open app"), clicks: 2);
+
+		Assert.Null(list.Rig.OpenProject.Current);
+		Assert.Equal(1, announcements);
+	}
+
+	[Fact]
+	public async Task Open_DoubleClicked_OpensTheProjectOnce()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenAsync(("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open web"));
+		await list.ReloadAsync();
+
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Close web"), clicks: 2);
+
+		Assert.Equal("web", list.Rig.OpenProject.Current?.Name);
+		Assert.Equal(1, announcements);
+	}
+
+	[Fact]
+	public async Task Open_PressedAgainBeforeThePageReadTheProjectsAgain_OpensTheProjectOnce()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenAsync(("app", true), ("web", true));
+		int announcements = 0;
+		list.Rig.Activity.ProjectChanged += () => Interlocked.Increment(ref announcements);
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open web"));
+
+		// The page reads the projects again only once git has read the opened project's repository, so the list still offers Open.
+		await list.Host.ClickAsync(await list.Host.FindButtonAsync("Open web"));
+		await list.ReloadAsync();
+
+		Assert.Equal("web", list.Rig.OpenProject.Current?.Name);
+		Assert.Equal(1, announcements);
+		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
+		Assert.True((await list.Host.FindButtonAsync("Close web")).IsClickable, "The project that was opened can be closed.");
+	}
+
+	[Fact]
+	public async Task Press_BesideTheDisabledButtonWhileThePipelineRuns_DoesNothing()
+	{
+		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
+		ResultAssert.Succeeded(list.Controller.Start());
+		IReadOnlyList<GateRenderedElement> elements = await list.Host.ElementsAsync();
+		GateRenderedElement besideOpenWeb = elements.Last(element => ClassesOf(element).Contains("project-action") && !ClassesOf(element).Contains("project-remove") && element.Attribute("title") == StopPipelineFirst);
+
+		// The disabled button takes no click, but the wrapper that gives the reason does.
+		await list.Host.ClickAsync(besideOpenWeb);
+
+		Assert.Equal("app", list.Rig.OpenProject.Current?.Name);
+		Assert.Empty(await list.Host.TextsWithClassAsync("project-error"));
+	}
+
+	[Fact]
 	public async Task Reload_KeepsEachRowsButtonWhenTheListIsReadAgain()
 	{
 		await using ProjectListHost list = await ProjectListHost.OpenWithOpenProjectAsync("app", ("app", true), ("web", true));
@@ -281,7 +384,7 @@ public sealed class ProjectListTests
 		Assert.Equal("Importing field-notes", bar.Attribute("aria-label"));
 		Assert.False(bar.Attributes.ContainsKey("aria-valuenow"), "The import reports no progress, so the bar has no value: it is indeterminate.");
 		Assert.DoesNotContain(elements, element => element.Text.Contains("secret-token", StringComparison.Ordinal) || element.Attributes.Values.Any(value => value.Contains("secret-token", StringComparison.Ordinal)));
-		Assert.Equal(["Open app"], elements.Where(element => element.Name == "button").Select(element => element.Attribute("aria-label")));
+		Assert.Equal(["Open app", "Remove app"], elements.Where(element => element.Name == "button").Select(element => element.Attribute("aria-label")));
 
 		await list.FinishHeldImportAsync();
 
@@ -319,7 +422,7 @@ public sealed class ProjectListTests
 		return (element.Attribute("class") ?? string.Empty).Split(' ');
 	}
 
-	// The reasons the wrappers of the Open and Close buttons give, in row order; the wrappers that give none only when asked, as empty text.
+	// The reasons the wrappers of the Open, Close, and Remove buttons give, in row order; the wrappers that give none only when asked, as empty text.
 	private static async Task<string[]> TitlesOfActionsAsync(ProjectListHost list, bool includeUntitled = false)
 	{
 		IReadOnlyList<GateRenderedElement> elements = await list.Host.ElementsAsync();

@@ -28,8 +28,10 @@ internal static class BoardServices
 		services.AddSingleton(jsRuntime);
 		services.AddBlazorise().AddAntDesignProviders().AddAntDesignIcons();
 		services.AddSingleton(database.ContextFactory);
+		services.AddSingleton<Pyxie.Data.Persistence.IProjectDbContextSource>(database.ContextSource);
 		services.AddSingleton<TimeProvider>(database.Clock);
 		services.AddSingleton(StandInProject.Open());
+		services.AddSingleton<PipelineController>();
 		services.AddPyxieData();
 		services.AddSingleton(new PipelineActivity());
 

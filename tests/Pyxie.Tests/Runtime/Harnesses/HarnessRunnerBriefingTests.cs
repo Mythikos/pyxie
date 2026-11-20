@@ -108,7 +108,7 @@ public sealed class HarnessRunnerBriefingTests
 
 		// The agent copies what it finds when it starts, then writes its own result.
 		string script = await BatchScript.WriteAsync(rig.Folder, "agent.cmd", @"@copy /y .pyxie\briefing.md seen-briefing.md >nul", @"@if exist .pyxie\result.json (echo present> seen-result.txt) else (echo absent> seen-result.txt)", @"@echo {""outcome"":""completed"",""note"":""ran""}> .pyxie\result.json");
-		AgentSnapshot agent = new("Scripted", HarnessKind.Other, script, string.Empty);
+		AgentSnapshot agent = new("Scripted", HarnessKind.Other, script, string.Empty, AgentAuthentication.None);
 
 		RoundVerdict verdict = await rig.RunAsync(agent, briefing: "the briefing the agent reads");
 

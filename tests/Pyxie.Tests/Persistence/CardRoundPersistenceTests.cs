@@ -14,15 +14,16 @@ public sealed class CardRoundPersistenceTests
 	[Theory]
 	[InlineData(HarnessKind.ClaudeCode)]
 	[InlineData(HarnessKind.Codex)]
-	[InlineData(HarnessKind.OpenCode)]
+	[InlineData(HarnessKind.DeepSeek)]
 	[InlineData(HarnessKind.Other)]
 	public async Task Round_StoresTheAgentSnapshotInItsOwnRowAndReadsItBack(HarnessKind harness)
 	{
 		await using TestDatabase database = new();
+		AgentAuthentication authentication = harness == HarnessKind.Other ? AgentAuthentication.None : AgentAuthentication.ApiKey;
 		WorkCard card = await TestData.AddCardAsync(database, "Card");
 		await using (ProjectDbContext writer = database.CreateContext())
 		{
-			writer.Rounds.Add(new CardRound { CardId = card.Id, Sequence = 1, Kind = RoundKind.Work, Agent = new AgentSnapshot("Wanda", harness, "run.exe", "--fast -v"), StartedUtc = DateTime.UtcNow });
+			writer.Rounds.Add(new CardRound { CardId = card.Id, Sequence = 1, Kind = RoundKind.Work, Agent = new AgentSnapshot("Wanda", harness, "run.exe", "--fast -v", authentication), StartedUtc = DateTime.UtcNow });
 			await writer.SaveChangesAsync(TestContext.Current.CancellationToken);
 		}
 
@@ -31,6 +32,7 @@ public sealed class CardRoundPersistenceTests
 		Assert.NotNull(stored.Agent);
 		Assert.Equal("Wanda", stored.Agent.Name);
 		Assert.Equal(harness, stored.Agent.Harness);
+		Assert.Equal(authentication, stored.Agent.Authentication);
 		Assert.Equal("run.exe", stored.Agent.Command);
 		Assert.Equal("--fast -v", stored.Agent.Arguments);
 	}

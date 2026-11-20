@@ -187,7 +187,7 @@ public sealed class RoundExecutorRig : IAsyncDisposable
 	{
 		string[] arguments = [.. fakeArguments, "--record", GateRecordPath, "--note", name];
 
-		return await Runtime.AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(HarnessKind.Other, arguments), TimeoutMinutes: 5, isEnabled));
+		return await Runtime.AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(arguments), TimeoutMinutes: 5, isEnabled));
 	}
 
 	/// <summary>Gets the names of the recording gates that started, in the order they started.</summary>

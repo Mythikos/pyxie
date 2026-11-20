@@ -57,6 +57,12 @@ public sealed class SettableImageSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
+	{
+		return _inner.QuiesceCardAsync(projectKey, cardId, cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public Task RemoveCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
 	{
 		return _inner.RemoveCardAsync(projectKey, cardId, cancellationToken);
@@ -66,6 +72,12 @@ public sealed class SettableImageSandboxes : ISandboxes
 	public Task RemoveLeftoverRoundsAsync(string projectKey, CancellationToken cancellationToken)
 	{
 		return _inner.RemoveLeftoverRoundsAsync(projectKey, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		return _inner.RemoveProjectAsync(projectKey, cancellationToken);
 	}
 
 	/// <inheritdoc/>

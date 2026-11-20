@@ -223,7 +223,7 @@ public sealed class RuntimeHarness : IAsyncDisposable
 	/// <returns>The stored agent.</returns>
 	public async Task<Agent> AddMergerAsync(string name, params string[] fakeArguments)
 	{
-		return await AddAgentAsync(new AgentInput(name, HarnessKind.Other, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(HarnessKind.Other, fakeArguments), CanWork: false, CanReview: false, CanMerge: true));
+		return await AddAgentAsync(new AgentInput(name, HarnessKind.Other, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(fakeArguments), CanWork: false, CanReview: false, CanMerge: true));
 	}
 
 	/// <summary>Adds a gate through the gate service, after the gates that exist. An enabled gate makes cards get gate rounds instead of a skipped one.</summary>
@@ -242,7 +242,7 @@ public sealed class RuntimeHarness : IAsyncDisposable
 	/// <returns>The stored gate, with a five-minute timeout.</returns>
 	public async Task<Gate> AddGateAsync(string name, params string[] fakeArguments)
 	{
-		return await AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(HarnessKind.Other, fakeArguments), TimeoutMinutes: 5, IsEnabled: true));
+		return await AddGateAsync(new GateInput(name, FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(fakeArguments), TimeoutMinutes: 5, IsEnabled: true));
 	}
 
 	/// <summary>Adds a card to the bottom of the Queue through the card service, as a person would, and wakes idle pipeline workers.</summary>

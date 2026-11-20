@@ -1,27 +1,46 @@
 @page "/settings"
+@using Pyxie.Data.Transfer
 @using Pyxie.Web.Components.Projects
 @using Pyxie.Web.Components.Settings
 
 <PageTitle>Settings</PageTitle>
 
-<OpenProjectView>
-	<ChildContent>
-		<div class="settings">
-			<nav class="settings-nav" aria-label="Settings sections">
-				@foreach (SettingsSection section in SettingsSections.All)
-				{
-					<a href="@HrefOf(section)" aria-current="@(section == _current ? "true" : null)" @onclick="@(() => Select(section))">@section.Title</a>
-				}
-			</nav>
-			<div class="settings-panels">
-				<AgentTable />
-				<GateTable />
-				<CategoryList />
-				<SandboxSettingsEditor />
-			</div>
-		</div>
-	</ChildContent>
-	<Closed>
-		<NoProjectOpen />
-	</Closed>
-</OpenProjectView>
+<div class="settings" @key="@_project?.Id">
+	<div class="settings-side">
+		<nav class="settings-nav" aria-label="Settings sections">
+			@foreach (SettingsSection section in _project is null ? [SettingsSections.Global] : SettingsSections.All)
+			{
+				<a href="@HrefOf(section)" aria-current="@(section == (_project is null ? SettingsSections.Global : _current) ? "true" : null)" @onclick="@(() => Select(section))">@section.Title</a>
+			}
+		</nav>
+		@if (_project is not null)
+		{
+			<SettingsTransfer Project="@_project" Imported="@OnImported" />
+		}
+	</div>
+	<div class="settings-panels">
+		@if (_project is not null)
+		{
+			int shownProject = _project.Id;
+			@foreach (TransferSection section in _pending)
+			{
+				int shownRevision = _imports.GetValueOrDefault(section);
+				<Alert @key="section" Color="Color.Warning" Visible="true">
+					@SettingsSections.Of(section).Title changed externally. Reloading discards edits in this section.
+					<span @onclick="@(press => ReloadDraft(press, shownProject, section, shownRevision))"><Button Color="Color.Default">Reload @SettingsSections.Of(section).Title</Button></span>
+				</Alert>
+			}
+			<CascadingValue Name="DisplayedProjectId" Value="@((int?)shownProject)" IsFixed="true">
+				<AgentTable @ref="_agents" @key="@KeyOf(TransferSection.Agents)" />
+				<GateTable @ref="_gates" @key="@KeyOf(TransferSection.Gates)" />
+				<CategoryList @ref="_categories" @key="@KeyOf(TransferSection.Categories)" />
+				<SandboxSettingsEditor @ref="_sandbox" @key="@KeyOf(TransferSection.Sandbox)" />
+			</CascadingValue>
+		}
+		<GlobalSettings />
+		@if (_project is null)
+		{
+			<NoProjectOpen />
+		}
+	</div>
+</div>

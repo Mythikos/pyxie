@@ -34,4 +34,11 @@ public interface ICardPipelineService
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>A failure when the round does not exist or is no longer open, or the note is blank or too long.</returns>
 	Task<ServiceResult> InterruptAsync(int roundId, string note, CancellationToken cancellationToken);
+
+	/// <summary>Interrupts a round and preserves its finalized media in the same transaction.</summary>
+	/// <param name="roundId">The round the caller owns.</param>
+	/// <param name="report">The interruption reason and durable outputs.</param>
+	/// <param name="cancellationToken">A token to cancel recording.</param>
+	/// <returns>The same refusals as the note-only overload.</returns>
+	Task<ServiceResult> InterruptAsync(int roundId, RoundReport report, CancellationToken cancellationToken);
 }

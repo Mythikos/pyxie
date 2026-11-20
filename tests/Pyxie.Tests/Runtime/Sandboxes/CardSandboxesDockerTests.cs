@@ -180,7 +180,7 @@ public sealed class CardSandboxesDockerTests
 			await person.PushAsync(TempGitRepository.MainBranch);
 		}
 
-		PipelineWork resolve = new(CardId, "Add the feature", RoundId: 2, Sequence: 2, RoundKind.Resolve, Attempt: 2, new AgentSnapshot("Merger", HarnessKind.Other, "sh", ResolveArguments), "Resolve README.md.");
+		PipelineWork resolve = new(CardId, "Add the feature", RoundId: 2, Sequence: 2, RoundKind.Resolve, Attempt: 2, new AgentSnapshot("Merger", HarnessKind.Other, "sh", ResolveArguments, AgentAuthentication.None), "Resolve README.md.");
 		await using (CardSandbox card = await cards.OpenAsync(context, resolve, Token))
 		{
 			Assert.True(await rig.Docker.ContainerExistsAsync(resolveContainer), "The merge agent runs in a container of its own.");
@@ -223,7 +223,7 @@ public sealed class CardSandboxesDockerTests
 
 	private static PipelineWork Work(int sequence, string arguments)
 	{
-		return new PipelineWork(CardId, "Add the feature", sequence, sequence, RoundKind.Work, 1, new AgentSnapshot("Shell", HarnessKind.Other, "sh", arguments), Briefing);
+		return new PipelineWork(CardId, "Add the feature", sequence, sequence, RoundKind.Work, 1, new AgentSnapshot("Shell", HarnessKind.Other, "sh", arguments, AgentAuthentication.None), Briefing);
 	}
 
 	private static Task<RoundVerdict> RunAgentAsync(PipelineWork work, CardSandbox card, DockerSandboxRig rig)

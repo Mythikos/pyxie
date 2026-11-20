@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Sandboxes;
 
-/// <summary><see cref="DockerSandboxes"/> cleaning up after cards with a real engine: removing a card takes its containers and volumes and nothing of another card or project, the cards a project left something of are listed from its containers and volumes, and leftover gate and review sandboxes go while workers and their volumes stay. Two rigs stand for two projects on one machine.</summary>
+/// <summary><see cref="DockerSandboxes"/> cleaning up after cards with a real engine: removing a card takes its containers and volumes and nothing of another card or project, removing a project takes its containers, volumes, and images, tagged once, twice, or not at all, and nothing of another project or Pyxie's base image, the cards a project left something of are listed from its containers and volumes, and leftover gate and review sandboxes go while workers and their volumes stay. Two rigs stand for two projects on one machine.</summary>
 [Collection(DockerSandboxCollection.Name)]
 public sealed class DockerSandboxesCleanupTests
 {
@@ -84,6 +84,38 @@ public sealed class DockerSandboxesCleanupTests
 		await AssertThereAsync(rig, worker);
 		Assert.True(await rig.Docker.VolumeExistsAsync(gates.Volumes[0].Name), "The gates' home volume keeps the card's package caches and must stay.");
 		Assert.True(await otherProject.Docker.ContainerExistsAsync(otherGates.Name), "Another project's gate sandbox was removed.");
+	}
+
+	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
+	public async Task RemoveProjectAsync_Project_RemovesItsContainersVolumesAndImagesAndNothingOfAnotherProject()
+	{
+		await using DockerSandboxRig rig = new(_image);
+		await using DockerSandboxRig otherProject = new(_image);
+		SandboxSpec worker = rig.Spec(1, SandboxRole.Worker);
+		SandboxSpec gates = rig.Spec(2, SandboxRole.Gates);
+		SandboxSpec otherWorker = otherProject.Spec(1, SandboxRole.Worker);
+		await using ISandbox workerSandbox = await rig.Sandboxes.StartAsync(worker, Token);
+		await using ISandbox gatesSandbox = await rig.Sandboxes.StartAsync(gates, Token);
+		await using ISandbox otherSandbox = await otherProject.Sandboxes.StartAsync(otherWorker, Token);
+		string image = await rig.BuildImageAsync(DockerSandboxRig.TinyDockerfile("removed"), Token);
+		string secondTag = $"{SandboxNames.ProjectImage(rig.ProjectKey)}:second";
+		await rig.Docker.RunCheckedAsync("tag", image, secondTag);
+		string untagged = await rig.Docker.BuildAsync(tag: null, $"FROM {rig.Image}\nRUN echo untagged > /pyxie-test-word\n", rig.ProjectKey);
+		string otherImage = await otherProject.BuildImageAsync(DockerSandboxRig.TinyDockerfile("removed"), Token);
+
+		await rig.Sandboxes.RemoveProjectAsync(rig.ProjectKey, Token);
+
+		await AssertGoneAsync(rig, worker);
+		await AssertGoneAsync(rig, gates);
+		Assert.Empty(await rig.Sandboxes.ListCardsAsync(rig.ProjectKey, Token));
+		Assert.False(await rig.Docker.ImageExistsAsync(image), "The project's image was not removed.");
+		Assert.False(await rig.Docker.ImageExistsAsync(secondTag), "An image with two of the project's tags was not removed.");
+		Assert.False(await rig.Docker.ImageExistsAsync(untagged), "An image without a tag, which a rebuild leaves behind on some engines, was not removed.");
+		Assert.Empty(await rig.Docker.ProjectImageIdsAsync(rig.ProjectKey));
+		await AssertThereAsync(otherProject, otherWorker);
+		Assert.True(await otherProject.Docker.ImageExistsAsync(otherImage), "Another project's image was removed, though it is built from the same Dockerfile.");
+		Assert.True(await rig.Docker.ImageExistsAsync(DockerImages.BaseTag), "Pyxie's base image is shared by every project, so removing a project must leave it.");
+		Assert.True(await rig.Docker.ImageExistsAsync(rig.Image), "The image the sandboxes started from is another project's and must stay.");
 	}
 
 	private static async Task AssertGoneAsync(DockerSandboxRig rig, SandboxSpec spec)

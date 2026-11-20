@@ -25,6 +25,7 @@ public sealed class TestDatabase : IAsyncDisposable
 		services.AddDbContextFactory<ProjectDbContext>(options => PyxieSqlite.ConfigureProject(options.AddInterceptors(interceptors), _connection));
 		_provider = services.BuildServiceProvider();
 		ContextFactory = _provider.GetRequiredService<IDbContextFactory<ProjectDbContext>>();
+		ContextSource = new TestProjectDbContextSource(ContextFactory);
 
 		using ProjectDbContext context = ContextFactory.CreateDbContext();
 		context.Database.EnsureCreated();
@@ -35,6 +36,9 @@ public sealed class TestDatabase : IAsyncDisposable
 
 	/// <summary>Gets the factory services under test use to create short-lived contexts on this database.</summary>
 	public IDbContextFactory<ProjectDbContext> ContextFactory { get; }
+
+	/// <summary>Gets this database as the source of a given project's contexts, for services that read the open project themselves.</summary>
+	public TestProjectDbContextSource ContextSource { get; }
 
 	/// <summary>Creates a context on this database; the caller disposes it.</summary>
 	/// <returns>A new context.</returns>

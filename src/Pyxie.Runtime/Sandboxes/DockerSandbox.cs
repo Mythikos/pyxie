@@ -147,7 +147,15 @@ internal sealed class DockerSandbox : ISandbox
 	/// <inheritdoc/>
 	public async Task EndProcessesAsync(CancellationToken cancellationToken)
 	{
-		await _docker.RunAsync(["exec", "--user", "root", Name, "pkill", "-KILL", "-u", User], cancellationToken);
+		ProcessResult result = await _docker.RunAsync(["exec", "--user", "root", Name, "pkill", "-KILL", "-u", User], cancellationToken);
+		if (result.Outcome != ProcessOutcome.Exited || result.ExitCode is not (0 or 1))
+		{
+			string running = await _docker.RunCheckedAsync(["inspect", "--format", "{{.State.Running}}", Name], cancellationToken);
+			if (running.Trim() != "false")
+			{
+				throw new SandboxException("The sandbox could not stop its processes before collecting output.");
+			}
+		}
 	}
 
 	/// <inheritdoc/>

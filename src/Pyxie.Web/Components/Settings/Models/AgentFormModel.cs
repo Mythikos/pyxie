@@ -13,6 +13,9 @@ public sealed class AgentFormModel
 	/// <summary>Gets or sets the harness kind. Use <see cref="ChangeHarness"/> to change it from the form, so the command and arguments follow.</summary>
 	public HarnessKind Harness { get; set; }
 
+	/// <summary>Gets or sets the selected authentication method.</summary>
+	public AgentAuthentication Authentication { get; set; } = AgentAuthentication.Account;
+
 	/// <summary>Gets or sets the executable.</summary>
 	public string Command { get; set; } = string.Empty;
 
@@ -28,9 +31,6 @@ public sealed class AgentFormModel
 	/// <summary>Gets or sets a value indicating whether the agent is the project's merge agent. A new agent is not: only one agent per project can be, and the service refuses a second.</summary>
 	public bool CanMerge { get; set; }
 
-	/// <summary>Gets a value indicating whether the form creates a new agent rather than editing a stored one.</summary>
-	public bool IsNew { get; private init; }
-
 	/// <summary>Creates the form state for a new agent using the default harness command and arguments.</summary>
 	/// <returns>A new form model.</returns>
 	public static AgentFormModel CreateNew()
@@ -38,7 +38,6 @@ public sealed class AgentFormModel
 		HarnessKind harness = HarnessKind.ClaudeCode;
 		return new AgentFormModel
 		{
-			IsNew = true,
 			Harness = harness,
 			Command = HarnessInfo.DefaultCommand(harness),
 			Arguments = HarnessInfo.DefaultArguments(harness),
@@ -52,6 +51,7 @@ public sealed class AgentFormModel
 	{
 		Name = agent.Name,
 		Harness = agent.Harness,
+		Authentication = agent.Authentication,
 		Command = agent.Command,
 		Arguments = agent.Arguments,
 		CanWork = agent.CanWork,
@@ -60,8 +60,8 @@ public sealed class AgentFormModel
 	};
 
 	/// <summary>
-	/// Selects a harness. On a new agent, the command and the arguments each switch to the new harness's default unless a person has changed them:
-	/// a value that is blank or still the previous harness's default is replaced, anything else is kept. A stored agent keeps what was saved.
+	/// Selects a harness. The command and the arguments each switch to the new harness's default unless a person has changed them:
+	/// a value that is blank or still the previous harness's default is replaced, anything else is kept.
 	/// </summary>
 	/// <param name="harness">The harness that was selected.</param>
 	public void ChangeHarness(HarnessKind harness)
@@ -69,9 +69,13 @@ public sealed class AgentFormModel
 		HarnessKind previous = Harness;
 		Harness = harness;
 
-		if (!IsNew)
+		if (harness == HarnessKind.Other)
 		{
-			return;
+			Authentication = AgentAuthentication.None;
+		}
+		else if (previous == HarnessKind.Other)
+		{
+			Authentication = AgentAuthentication.Account;
 		}
 
 		Command = Prefill(Command, HarnessInfo.DefaultCommand(previous), HarnessInfo.DefaultCommand(harness));
@@ -80,7 +84,7 @@ public sealed class AgentFormModel
 
 	/// <summary>Converts the form state into a service input with trimmed text.</summary>
 	/// <returns>The agent input.</returns>
-	public AgentInput ToInput() => new(Name.Trim(), Harness, Command.Trim(), Arguments.Trim(), CanWork, CanReview, CanMerge);
+	public AgentInput ToInput() => new AgentInput(Name.Trim(), Harness, Command.Trim(), Arguments.Trim(), CanWork, CanReview, CanMerge) { Authentication = Authentication };
 
 	private static string Prefill(string current, string previousDefault, string newDefault)
 	{

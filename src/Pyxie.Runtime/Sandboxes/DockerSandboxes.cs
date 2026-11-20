@@ -123,12 +123,34 @@ public sealed class DockerSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
+	{
+		return RemoveContainersAsync(["--filter", $"label={SandboxNames.ProjectLabel}={projectKey}", "--filter", $"label={SandboxNames.CardLabel}={Card(cardId)}"], cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public async Task RemoveLeftoverRoundsAsync(string projectKey, CancellationToken cancellationToken)
 	{
 		foreach (SandboxRole role in new[] { SandboxRole.Gates, SandboxRole.Review, SandboxRole.Resolve })
 		{
 			await RemoveContainersAsync(["--filter", $"label={SandboxNames.ProjectLabel}={projectKey}", "--filter", $"label={SandboxNames.RoleLabel}={SandboxNames.RoleName(role)}"], cancellationToken);
 		}
+	}
+
+	/// <inheritdoc/>
+	public async Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		string[] filters = ["--filter", $"label={SandboxNames.ProjectLabel}={projectKey}"];
+		await RemoveContainersAsync(filters, cancellationToken);
+
+		string volumes = await _docker.RunCheckedAsync(["volume", "ls", "--quiet", .. filters], cancellationToken);
+		foreach (string volume in Lines(volumes))
+		{
+			await _docker.RunAsync(["volume", "rm", "--force", volume], cancellationToken);
+		}
+
+		// The images go once the containers that use them are gone.
+		await _images.RemoveProjectImagesAsync(projectKey, cancellationToken);
 	}
 
 	/// <inheritdoc/>
@@ -295,7 +317,7 @@ public sealed class DockerSandboxes : ISandboxes
 		string containers = await _docker.RunCheckedAsync(["ps", "--all", "--quiet", .. filters], cancellationToken);
 		foreach (string container in Lines(containers))
 		{
-			await _docker.RunAsync(["rm", "--force", container], cancellationToken);
+			await _docker.RunCheckedAsync(["rm", "--force", container], cancellationToken);
 		}
 	}
 }

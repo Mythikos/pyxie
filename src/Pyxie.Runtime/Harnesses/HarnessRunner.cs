@@ -9,7 +9,7 @@ using Pyxie.Runtime.Sandboxes;
 
 namespace Pyxie.Runtime.Harnesses;
 
-/// <summary>Runs an agent's round in the card's sandbox: writes the briefing into the card's repository there, starts the agent's harness in it with the fixed prompt, and reads back the result file it writes. The agent's arguments are split and their tokens filled in with the round's values (<see cref="AgentArgumentTokens"/>). The prompt goes on standard input (Claude Code <c>-p</c> and <c>codex exec</c> read it there) except for OpenCode, which takes it as its last argument.</summary>
+/// <summary>Runs an agent's round in the card's sandbox: writes the briefing into the card's repository there, starts the agent's harness in it with the fixed prompt, and reads back the result file it writes. The agent's arguments are split and their tokens filled in with the round's values (<see cref="AgentArgumentTokens"/>). All harnesses receive the prompt on standard input.</summary>
 public sealed class HarnessRunner
 {
 	// The agent's own report carries what matters; this much of its console output is kept for when it breaks.
@@ -45,17 +45,9 @@ public sealed class HarnessRunner
 		await sandbox.WriteFileAsync(SandboxPaths.Combine(repository, PipelineContract.BriefingFile), work.Briefing ?? string.Empty, cancellationToken);
 		await sandbox.DeleteFileAsync(resultPath, cancellationToken);
 
-		List<string> arguments = [.. expanded];
-		string? standardInput = PipelineContract.Prompt;
-		if (agent.Harness == HarnessKind.OpenCode)
+		SandboxCommand command = new(agent.Command, expanded, repository)
 		{
-			arguments.Add(PipelineContract.Prompt);
-			standardInput = null;
-		}
-
-		SandboxCommand command = new(agent.Command, arguments, repository)
-		{
-			StandardInput = standardInput,
+			StandardInput = PipelineContract.Prompt,
 			Timeout = timeout,
 			LogPath = logPath,
 			MaxOutputLength = MaxCapturedOutput,

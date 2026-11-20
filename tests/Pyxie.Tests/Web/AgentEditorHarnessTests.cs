@@ -31,7 +31,7 @@ public sealed class AgentEditorHarnessTests
 
 	[Theory]
 	[InlineData("Codex", "codex", CodexArguments)]
-	[InlineData("OpenCode", "opencode", "run")]
+	[InlineData("DeepSeek", "dsh", "--profile headless --permission-mode danger-full-access --approval-policy never")]
 	[InlineData("Other", "", "")]
 	public async Task ChoosingAnotherHarnessOnANewAgentFillsInItsCommandAndArguments(string harness, string expectedCommand, string expectedArguments)
 	{
@@ -63,7 +63,7 @@ public sealed class AgentEditorHarnessTests
 	}
 
 	[Fact]
-	public async Task ChoosingAHarnessForAStoredAgentLeavesItsCommandAndArgumentsAlone()
+	public async Task ChoosingAHarnessForAStoredAgentUpdatesItsStockCommandAndArguments()
 	{
 		await using TestDatabase database = new();
 		Agent stored = await TestData.AddAgentAsync(database, "Stored", canWork: true, canReview: true, HarnessKind.ClaudeCode, "claude", ClaudeArguments);
@@ -73,8 +73,8 @@ public sealed class AgentEditorHarnessTests
 
 		await host.ClickAsync(await host.FindOptionAsync("Codex"));
 
-		Assert.Equal("claude", await ValueAsync(host, "_model.Command"));
-		Assert.Equal(ClaudeArguments, await ValueAsync(host, "_model.Arguments"));
+		Assert.Equal("codex", await ValueAsync(host, "_model.Command"));
+		Assert.Equal(CodexArguments, await ValueAsync(host, "_model.Arguments"));
 	}
 
 	[Fact]
@@ -94,6 +94,33 @@ public sealed class AgentEditorHarnessTests
 		Assert.Equal(HarnessKind.Codex, saved.Harness);
 		Assert.Equal("codex", saved.Command);
 		Assert.Equal(CodexArguments, saved.Arguments);
+	}
+
+	[Theory]
+	[InlineData("Claude Code", HarnessKind.ClaudeCode)]
+	[InlineData("Codex", HarnessKind.Codex)]
+	[InlineData("DeepSeek", HarnessKind.DeepSeek)]
+	public async Task EditingAuthenticationPreservesTheHarnessAndArguments(string label, HarnessKind harness)
+	{
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<AgentTable>();
+		await host.ClickAsync(await host.FindButtonAsync("Add agent"));
+		await host.ClickAsync(await host.FindOptionAsync(label));
+		await host.TypeAsync(await host.FindFieldAsync("_model.Name"), "Worker");
+		await host.TypeAsync(await host.FindFieldAsync("_model.Arguments"), "--custom");
+		await host.ClickAsync(await host.FindOptionAsync("API key"));
+		await host.ClickAsync(await host.FindButtonAsync("Save"));
+
+		await using ProjectDbContext context = database.CreateContext();
+		Agent saved = await context.Agents.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+		Assert.Equal((harness, AgentAuthentication.ApiKey, "--custom"), (saved.Harness, saved.Authentication, saved.Arguments));
+		await host.ClickAsync(await host.FindButtonAsync("Edit Worker"));
+		await host.ClickAsync(await host.FindOptionAsync("Account"));
+		await host.ClickAsync(await host.FindButtonAsync("Save"));
+		Agent edited = await context.Agents.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+		Assert.Equal((harness, AgentAuthentication.Account, "--custom"), (edited.Harness, edited.Authentication, edited.Arguments));
 	}
 
 	private static Dictionary<string, object?> NewAgent()

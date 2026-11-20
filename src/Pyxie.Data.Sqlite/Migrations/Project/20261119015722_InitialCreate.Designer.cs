@@ -11,7 +11,7 @@ using Pyxie.Data.Persistence;
 namespace Pyxie.Data.Sqlite.Migrations.Project
 {
     [DbContext(typeof(ProjectDbContext))]
-    [Migration("20261115033439_InitialCreate")]
+    [Migration("20261119015722_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -30,6 +30,9 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Authentication")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("CanMerge")
                         .HasColumnType("INTEGER");
@@ -118,8 +121,10 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("Color")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -131,25 +136,28 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", t =>
+                        {
+                            t.HasCheckConstraint("CK_Categories_Color", "\"Color\" GLOB '#[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]'");
+                        });
 
                     b.HasData(
                         new
                         {
                             Id = 1,
-                            Color = 1,
+                            Color = "#EAF3E2",
                             Name = "Feature"
                         },
                         new
                         {
                             Id = 2,
-                            Color = 2,
+                            Color = "#FBE9EC",
                             Name = "Bug"
                         },
                         new
                         {
                             Id = 3,
-                            Color = 0,
+                            Color = "#EDEDE9",
                             Name = "Chore"
                         });
                 });
@@ -192,6 +200,89 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     b.ToTable("Gates");
                 });
 
+            modelBuilder.Entity("Pyxie.Data.Entities.MediaFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Commit")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Length")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublicationKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemovedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RoundId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UploadId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.HasIndex("UploadId");
+
+                    b.HasIndex("RoundId", "PublicationKey")
+                        .IsUnique();
+
+                    b.ToTable("MediaFiles");
+                });
+
+            modelBuilder.Entity("Pyxie.Data.Entities.MediaUpload", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CardVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CardId");
+
+                    b.ToTable("MediaUploads");
+                });
+
             modelBuilder.Entity("Pyxie.Data.Entities.Repository", b =>
                 {
                     b.Property<int>("Id")
@@ -222,6 +313,21 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     b.HasKey("Id");
 
                     b.ToTable("Repositories");
+                });
+
+            modelBuilder.Entity("Pyxie.Data.Entities.RoundMediaInput", b =>
+                {
+                    b.Property<int>("RoundId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("MediaFileId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RoundId", "MediaFileId");
+
+                    b.HasIndex("MediaFileId");
+
+                    b.ToTable("RoundMediaInputs");
                 });
 
             modelBuilder.Entity("Pyxie.Data.Entities.SandboxSettings", b =>
@@ -332,6 +438,9 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                                 .HasMaxLength(2000)
                                 .HasColumnType("TEXT");
 
+                            b1.Property<int>("Authentication")
+                                .HasColumnType("INTEGER");
+
                             b1.Property<string>("Command")
                                 .IsRequired()
                                 .HasMaxLength(500)
@@ -354,6 +463,49 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                         });
 
                     b.Navigation("Agent");
+                });
+
+            modelBuilder.Entity("Pyxie.Data.Entities.MediaFile", b =>
+                {
+                    b.HasOne("Pyxie.Data.Entities.WorkCard", null)
+                        .WithMany("MediaFiles")
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Pyxie.Data.Entities.CardRound", null)
+                        .WithMany()
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Pyxie.Data.Entities.MediaUpload", null)
+                        .WithMany()
+                        .HasForeignKey("UploadId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Pyxie.Data.Entities.MediaUpload", b =>
+                {
+                    b.HasOne("Pyxie.Data.Entities.WorkCard", null)
+                        .WithMany()
+                        .HasForeignKey("CardId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Pyxie.Data.Entities.RoundMediaInput", b =>
+                {
+                    b.HasOne("Pyxie.Data.Entities.MediaFile", "File")
+                        .WithMany()
+                        .HasForeignKey("MediaFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Pyxie.Data.Entities.CardRound", null)
+                        .WithMany("MediaInputs")
+                        .HasForeignKey("RoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("File");
                 });
 
             modelBuilder.Entity("Pyxie.Data.Entities.WorkCard", b =>
@@ -381,8 +533,15 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     b.Navigation("WorkerAgent");
                 });
 
+            modelBuilder.Entity("Pyxie.Data.Entities.CardRound", b =>
+                {
+                    b.Navigation("MediaInputs");
+                });
+
             modelBuilder.Entity("Pyxie.Data.Entities.WorkCard", b =>
                 {
+                    b.Navigation("MediaFiles");
+
                     b.Navigation("Rounds");
                 });
 #pragma warning restore 612, 618

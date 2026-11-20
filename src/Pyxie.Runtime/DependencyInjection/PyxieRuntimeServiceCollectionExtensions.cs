@@ -6,6 +6,7 @@ using Pyxie.Runtime.Gates;
 using Pyxie.Runtime.Git;
 using Pyxie.Runtime.Harnesses;
 using Pyxie.Runtime.Integration;
+using Pyxie.Runtime.Media;
 using Pyxie.Runtime.Orchestration;
 using Pyxie.Runtime.Processes;
 using Pyxie.Runtime.Projects;
@@ -27,6 +28,7 @@ public static class PyxieRuntimeServiceCollectionExtensions
 		services.AddOptions<PipelineOptions>().Bind(configuration.GetSection(PipelineOptions.SectionName)).Validate(options => options.Workers is >= 1 and <= 32 && options.PollIntervalSeconds is >= 1 and <= 300 && options.RoundTimeoutMinutes is >= 1 and <= 1440, $"'{PipelineOptions.SectionName}' settings are out of range: {nameof(PipelineOptions.Workers)} must be 1-32, {nameof(PipelineOptions.PollIntervalSeconds)} 1-300, and {nameof(PipelineOptions.RoundTimeoutMinutes)} 1-1440.").ValidateOnStart();
 
 		services.AddOptions<WorkspaceOptions>().Bind(configuration.GetSection(WorkspaceOptions.SectionName));
+		services.AddOptions<MediaOptions>().Bind(configuration.GetSection(MediaOptions.SectionName)).Validate(options => options.MaxFileBytes > 0 && options.MaxFileBytes <= Data.Media.MediaLimits.MaxFileBytes && options.MaxBatchBytes >= options.MaxFileBytes && options.MaxBatchBytes <= Data.Media.MediaLimits.MaxBatchBytes && options.MaxProjectBytes >= options.MaxBatchBytes, "Media budgets must be positive, fit the file contract, and increase from file to batch to project.").ValidateOnStart();
 
 		services.TryAddSingleton(TimeProvider.System);
 		services.AddSingleton<ProcessRunner>();
@@ -37,6 +39,8 @@ public static class PyxieRuntimeServiceCollectionExtensions
 		services.AddSingleton<SandboxImageBuilds>();
 		services.AddSingleton<ISandboxSignIns, SandboxSignIns>();
 		services.AddSingleton<CardSandboxes>();
+		services.AddSingleton<MediaStorage>();
+		services.AddSingleton<RoundMedia>();
 		services.AddSingleton<HarnessRunner>();
 		services.AddSingleton<GateRunner>();
 		services.AddSingleton<CardIntegrator>();
@@ -48,6 +52,7 @@ public static class PyxieRuntimeServiceCollectionExtensions
 		services.AddScoped<ProjectSessions>();
 		services.AddScoped<RepositoryBrowser>();
 		services.AddHostedService<PipelineOrchestrator>();
+		services.AddHostedService<MediaMaintenance>();
 
 		return services;
 	}

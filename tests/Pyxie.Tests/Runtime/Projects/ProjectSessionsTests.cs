@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -152,6 +151,25 @@ public sealed class ProjectSessionsTests
 	}
 
 	[Fact]
+	public async Task OpenAsync_OfTheProjectThatIsAlreadyOpen_SucceedsWithoutOpeningItAgainOrAnnouncingIt()
+	{
+		await using TempGitRepository source = await TempGitRepository.CreateAsync();
+		await using RepositoryRig rig = new();
+		ResultAssert.Succeeded(await rig.Setup.ImportFolderAsync(source.Folder, Token));
+		Project open = rig.OpenProject.Current ?? throw new InvalidOperationException("The import did not open its project.");
+		int announced = 0;
+		int opened = 0;
+		rig.Activity.ProjectChanged += () => announced++;
+		rig.OpenProject.Changed += () => opened++;
+
+		Project result = ResultAssert.Succeeded(await rig.Sessions.OpenAsync(open.Id, Token));
+
+		Assert.Equal(open.Id, result.Id);
+		await AssertStillOpenAsync(rig, open, announced);
+		Assert.Equal(0, opened);
+	}
+
+	[Fact]
 	public async Task OpenAsync_WhileAnotherProjectIsOpen_SwitchesToItAndAnnouncesTheSwitchOnce()
 	{
 		await using TempGitRepository firstSource = await TempGitRepository.CreateAsync();
@@ -223,20 +241,26 @@ public sealed class ProjectSessionsTests
 		await AssertStillOpenAsync(rig, second, announced);
 	}
 
-	[Fact]
-	public async Task OpenAsync_WhenTheProjectsDatabaseCannotBeMigratedWhileAnotherIsOpen_FailsAndLeavesTheOpenOneOpen()
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task OpenAsync_WhenTheProjectsDatabaseCannotBeMigratedWhileAnotherIsOpen_IsRefusedAndLeavesTheOpenOneOpen(bool fromAnotherBuild)
 	{
 		await using TempGitRepository firstSource = await TempGitRepository.CreateAsync();
 		await using TempGitRepository secondSource = await TempGitRepository.CreateAsync();
 		await using RepositoryRig rig = new();
 		(Project first, Project second) = await ImportClosedAndOpenAsync(rig, firstSource, secondSource);
-		await File.WriteAllTextAsync(DatabaseFiles.PathIn(first.Folder), "this is not a database", Token);
+		await ProjectDatabaseFile.MakeUnopenableAsync(first.Folder, fromAnotherBuild, Token);
 		int announced = 0;
 		rig.Activity.ProjectChanged += () => announced++;
 
-		await Assert.ThrowsAsync<SqliteException>(() => rig.Sessions.OpenAsync(first.Id, Token));
+		string error = ResultAssert.Failed(await rig.Sessions.OpenAsync(first.Id, Token));
 
+		Assert.Contains("database", error, StringComparison.OrdinalIgnoreCase);
+		Assert.Contains("import", error, StringComparison.OrdinalIgnoreCase);
 		await AssertStillOpenAsync(rig, second, announced);
+		ResultAssert.Succeeded(await rig.Sessions.CloseAsync(second.Id, Token));
+		Assert.Null(rig.OpenProject.Current);
 	}
 
 	[Fact]

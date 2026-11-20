@@ -1,0 +1,28 @@
+.settings-transfer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 16px 12px 0;
+	border-top: 1px solid var(--pyx-border);
+}
+
+.settings-transfer ::deep .ant-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 12px;
+	border-radius: var(--pyx-radius-control);
+	font-size: 13px;
+}
+
+.settings-transfer ::deep .anticon {
+	font-size: 12px;
+}
+
+@media (max-width: 930px) {
+	.settings-transfer {
+		padding: 0;
+		border-top: 0;
+	}
+}

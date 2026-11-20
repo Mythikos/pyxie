@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Pyxie.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <PackageReference Include="Blazorise" />
     <PackageReference Include="Blazorise.AntDesign" />
     <PackageReference Include="Blazorise.Icons.AntDesign" />

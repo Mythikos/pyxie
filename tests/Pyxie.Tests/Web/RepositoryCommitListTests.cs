@@ -178,7 +178,7 @@ public sealed class RepositoryCommitListTests
 	{
 		if (card is int number)
 		{
-			Assert.Matches(new Regex($"<span class=\"pyx-chip pyx-chip-green commit-card\"[^>]*>Card {number.ToString(CultureInfo.InvariantCulture)}</span>", RegexOptions.None, TimeSpan.FromSeconds(5)), row);
+			Assert.Matches(new Regex($"<a class=\"pyx-chip pyx-chip-green commit-card\" href=\"/\\?project=1&amp;card={number.ToString(CultureInfo.InvariantCulture)}\"[^>]*>Card {number.ToString(CultureInfo.InvariantCulture)}</a>", RegexOptions.None, TimeSpan.FromSeconds(5)), row);
 		}
 		else
 		{

@@ -5,6 +5,13 @@ namespace Pyxie.Runtime.Sandboxes;
 /// <summary>Makes and removes the sandboxes rounds run in (see <c>docs/sandboxing.md</c>). Everything a project's sandboxes leave behind (containers and volumes) carries its key and the card's identifier, so it can be found and removed later, also after Pyxie stopped part-way.</summary>
 public interface ISandboxes
 {
+	/// <summary>Stops a card's containers before recovering its host output, preserving its workspace volumes.</summary>
+	/// <param name="projectKey">The owning project.</param>
+	/// <param name="cardId">The card.</param>
+	/// <param name="cancellationToken">A token to cancel stopping.</param>
+	/// <returns>A task completing once no container can write output.</returns>
+	Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken);
+
 	/// <summary>Checks that sandboxes can be made: the container engine answers and runs Linux containers.</summary>
 	/// <param name="cancellationToken">A token to cancel the check.</param>
 	/// <returns>Success, or what is wrong, in words for a person.</returns>
@@ -55,6 +62,14 @@ public interface ISandboxes
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>A task that completes when they are gone.</returns>
 	Task RemoveLeftoverRoundsAsync(string projectKey, CancellationToken cancellationToken);
+
+	/// <summary>Removes everything a project's sandboxes and image builds left: its containers, its volumes, and its images, tagged or not. Pyxie's base image and build cache are shared by every project, so they are left to <see cref="RemoveUnusedImagesAsync"/>, which removes what of them no image needs. A project's key is a hash of its folder, so a project imported later into the same folder gets the same key and would otherwise find what this one left.</summary>
+	/// <remarks>Call it only while none of the project's rounds or image builds runs.</remarks>
+	/// <param name="projectKey">The project's key.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>A task that completes when they are gone.</returns>
+	/// <exception cref="SandboxUnavailableException">The container engine does not answer.</exception>
+	Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken);
 
 	/// <summary>Lists the cards of a project that have containers or volumes.</summary>
 	/// <param name="projectKey">The project's key.</param>

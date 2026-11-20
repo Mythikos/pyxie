@@ -1,0 +1,19 @@
+.mcp-connection {
+	display: grid;
+	gap: 6px;
+	max-width: 42rem;
+}
+
+.mcp-connection input {
+	width: 100%;
+	padding: 6px 10px;
+	color: var(--pyx-text);
+	background: var(--pyx-lane);
+	border: 1px solid var(--pyx-border);
+	border-radius: var(--pyx-radius-control);
+	font-family: var(--pyx-font-mono);
+}
+
+.mcp-connection span {
+	color: var(--pyx-text-2);
+}

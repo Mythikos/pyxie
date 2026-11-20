@@ -11,6 +11,9 @@ public sealed record SandboxSignIn(
 	IReadOnlyDictionary<string, string> Environment,
 	string? Problem)
 {
+	/// <summary>Gets the optional setup run in the opened container, including a reused worker, before repository code runs.</summary>
+	public Func<ISandbox, CancellationToken, Task>? PrepareAsync { get; init; }
+
 	/// <summary>Gets a sign-in that gives nothing, for harnesses Pyxie does not sign in.</summary>
 	public static SandboxSignIn None { get; } = new([], [], new Dictionary<string, string>(), null);
 

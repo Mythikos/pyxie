@@ -15,7 +15,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Web.Rendering;
 
-/// <summary>The card dialog rendered on a test database, opened on a card or on a new card, with the card service it saves through.</summary>
+/// <summary>The card dialog rendered on a test database, opened on a card or on a new card.</summary>
 internal sealed class CardDialog : IAsyncDisposable
 {
 	private readonly ComponentHarness _harness;
@@ -32,7 +32,7 @@ internal sealed class CardDialog : IAsyncDisposable
 	/// <summary>Gets the rendered dialog.</summary>
 	public RenderedComponent<CardEditor> Editor { get; }
 
-	/// <summary>Gets the card service the dialog saves through, which a test can also use to act as someone else.</summary>
+	/// <summary>Gets a card service on the test database, which a test can use to act as someone else.</summary>
 	public CardService Cards { get; }
 
 	/// <summary>Gets how many times the dialog announced that cards changed.</summary>
@@ -41,8 +41,9 @@ internal sealed class CardDialog : IAsyncDisposable
 	/// <summary>Renders the dialog and opens it.</summary>
 	/// <param name="database">The database that holds the cards, categories, and agents.</param>
 	/// <param name="cardId">The card to open, or <see langword="null"/> for a new card.</param>
+	/// <param name="cardService">The card service the dialog reads and writes through, such as one whose calls a test holds, or <see langword="null"/> for <see cref="Cards"/>.</param>
 	/// <returns>The open dialog.</returns>
-	public static async Task<CardDialog> OpenAsync(TestDatabase database, int? cardId = null)
+	public static async Task<CardDialog> OpenAsync(TestDatabase database, int? cardId = null, ICardService? cardService = null)
 	{
 		CancellationToken cancellationToken = TestContext.Current.CancellationToken;
 		CardService cards = new(database.ContextFactory, database.Clock);
@@ -50,7 +51,7 @@ internal sealed class CardDialog : IAsyncDisposable
 		List<Category> categories = await context.Categories.AsNoTracking().ToListAsync(cancellationToken);
 		List<Agent> agents = await context.Agents.AsNoTracking().ToListAsync(cancellationToken);
 		WorkCard? card = cardId is int id ? ResultAssert.Succeeded(await cards.GetAsync(id, cancellationToken)) : null;
-		ComponentHarness harness = new(services => services.AddSingleton<ICardService>(cards));
+		ComponentHarness harness = new(services => services.AddSingleton<ICardService>(cardService ?? cards));
 		StrongBox<int> changes = new();
 
 		RenderedComponent<CardEditor> editor = await harness.RenderAsync<CardEditor>(new Dictionary<string, object>

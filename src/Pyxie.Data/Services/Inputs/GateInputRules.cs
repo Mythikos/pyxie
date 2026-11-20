@@ -3,9 +3,25 @@ using Pyxie.Data.Services.Internal;
 
 namespace Pyxie.Data.Services.Inputs;
 
-/// <summary>The field rules for a <see cref="GateInput"/>, shared by the gate service and the gate editor so both report the same messages.</summary>
+/// <summary>The field rules for a <see cref="GateInput"/>, shared by the gate service, the settings import, and the gate editor so all of them report the same messages.</summary>
 public static class GateInputRules
 {
+	/// <summary>Gets a gate input as it is checked and stored: its name, command, and arguments trimmed.</summary>
+	/// <param name="input">The input as entered.</param>
+	/// <returns>The normalized input.</returns>
+	public static GateInput Normalize(GateInput input)
+	{
+		return input with { Name = InputRules.Normalize(input.Name), Command = InputRules.Normalize(input.Command), Arguments = InputRules.Normalize(input.Arguments) };
+	}
+
+	/// <summary>Checks a gate input's fields. Whether another gate already has the name is decided against the stored gates.</summary>
+	/// <param name="input">The input.</param>
+	/// <returns>A user-presentable message for the first field that is not valid, or <see langword="null"/> when all are.</returns>
+	public static string? Validate(GateInput input)
+	{
+		return ValidateName(input.Name) ?? ValidateCommand(input.Command) ?? ValidateArguments(input.Arguments) ?? ValidateTimeout(input.TimeoutMinutes);
+	}
+
 	/// <summary>Checks a gate name after trimming it. Whether another gate already has the name is decided by the gate service.</summary>
 	/// <param name="name">The raw name.</param>
 	/// <returns>A user-presentable message, or <see langword="null"/> when the name is valid.</returns>

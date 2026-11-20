@@ -1,7 +1,8 @@
-<Modal Visible="@Visible" VisibleChanged="@VisibleChanged" Centered>
+@inherits Pyxie.Web.Components.Projects.ProjectEditorComponent
+<Modal Visible="@Visible" VisibleChanged="@OnModalVisibleChangedAsync" Centered>
 	<ModalContent>
 		<ModalHeader>
-			<ModalTitle>@(Gate is null ? "Add gate" : "Edit gate")</ModalTitle>
+			<ModalTitle>@(_opening.Subject is null ? "Add gate" : "Edit gate")</ModalTitle>
 		</ModalHeader>
 		<ModalBody>
 			<Field>
@@ -44,6 +45,6 @@
 				<Alert Color="Color.Danger" Visible="true">@_serviceError</Alert>
 			}
 		</ModalBody>
-		<EditorFooter Subject="@(Gate?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(Gate is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
+		<EditorFooter Subject="@(_opening.Subject?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(_opening.Subject is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
 	</ModalContent>
 </Modal>

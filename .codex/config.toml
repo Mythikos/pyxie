@@ -1,0 +1,2 @@
+[mcp_servers.pyxie]
+url = "http://localhost:5280/mcp"

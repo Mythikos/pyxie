@@ -10,10 +10,12 @@ public sealed class AgentSnapshot
 	/// <param name="harness">The harness the agent runs through.</param>
 	/// <param name="command">The executable used to start the harness.</param>
 	/// <param name="arguments">The command-line arguments, empty when there are none.</param>
-	public AgentSnapshot(string name, HarnessKind harness, string command, string arguments)
+	/// <param name="authentication">The credential selected for this round.</param>
+	public AgentSnapshot(string name, HarnessKind harness, string command, string arguments, AgentAuthentication authentication)
 	{
 		Name = name;
 		Harness = harness;
+		Authentication = authentication;
 		Command = command;
 		Arguments = arguments;
 	}
@@ -23,6 +25,9 @@ public sealed class AgentSnapshot
 
 	/// <summary>Gets the harness the agent runs through.</summary>
 	public HarnessKind Harness { get; private set; }
+
+	/// <summary>Gets the credential selected when the round started.</summary>
+	public AgentAuthentication Authentication { get; private set; }
 
 	/// <summary>Gets the executable used to start the harness.</summary>
 	public string Command { get; private set; }
@@ -35,6 +40,6 @@ public sealed class AgentSnapshot
 	/// <returns>A snapshot holding the agent's current values.</returns>
 	public static AgentSnapshot From(Agent agent)
 	{
-		return new AgentSnapshot(agent.Name, agent.Harness, agent.Command, agent.Arguments);
+		return new AgentSnapshot(agent.Name, agent.Harness, agent.Command, agent.Arguments, agent.Authentication);
 	}
 }

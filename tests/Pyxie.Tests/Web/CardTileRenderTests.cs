@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Services.ReadModels;
 using Pyxie.Tests.Support;
 using Pyxie.Tests.Web.Rendering;
 using Pyxie.Web.Components.Board;
+using Pyxie.Web.Components.Categories.Colors;
 
 using Xunit;
 
@@ -20,12 +23,24 @@ public sealed class CardTileRenderTests
 	public async Task Render_ShowsTheCategoryInItsColorAndTheNameAsAButtonInsideTheHeading()
 	{
 		WorkCard card = Card(CardLane.Queue);
-		card.Category = new Category { Id = 2, Name = "Bug", Color = CategoryColor.Pink };
+		card.Category = new Category { Id = 2, Name = "Bug", Color = CategoryColors.Pink };
 
 		string html = await RenderAsync(Tile(card));
 
 		Assert.Matches(CategoryChipPattern("pyx-chip pyx-chip-pink", "Bug"), html);
 		Assert.Matches(@"<h3 class=""card-title""[^>]*><button type=""button"" class=""card-name""[^>]*>Fix the login</button></h3>", html);
+	}
+
+	[Fact]
+	public async Task Render_ShowsACategoryInAColorOfItsOwnInThatColorWithTextDerivedForIt()
+	{
+		WorkCard card = Card(CardLane.Queue);
+		card.Category = new Category { Id = 4, Name = "Docs", Color = HexColor.Parse("#E3F0FF") };
+
+		string html = await RenderAsync(Tile(card));
+
+		Assert.Matches(CategoryChipPattern("pyx-chip pyx-chip-custom", "Docs"), html);
+		Assert.Contains($"style=\"--chip-tint: #E3F0FF; --chip-ink: {ChipInk.For(HexColor.Parse("#E3F0FF"))}\"", html, StringComparison.Ordinal);
 	}
 
 	[Fact]
@@ -168,7 +183,7 @@ public sealed class CardTileRenderTests
 
 		await using ComponentHarness harness = Harness();
 		RenderedComponent<CardTile> tile = await harness.RenderAsync<CardTile>(Parameters(Tile(card), clicked: opened.Add, retryClicked: retried.Add));
-		await tile.ClickAsync("RetryAsync");
+		await tile.ClickAsync("RetryAsync", new MouseEventArgs { Detail = 1 });
 		await tile.ClickAsync("OpenAsync");
 
 		Assert.Same(card, Assert.Single(retried));
@@ -343,9 +358,28 @@ public sealed class CardTileRenderTests
 
 		await using ComponentHarness harness = Harness();
 		RenderedComponent<CardTile> tile = await harness.RenderAsync<CardTile>(Parameters(Tile(card), closeClicked: closed.Add));
-		await tile.ClickAsync("CloseAsync");
+		await tile.ClickAsync("CloseAsync", new MouseEventArgs { Detail = 1 });
 
 		Assert.Same(card, Assert.Single(closed));
+	}
+
+	[Fact]
+	public async Task Render_RaisesNothingForAPressThatIsPartOfADoubleClick()
+	{
+		WorkCard complete = Card(CardLane.Complete, attempt: 1);
+		WorkCard stopped = Card(CardLane.Queue, state: CardState.Error, attempt: 1);
+		List<WorkCard> closed = [];
+		List<WorkCard> retried = [];
+
+		// The board reads the cards again before the second click of a double click, so the next card has slid under the pointer by then.
+		await using ComponentHarness harness = Harness();
+		RenderedComponent<CardTile> closing = await harness.RenderAsync<CardTile>(Parameters(Tile(complete), closeClicked: closed.Add));
+		RenderedComponent<CardTile> retrying = await harness.RenderAsync<CardTile>(Parameters(Tile(stopped), retryClicked: retried.Add));
+		await closing.ClickAsync("CloseAsync", new MouseEventArgs { Detail = 2 });
+		await retrying.ClickAsync("RetryAsync", new MouseEventArgs { Detail = 2 });
+
+		Assert.Empty(closed);
+		Assert.Empty(retried);
 	}
 
 	[Theory]
@@ -388,7 +422,7 @@ public sealed class CardTileRenderTests
 	private static WorkCard Card(CardLane lane, CardState state = CardState.Ready, int attempt = 0, int attemptLimit = 5)
 	{
 		WorkCard card = InMemoryCard.Create(attempt: attempt, attemptLimit: attemptLimit, categoryName: "Feature");
-		card.Category.Color = CategoryColor.Green;
+		card.Category.Color = CategoryColors.Green;
 		card.Lane = lane;
 		card.State = state;
 

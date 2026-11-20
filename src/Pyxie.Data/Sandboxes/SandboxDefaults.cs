@@ -16,10 +16,10 @@ public static class SandboxDefaults
 		# RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/share/dotnet \
 		#     && ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
 
-		# Install an agent's latest release again each time you press Build. Uncomment the agents this project uses.
+		# To select harness versions for this project, uncomment the relevant installs.
 		# RUN npm install -g @anthropic-ai/claude-code@latest && npm cache clean --force
 		# RUN npm install -g @openai/codex@latest && npm cache clean --force
-		# RUN npm install -g opencode-ai@latest && npm cache clean --force
+		# RUN npm install -g @deepseek-ai/dsh@0.2.2-rc.5 && npm cache clean --force
 
 		""";
 }

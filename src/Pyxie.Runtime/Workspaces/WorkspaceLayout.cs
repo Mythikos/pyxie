@@ -45,6 +45,15 @@ public sealed class WorkspaceLayout
 	/// <summary>Gets the file that holds the Claude Code token <c>claude setup-token</c> printed.</summary>
 	public string ClaudeTokenPath => Path.Combine(SecretsFolder, ClaudeTokenFileName);
 
+	/// <summary>Gets the dedicated Anthropic API key file.</summary>
+	public string ClaudeApiKeyPath => Path.Combine(SecretsFolder, "anthropic-api-key");
+
+	/// <summary>Gets the dedicated OpenAI API key file.</summary>
+	public string CodexApiKeyPath => Path.Combine(SecretsFolder, "openai-api-key");
+
+	/// <summary>Gets the DeepSeek API key file.</summary>
+	public string DeepSeekApiKeyPath => Path.Combine(SecretsFolder, "deepseek-api-key");
+
 	/// <summary>Gets a project's hub: the bare repository the pipeline writes to and people clone, pull from, and push to.</summary>
 	/// <param name="projectFolder">The project's folder.</param>
 	/// <returns>The full path.</returns>

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -5,13 +6,16 @@ using Microsoft.Extensions.Options;
 
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
+using Pyxie.Data.Persistence;
 using Pyxie.Data.Projects;
 using Pyxie.Data.Services;
+using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Pipeline;
 using Pyxie.Data.Services.ReadModels;
 using Pyxie.Data.Services.Results;
 using Pyxie.Data.Services.Rules;
 using Pyxie.Runtime.Git;
+using Pyxie.Runtime.Media;
 using Pyxie.Runtime.Sandboxes;
 using Pyxie.Runtime.Workspaces;
 
@@ -189,10 +193,34 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 		try
 		{
 			await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
-			int recovered = await scope.ServiceProvider.GetRequiredService<ICardPipelineService>().RecoverInterruptedAsync(stoppingToken);
-			if (recovered > 0)
+			ICardPipelineService pipeline = scope.ServiceProvider.GetRequiredService<ICardPipelineService>();
+			await using ProjectDbContext context = scope.ServiceProvider.GetRequiredService<IProjectDbContextSource>().CreateFor(project);
+			List<CardRound> openRounds = await context.Rounds.AsNoTracking().Where(round => round.Outcome == null).ToListAsync(stoppingToken);
+			foreach (CardRound round in openRounds)
 			{
-				LogRecovered(_logger, recovered);
+				int roundId = round.Id;
+				MediaCollection media = await RoundMedia.ReadReceiptAsync(project.Folder, roundId, stoppingToken);
+				string role = SandboxNames.RoleName(round.Kind switch { RoundKind.Work => SandboxRole.Worker, RoundKind.Review => SandboxRole.Review, RoundKind.Resolve => SandboxRole.Resolve, _ => SandboxRole.Gates });
+				string folder = WorkspaceLayout.SandboxFolder(project.Folder, round.CardId, role);
+				string marker = Path.Combine(folder, "media-round");
+				if (!media.Complete && File.Exists(marker) && await File.ReadAllTextAsync(marker, stoppingToken) == roundId.ToString(System.Globalization.CultureInfo.InvariantCulture) && Directory.Exists(Path.Combine(folder, "out", "media")))
+				{
+					await _sandboxes.QuiesceCardAsync(SandboxNames.ProjectKey(project.Folder), round.CardId, stoppingToken);
+					media = await scope.ServiceProvider.GetRequiredService<RoundMedia>().CollectAsync(project, round.CardId, roundId, Path.Combine(folder, "out"), null, stoppingToken);
+				}
+				if (media.Files.Count > 0 || media.Problems.Count > 0)
+				{
+					ServiceResult result = await pipeline.InterruptAsync(roundId, new RoundReport("Pyxie stopped while this round was running.", string.Join('\n', media.Problems)) { Media = media.Files }, stoppingToken);
+					if (!result.Succeeded)
+					{
+						throw new InvalidOperationException(result.Error);
+					}
+				}
+			}
+			await pipeline.RecoverInterruptedAsync(stoppingToken);
+			if (openRounds.Count > 0)
+			{
+				LogRecovered(_logger, openRounds.Count);
 				_activity.NotifyCardsChanged();
 			}
 
@@ -368,6 +396,14 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 	// The result lands even while stopping: the round has run, and its outcome should not be lost.
 	private async Task<PipelineWork?> RecordAsync(PipelineWork work, RoundVerdict verdict)
 	{
+		if (_openProject.Current is Project project)
+		{
+			MediaCollection media = await RoundMedia.ReadReceiptAsync(project.Folder, work.RoundId, CancellationToken.None);
+			if (media.Files.Count > 0)
+			{
+				verdict = verdict with { Media = media.Files };
+			}
+		}
 		await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
 		ICardPipelineService pipeline = scope.ServiceProvider.GetRequiredService<ICardPipelineService>();
 
@@ -379,7 +415,7 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 
 		// A result the pipeline refuses would leave the round open forever, so the card stops for a person instead.
 		LogRecordFailed(_logger, work.RoundId, work.CardId, recorded.Error ?? string.Empty);
-		RoundVerdict fallback = RoundVerdict.Blocked($"Pyxie could not record the round's result: {recorded.Error}", verdict.Report);
+		RoundVerdict fallback = RoundVerdict.Blocked($"Pyxie could not record the round's result: {recorded.Error}", verdict.Report) with { Media = verdict.Media };
 		ServiceResult<PipelineWork?> blocked = await pipeline.RecordResultAsync(work.RoundId, fallback.Result, fallback.ToRoundReport(), CancellationToken.None);
 		if (!blocked.Succeeded)
 		{
@@ -392,7 +428,8 @@ public sealed partial class PipelineOrchestrator : BackgroundService
 	private async Task InterruptAsync(PipelineWork work, string note)
 	{
 		await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
-		ServiceResult interrupted = await scope.ServiceProvider.GetRequiredService<ICardPipelineService>().InterruptAsync(work.RoundId, note, CancellationToken.None);
+		MediaCollection media = _openProject.Current is Project project ? await RoundMedia.ReadReceiptAsync(project.Folder, work.RoundId, CancellationToken.None) : MediaCollection.Empty;
+		ServiceResult interrupted = await scope.ServiceProvider.GetRequiredService<ICardPipelineService>().InterruptAsync(work.RoundId, new RoundReport(note, string.Join('\n', media.Problems)) { Media = media.Files }, CancellationToken.None);
 		if (!interrupted.Succeeded)
 		{
 			LogInterruptFailed(_logger, work.RoundId, work.CardId, interrupted.Error ?? string.Empty);

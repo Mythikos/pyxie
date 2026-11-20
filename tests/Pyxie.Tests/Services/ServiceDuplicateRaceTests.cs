@@ -1,3 +1,4 @@
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Services;
@@ -10,9 +11,9 @@ namespace Pyxie.Tests.Services;
 
 public sealed class ServiceDuplicateRaceTests
 {
-	private const string ConcurrentCategory = "INSERT INTO Categories (Name, Color) VALUES ('Docs', 0)";
+	private const string ConcurrentCategory = "INSERT INTO Categories (Name, Color) VALUES ('Docs', '#EDEDE9')";
 
-	private const string ConcurrentAgent = "INSERT INTO Agents (Name, Harness, Command, Arguments, CanWork, CanReview, CanMerge) VALUES ('Alpha', 0, 'claude', '', 1, 1, 0)";
+	private const string ConcurrentAgent = "INSERT INTO Agents (Name, Harness, Authentication, Command, Arguments, CanWork, CanReview, CanMerge) VALUES ('Alpha', 0, 1, 'claude', '', 1, 1, 0)";
 
 	private static AgentInput Input(string name)
 	{
@@ -33,7 +34,7 @@ public sealed class ServiceDuplicateRaceTests
 		await using TestDatabase database = new(Armed(ConcurrentCategory));
 		CategoryService service = new(database.ContextFactory);
 
-		string error = ResultAssert.Failed(await service.CreateAsync("Docs", TestContext.Current.CancellationToken));
+		string error = ResultAssert.Failed(await service.CreateAsync("Docs", CategoryColors.Neutral, TestContext.Current.CancellationToken));
 
 		Assert.Contains("already exists", error);
 	}

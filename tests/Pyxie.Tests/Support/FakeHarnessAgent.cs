@@ -11,9 +11,6 @@ namespace Pyxie.Tests.Support;
 /// <para>
 /// Arguments are passed as separate strings and quoted here, so a note such as <c>needs a test</c> stays one argument. A configured arguments string is limited to <c>PyxieLimits.MaxArgumentsLength</c> characters, so keep long text in a <c>--write</c> file or a script rather than on the command line.
 /// </para>
-/// <para>
-/// The harness kind decides how the runtime delivers the prompt. Claude Code, Codex, and Other get it on standard input and the fake harness ignores it (or checks it with <c>--require-prompt</c>). OpenCode gets it as one more, final argument, which the fake harness would refuse as unknown, so for OpenCode a trailing <c>--report</c> is added to take it: the result's report is then the prompt text, and a <c>--report</c> of your own is overridden. Do not use <c>--require-prompt</c> with OpenCode, which sends nothing on standard input.
-/// </para>
 /// </remarks>
 public static class FakeHarnessAgent
 {
@@ -22,7 +19,6 @@ public static class FakeHarnessAgent
 
 	private const string DllName = "Pyxie.FakeHarness.dll";
 	private const string RuntimeConfigName = "Pyxie.FakeHarness.runtimeconfig.json";
-	private const string ReportOption = "--report";
 	private const string ScriptOption = "--script";
 	private const string DefaultRun = "--outcome completed";
 
@@ -44,32 +40,19 @@ public static class FakeHarnessAgent
 	}
 
 	/// <summary>Builds the configured arguments string of a fake agent: the harness dll, then the behavior arguments.</summary>
-	/// <param name="harness">The harness kind the agent will have, which decides how the runtime delivers the prompt (see the remarks on this class).</param>
 	/// <param name="fakeArguments">The behavior arguments, each one argument: <c>["--outcome", "rejected", "--note", "needs a test"]</c>.</param>
 	/// <returns>The arguments string, quoted so the runtime's argument splitting gives back exactly these arguments.</returns>
-	public static string Arguments(HarnessKind harness, params string[] fakeArguments)
+	public static string Arguments(params string[] fakeArguments)
 	{
 		List<string> parts = [Quote(DllPath), .. fakeArguments.Select(Quote)];
-		if (harness == HarnessKind.OpenCode)
-		{
-			parts.Add(ReportOption);
-		}
-
 		return string.Join(' ', parts);
 	}
 
 	/// <summary>Builds the configured arguments string of a fake agent that takes its behavior from a script (see <see cref="WriteScriptAsync"/>).</summary>
-	/// <param name="harness">The harness kind the agent will have.</param>
 	/// <param name="scriptPath">The script file.</param>
 	/// <returns>The arguments string.</returns>
-	/// <exception cref="ArgumentException"><paramref name="harness"/> is OpenCode: the fake harness only reads a script when it is given exactly <c>--script file</c>, and OpenCode adds the prompt as a third argument.</exception>
-	public static string ScriptArguments(HarnessKind harness, string scriptPath)
+	public static string ScriptArguments(string scriptPath)
 	{
-		if (harness == HarnessKind.OpenCode)
-		{
-			throw new ArgumentException("The fake harness cannot read a script for an OpenCode agent: OpenCode adds the prompt as an extra argument.", nameof(harness));
-		}
-
 		return $"{Quote(DllPath)} {ScriptOption} {Quote(scriptPath)}";
 	}
 
@@ -80,17 +63,17 @@ public static class FakeHarnessAgent
 	/// <returns>The snapshot, which runs <c>dotnet</c> on the fake harness.</returns>
 	public static AgentSnapshot Snapshot(string name, HarnessKind harness, params string[] fakeArguments)
 	{
-		return new AgentSnapshot(name, harness, Command, Arguments(harness, fakeArguments));
+		return new AgentSnapshot(name, harness, Command, Arguments(fakeArguments), harness == HarnessKind.Other ? AgentAuthentication.None : AgentAuthentication.Account);
 	}
 
 	/// <summary>Builds the snapshot of a fake agent that takes its behavior from a script.</summary>
 	/// <param name="name">The agent name.</param>
-	/// <param name="harness">The harness kind; not OpenCode.</param>
+	/// <param name="harness">The harness kind.</param>
 	/// <param name="scriptPath">The script file from <see cref="WriteScriptAsync"/>.</param>
 	/// <returns>The snapshot.</returns>
 	public static AgentSnapshot ScriptSnapshot(string name, HarnessKind harness, string scriptPath)
 	{
-		return new AgentSnapshot(name, harness, Command, ScriptArguments(harness, scriptPath));
+		return new AgentSnapshot(name, harness, Command, ScriptArguments(scriptPath), harness == HarnessKind.Other ? AgentAuthentication.None : AgentAuthentication.Account);
 	}
 
 	/// <summary>Builds the input that creates a fake agent through the agent service.</summary>
@@ -102,19 +85,19 @@ public static class FakeHarnessAgent
 	/// <returns>The agent input, which runs <c>dotnet</c> on the fake harness.</returns>
 	public static AgentInput Input(string name, HarnessKind harness, bool canWork, bool canReview, params string[] fakeArguments)
 	{
-		return new AgentInput(name, harness, Command, Arguments(harness, fakeArguments), canWork, canReview);
+		return new AgentInput(name, harness, Command, Arguments(fakeArguments), canWork, canReview);
 	}
 
 	/// <summary>Builds the input that creates a fake agent whose behavior comes from a script.</summary>
 	/// <param name="name">The unique agent name.</param>
-	/// <param name="harness">The harness kind; not OpenCode.</param>
+	/// <param name="harness">The harness kind.</param>
 	/// <param name="canWork">Whether the agent may be a card's worker.</param>
 	/// <param name="canReview">Whether the agent may be a card's reviewer.</param>
 	/// <param name="scriptPath">The script file from <see cref="WriteScriptAsync"/>.</param>
 	/// <returns>The agent input.</returns>
 	public static AgentInput ScriptInput(string name, HarnessKind harness, bool canWork, bool canReview, string scriptPath)
 	{
-		return new AgentInput(name, harness, Command, ScriptArguments(harness, scriptPath), canWork, canReview);
+		return new AgentInput(name, harness, Command, ScriptArguments(scriptPath), canWork, canReview);
 	}
 
 	/// <summary>Writes a script for an agent that behaves differently on each run, such as a reviewer that rejects once and then approves. Run <em>n</em> takes the arguments of line <em>n</em>; once the runs are used up, the last one repeats. The fake harness counts runs in a file next to the script, which is not safe for agents that run at once, so use scripts with one pipeline worker.</summary>

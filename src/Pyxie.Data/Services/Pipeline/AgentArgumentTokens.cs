@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 
 using Pyxie.Data.Enums;
+using Pyxie.Data.Services.Internal;
 
 namespace Pyxie.Data.Services.Pipeline;
 
@@ -113,17 +114,7 @@ public static partial class AgentArgumentTokens
 
 		string verb = unknown.Count == 1 ? "is not a token" : "are not tokens";
 
-		return $"Arguments use {List(unknown)}, which {verb} Pyxie fills in. The tokens are {List(All)}.";
-	}
-
-	private static string List(IReadOnlyList<string> names)
-	{
-		return names.Count switch
-		{
-			1 => names[0],
-			2 => $"{names[0]} and {names[1]}",
-			_ => $"{string.Join(", ", names.Take(names.Count - 1))}, and {names[^1]}",
-		};
+		return $"Arguments use {EnglishLists.JoinWithAnd(unknown)}, which {verb} Pyxie fills in. The tokens are {EnglishLists.JoinWithAnd(All)}.";
 	}
 
 	// A name in capitals between braces, not preceded by $: ${HOME} is a shell's, and stays the shell's.

@@ -1,3 +1,4 @@
+@inherits Pyxie.Web.Components.Projects.ProjectEditorComponent
 <SettingsPanel Section="SettingsSections.Agents" Flush>
 	<Actions>
 		<PanelAddButton Label="Add agent" Disabled="@_busy" Clicked="@BeginAdd" />
@@ -17,6 +18,7 @@
 						<tr>
 							<th scope="col" class="agent-first">Name</th>
 							<th scope="col">Harness</th>
+							<th scope="col">Authentication</th>
 							<th scope="col">Command</th>
 							<th scope="col" class="agent-role">Work</th>
 							<th scope="col" class="agent-role">Review</th>
@@ -30,6 +32,7 @@
 							<tr @key="@((agent.Id, _revision))">
 								<td class="agent-first agent-name">@agent.Name</td>
 								<td class="agent-harness">@HarnessInfo.DisplayName(agent.Harness)</td>
+								<td>@(agent.Harness == HarnessKind.Other ? "—" : HarnessInfo.AuthenticationName(agent.Authentication))</td>
 								<td><code class="agent-command"><TokenizedText Text="@CommandLine(agent)" /></code></td>
 								<td class="agent-role">
 									<Check TValue="bool" Value="@agent.CanWork" ValueChanged="@((bool canWork) => SetWorkAsync(agent, canWork))" Disabled="@_busy" aria-label="@($"{agent.Name} can work")" />
@@ -46,7 +49,7 @@
 							</tr>
 						}
 						<tr @key="@((0, _revision))">
-							<td class="agent-first agent-none" colspan="5">None</td>
+							<td class="agent-first agent-none" colspan="6">None</td>
 							<td class="agent-role">
 								<input type="radio" name="merge-agent" class="agent-radio" checked="@(!_agents.Any(agent => agent.CanMerge))" disabled="@_busy" aria-label="No agent resolves merge conflicts" @onchange="@(() => SetMergeAgentAsync(null))" />
 							</td>

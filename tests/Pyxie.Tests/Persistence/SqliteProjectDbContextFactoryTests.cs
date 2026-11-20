@@ -5,6 +5,7 @@ using Pyxie.Data.Persistence;
 using Pyxie.Data.Projects;
 using Pyxie.Data.Sqlite.Persistence;
 using Pyxie.Tests.Runtime.Git;
+using Pyxie.Tests.Support;
 
 using Xunit;
 
@@ -34,8 +35,8 @@ public sealed class SqliteProjectDbContextFactoryTests
 		string first = projects.Combine("first");
 		string second = projects.Combine("second");
 		SqliteProjectDatabase projectDatabase = new();
-		await projectDatabase.MigrateAsync(first, Token);
-		await projectDatabase.MigrateAsync(second, Token);
+		ResultAssert.Succeeded(await projectDatabase.MigrateAsync(first, Token));
+		ResultAssert.Succeeded(await projectDatabase.MigrateAsync(second, Token));
 		OpenProject openProject = new();
 		IDbContextFactory<ProjectDbContext> factory = new SqliteProjectDbContextFactory(openProject);
 

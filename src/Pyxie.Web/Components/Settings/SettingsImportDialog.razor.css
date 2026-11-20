@@ -1,0 +1,42 @@
+.import-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.import-section {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+/* What a section would remove is the consequence the person agrees to, so it reads at full strength. */
+.import-removes {
+	padding-left: 24px;
+	color: var(--pyx-text);
+	font-size: 13px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.import-problems {
+	margin: 0;
+	padding-left: 40px;
+	color: var(--pyx-error-text);
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+/* A refusal lists one reason per line. */
+.import-message {
+	white-space: pre-line;
+}
+
+/* Ant spaces footer buttons only when they are siblings; Import is wrapped for its press handling, so the wrapper takes the same space. */
+.import-action {
+	display: inline-flex;
+	margin-inline-start: var(--ant-margin-xs);
+}

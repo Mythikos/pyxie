@@ -35,7 +35,10 @@ internal sealed class RefusingAgentService : IAgentService
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken)
+	public Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, input, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public Task<ServiceResult<Agent>> UpdateIfCurrentAsync(int id, AgentInput input, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		Requests.Add(input);
 
@@ -49,7 +52,10 @@ internal sealed class RefusingAgentService : IAgentService
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken) => DeleteIfCurrentAsync(id, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		return Task.FromResult(ServiceResult.Failure(_message));
 	}

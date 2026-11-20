@@ -1,21 +1,24 @@
+using Pyxie.Data.Entities;
 using Pyxie.Data.Projects;
 using Pyxie.Data.Services.Results;
+using Pyxie.Runtime.Projects;
 
 namespace Pyxie.Runtime.Orchestration;
 
 /// <summary>Starts and stops the pipeline, and keeps the open project from changing under it. The pipeline starts stopped every time Pyxie launches, so launching never spends harness usage, and it starts only while a project is open. Stopping kills the rounds that are running and records them as interrupted; starting again resumes them first.</summary>
-/// <remarks>The open project changes (import, open, close) only between <see cref="BeginProjectChangeAsync"/> and <see cref="EndProjectChange"/>. A change is refused while the pipeline is started, waits while the stopped pipeline still finishes work it began (<see cref="TryBeginWork"/>), and <see cref="Start"/> is refused while a change is under way. One lock decides both, so the project the pipeline works on never changes while it works. How many rounds are running (<see cref="RunningRounds"/>) is only reported: it takes no part in any of those decisions.</remarks>
+/// <remarks>Projects change (import, open, close, remove) only between <see cref="BeginProjectChangeAsync"/> and <see cref="EndProjectChange"/>, one at a time. A change is refused while the pipeline is started, waits while the stopped pipeline still finishes work it began (<see cref="TryBeginWork"/>), and <see cref="Start"/> is refused while a change is under way. One lock decides both, so the project the pipeline works on never changes while it works. How many rounds are running (<see cref="RunningRounds"/>) is only reported: it takes no part in any of those decisions.</remarks>
 public sealed class PipelineController
 {
 	private readonly PipelineSignal _signal = new();
 
-	// Pulsed whenever work ends, so a project change waiting for the stopped pipeline to finish looks again.
-	private readonly PipelineSignal _workEnded = new();
+	// Wakes a pending project change when work ends or an explicit pipeline start takes precedence.
+	private readonly PipelineSignal _drainChanged = new();
 	private readonly Lock _gate = new();
 	private readonly OpenProject _openProject;
 	private bool _running;
 	private string? _stopReason;
 	private bool _projectChanging;
+	private bool _projectChangePending;
 	private int _activeWork;
 	private int _runningRounds;
 
@@ -66,7 +69,7 @@ public sealed class PipelineController
 	}
 
 	/// <summary>Starts the pipeline. Does nothing when it is already started.</summary>
-	/// <returns>A failure when no project is open, or while a project is being imported, opened, or closed.</returns>
+	/// <returns>A failure when no project is open, or while a project is being imported, opened, closed, or removed.</returns>
 	public ServiceResult Start()
 	{
 		lock (_gate)
@@ -88,6 +91,10 @@ public sealed class PipelineController
 
 			_running = true;
 			_stopReason = null;
+			if (_projectChangePending)
+			{
+				_drainChanged.Pulse();
+			}
 		}
 
 		Changed();
@@ -130,37 +137,63 @@ public sealed class PipelineController
 		Changed();
 	}
 
-	/// <summary>Begins changing the open project, once the stopped pipeline has finished the work it began: a session that is still recording its interrupted rounds, or a pass that marks leftover rounds interrupted. The caller must call <see cref="EndProjectChange"/> once it is done, however it ends.</summary>
+	/// <summary>Begins changing projects (importing, opening, closing, or removing one), once the stopped pipeline has finished the work it began: a session that is still recording its interrupted rounds, or a pass that marks leftover rounds interrupted. The caller must call <see cref="EndProjectChange"/> once it is done, however it ends.</summary>
 	/// <param name="cancellationToken">A token to stop waiting.</param>
 	/// <returns>A failure while the pipeline is started, or while another change is under way.</returns>
 	internal async Task<ServiceResult> BeginProjectChangeAsync(CancellationToken cancellationToken)
 	{
-		while (true)
+		lock (_gate)
 		{
-			// Taken before the check, so work that ends between the check and the wait still wakes it.
-			Task workEnded = _workEnded.NextAsync();
-
-			lock (_gate)
+			if (_running)
 			{
-				if (_running)
-				{
-					return ServiceResult.Failure("Stop the pipeline first.");
-				}
-
-				if (_projectChanging)
-				{
-					return ServiceResult.Failure("Another project is being imported, opened, or closed. Try again once it is done.");
-				}
-
-				if (_activeWork == 0)
-				{
-					_projectChanging = true;
-
-					return ServiceResult.Success();
-				}
+				return ServiceResult.Failure("Stop the pipeline first.");
 			}
 
-			await workEnded.WaitAsync(cancellationToken);
+			if (_projectChangePending || _projectChanging)
+			{
+				return ServiceResult.Failure("Another project is being imported, opened, closed, or removed. Try again once it is done.");
+			}
+
+			cancellationToken.ThrowIfCancellationRequested();
+			if (_activeWork == 0)
+			{
+				_projectChanging = true;
+				return ServiceResult.Success();
+			}
+
+			_projectChangePending = true;
+		}
+
+		try
+		{
+			while (true)
+			{
+				Task stateChanged;
+				lock (_gate)
+				{
+					if (_running)
+					{
+						return ServiceResult.Failure("Stop the pipeline first.");
+					}
+
+					if (_activeWork == 0)
+					{
+						_projectChanging = true;
+						return ServiceResult.Success();
+					}
+
+					stateChanged = _drainChanged.NextAsync();
+				}
+
+				await stateChanged.WaitAsync(cancellationToken);
+			}
+		}
+		finally
+		{
+			lock (_gate)
+			{
+				_projectChangePending = false;
+			}
 		}
 	}
 
@@ -173,6 +206,23 @@ public sealed class PipelineController
 		}
 	}
 
+	/// <summary>Holds the named open project across a caller's service operations, including while the pipeline is stopped.</summary>
+	/// <param name="projectId">The project the caller inspected.</param>
+	/// <returns>A lease to dispose after the operation, or a refusal if the project has changed.</returns>
+	public ServiceResult<ProjectLease> AcquireProject(int projectId)
+	{
+		lock (_gate)
+		{
+			if (_projectChanging || _projectChangePending || _openProject.Current is not Project project || project.Id != projectId)
+			{
+				return ServiceResult<ProjectLease>.Failure("The requested project is closed or changing. Check the project list.");
+			}
+
+			_activeWork++;
+			return ServiceResult<ProjectLease>.Success(new ProjectLease(project, this));
+		}
+	}
+
 	/// <summary>
 	/// Begins work in the open project: a pipeline session, or recovering rounds. The open project cannot change until <see cref="EndWork"/>, which the caller must call however the work ends.
 	/// </summary>
@@ -182,7 +232,7 @@ public sealed class PipelineController
 	{
 		lock (_gate)
 		{
-			if (_projectChanging || (requireRunning && !_running))
+			if (_projectChanging || (!_running && (requireRunning || _projectChangePending)))
 			{
 				return false;
 			}
@@ -199,9 +249,11 @@ public sealed class PipelineController
 		lock (_gate)
 		{
 			_activeWork--;
+			if (_projectChangePending && _activeWork == 0)
+			{
+				_drainChanged.Pulse();
+			}
 		}
-
-		_workEnded.Pulse();
 	}
 
 	/// <summary>Counts a round that a pipeline worker has open. The caller must call <see cref="RoundEnded"/> once no round is open for the card any more, however its run ends. It raises <see cref="StateChanged"/> but, unlike a start or a stop, does not wake <see cref="NextChangeAsync"/>: nothing the orchestrator waits on has changed.</summary>

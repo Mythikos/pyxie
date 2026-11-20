@@ -13,7 +13,7 @@ namespace Pyxie.Tests.Runtime.Workspaces;
 /// <summary>What each round's sandbox is made with and handed: the project's image, its role's volumes and host folders, the agent's sign-in, and a bundle of only the target branch and the card's own branch. A round whose image or sign-in is missing starts nothing.</summary>
 public sealed class CardSandboxesSpecTests
 {
-	private static readonly AgentSnapshot s_claude = new("Claude", HarnessKind.ClaudeCode, "claude", "-p");
+	private static readonly AgentSnapshot s_claude = new("Claude", HarnessKind.ClaudeCode, "claude", "-p", AgentAuthentication.Account);
 
 	private static SandboxRole RoleOf(RoundKind kind)
 	{
@@ -115,25 +115,33 @@ public sealed class CardSandboxesSpecTests
 	}
 
 	[Theory]
-	[InlineData(RoundKind.Work)]
-	[InlineData(RoundKind.Review)]
-	[InlineData(RoundKind.Resolve)]
-	public async Task OpenAsync_ForAnAgentsRound_GivesItsSandboxTheAgentsSignIn(RoundKind kind)
+	[InlineData(RoundKind.Work, AgentAuthentication.ApiKey)]
+	[InlineData(RoundKind.Review, AgentAuthentication.Account)]
+	[InlineData(RoundKind.Resolve, AgentAuthentication.ApiKey)]
+	public async Task OpenAsync_ForAnAgentsRound_GivesItsSandboxTheAgentsSignIn(RoundKind kind, AgentAuthentication authentication)
 	{
-		SandboxSignIn signIn = new([new SandboxSecret(Path.Combine(Path.GetTempPath(), "claude-oauth-token"), "CLAUDE_CODE_OAUTH_TOKEN")], [new SandboxMount(Path.Combine(Path.GetTempPath(), "codex"), "/home/node/.codex-pyxie", ReadOnly: false)], new Dictionary<string, string> { ["CODEX_HOME"] = "/home/node/.codex-pyxie" }, Problem: null);
+		ISandbox? prepared = null;
+		SandboxSignIn signIn = new([new SandboxSecret(Path.Combine(Path.GetTempPath(), "claude-oauth-token"), "CLAUDE_CODE_OAUTH_TOKEN")], [new SandboxMount(Path.Combine(Path.GetTempPath(), "codex"), "/home/node/.codex-pyxie", ReadOnly: false)], new Dictionary<string, string> { ["CODEX_HOME"] = "/home/node/.codex-pyxie" }, Problem: null)
+		{
+			PrepareAsync = (sandbox, _) =>
+			{
+				prepared = sandbox;
+				return Task.CompletedTask;
+			},
+		};
 		SettableSignIns signIns = new(signIn);
 		await using TempGitRepository source = await TempGitRepository.CreateAsync();
 		await using CardSandboxRig rig = await CardSandboxRig.CreateAsync(source, signIns: signIns);
 		await PrepareCardAsync(rig, kind);
-		SandboxRole role = RoleOf(kind);
-
-		await using CardSandbox card = await rig.OpenAsync(1, 2, kind, s_claude);
+		AgentSnapshot agent = new("Codex", HarnessKind.Codex, "codex", "exec", authentication);
+		await using CardSandbox card = await rig.OpenAsync(1, 2, kind, agent);
 
 		SandboxSpec spec = rig.Sandboxes.Started[^1];
-		Assert.Equal((HarnessKind.ClaudeCode, Path.Combine(rig.SandboxFolder(1, role), "sign-in")), Assert.Single(signIns.Requests));
+		Assert.Equal((HarnessKind.Codex, authentication), Assert.Single(signIns.Requests));
 		Assert.Equal(signIn.Secrets, spec.Secrets);
 		Assert.Equal(signIn.Mounts, spec.Mounts);
 		Assert.Equal(signIn.Environment, spec.Environment);
+		Assert.Same(card.Sandbox, prepared);
 	}
 
 	[Fact]

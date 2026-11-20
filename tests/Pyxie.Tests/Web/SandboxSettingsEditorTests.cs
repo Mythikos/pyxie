@@ -169,22 +169,22 @@ public sealed class SandboxSettingsEditorTests
 		string html = await SandboxEditorHost.RenderHtmlAsync(database);
 
 		Assert.Matches(@"<h3 class=""sandbox-side-title""[^>]*>Sign-ins</h3>", html);
-		Assert.Equal(["Claude Code token", "Codex sign-in"], SandboxEditorHost.ReadSignIns(html).Select(row => row.Name));
+		Assert.Equal(["Claude Code account", "Claude Code API key", "Codex account", "Codex API key", "DeepSeek account", "DeepSeek API key"], SandboxEditorHost.ReadSignIns(html).Select(row => row.Name));
 	}
 
 	[Fact]
-	public async Task Render_WithBothSignInsFound_SaysFoundForEachAndNothingElse()
+	public async Task Render_WithAllSignInsFound_SaysFoundForEachAndNothingElse()
 	{
 		await using TestDatabase database = new();
-		SandboxSignInStatus found = SandboxEditorHost.NoSignIns with { ClaudeTokenFound = true, CodexSignInFound = true };
+		SandboxSignInStatus found = SandboxEditorHost.AllSignIns;
 
 		string html = await SandboxEditorHost.RenderHtmlAsync(database, found);
 
-		Assert.Equal([("Claude Code token", "Found", (string?)null), ("Codex sign-in", "Found", (string?)null)], SandboxEditorHost.ReadSignIns(html));
+		Assert.Equal([("Claude Code account", "Found", (string?)null), ("Claude Code API key", "Found", (string?)null), ("Codex account", "Found", (string?)null), ("Codex API key", "Found", (string?)null), ("DeepSeek account", "Found", (string?)null), ("DeepSeek API key", "Found", (string?)null)], SandboxEditorHost.ReadSignIns(html));
 	}
 
 	[Fact]
-	public async Task Render_WithNeitherSignInFound_SaysNotFoundAndHowToFixEachWithTheCommandAndWherePyxieLooks()
+	public async Task Render_WithNoSignInFound_SaysNotFoundAndHowToFixEachWithTheCommandAndWherePyxieLooks()
 	{
 		await using TestDatabase database = new();
 		SandboxSignInStatus missing = SandboxEditorHost.NoSignIns;
@@ -193,21 +193,25 @@ public sealed class SandboxSettingsEditorTests
 
 		Assert.Equal(
 			[
-				("Claude Code token", "Not found", (string?)$"Run claude setup-token and save the token in {missing.ClaudeTokenPath}."),
-				("Codex sign-in", "Not found", (string?)$"Run codex login; Pyxie copies {missing.CodexSignInPath} into each sandbox."),
+				("Claude Code account", "Not found", (string?)$"Run claude setup-token and save the token in {missing.ClaudeAccount.Path}."),
+				("Claude Code API key", "Not found", (string?)$"Save your Anthropic API key in {missing.ClaudeApiKey.Path}."),
+				("Codex account", "Not found", (string?)$"Run codex login with ChatGPT using file storage. Pyxie looks in {missing.CodexAccount.Path}."),
+				("Codex API key", "Not found", (string?)$"Save your OpenAI API key in {missing.CodexApiKey.Path}."),
+				("DeepSeek account", "Not found", (string?)$"Sign in with dsh web. Pyxie looks in {missing.DeepSeekAccount.Path}."),
+				("DeepSeek API key", "Not found", (string?)$"Save your DeepSeek API key in {missing.DeepSeekApiKey.Path}."),
 			],
 			SandboxEditorHost.ReadSignIns(html));
 	}
 
 	[Fact]
-	public async Task Render_WithOnlyTheClaudeTokenFound_GivesAFixOnlyForCodex()
+	public async Task Render_WithOnlyCodexMissing_GivesAFixOnlyForCodex()
 	{
 		await using TestDatabase database = new();
-		SandboxSignInStatus claudeOnly = SandboxEditorHost.NoSignIns with { ClaudeTokenFound = true };
+		SandboxSignInStatus missingCodex = SandboxEditorHost.AllSignIns with { CodexAccount = SandboxEditorHost.NoSignIns.CodexAccount };
 
-		string html = await SandboxEditorHost.RenderHtmlAsync(database, claudeOnly);
+		string html = await SandboxEditorHost.RenderHtmlAsync(database, missingCodex);
 
-		Assert.Equal([("Claude Code token", "Found", (string?)null), ("Codex sign-in", "Not found", (string?)$"Run codex login; Pyxie copies {claudeOnly.CodexSignInPath} into each sandbox.")], SandboxEditorHost.ReadSignIns(html));
+		Assert.Equal([("Claude Code account", "Found", (string?)null), ("Claude Code API key", "Found", (string?)null), ("Codex account", "Not found", (string?)$"Run codex login with ChatGPT using file storage. Pyxie looks in {missingCodex.CodexAccount.Path}."), ("Codex API key", "Found", (string?)null), ("DeepSeek account", "Found", (string?)null), ("DeepSeek API key", "Found", (string?)null)], SandboxEditorHost.ReadSignIns(html));
 	}
 
 	private static async Task SaveElsewhereAsync(TestDatabase database, string dockerfile, int expectedVersion)

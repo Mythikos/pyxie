@@ -56,12 +56,7 @@
 	margin: 0;
 }
 
-.repo-origin {
-	font-family: var(--pyx-font-mono);
-	font-size: 13px;
-	overflow-wrap: anywhere;
-}
-
+.repo-origin,
 .repo-hub {
 	display: flex;
 	align-items: center;
@@ -83,6 +78,7 @@
 	white-space: nowrap;
 }
 
+.repo-origin ::deep .ant-btn,
 .repo-hub ::deep .ant-btn {
 	display: inline-flex;
 	flex: 0 0 auto;
@@ -96,6 +92,7 @@
 	font-weight: 500;
 }
 
+.repo-origin ::deep .ant-btn .anticon,
 .repo-hub ::deep .ant-btn .anticon {
 	font-size: 13px;
 }

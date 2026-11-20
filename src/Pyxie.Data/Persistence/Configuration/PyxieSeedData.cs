@@ -1,5 +1,5 @@
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
 
 namespace Pyxie.Data.Persistence.Configuration;
 
@@ -19,8 +19,8 @@ public static class PyxieSeedData
 	/// <returns>New category instances with fixed identifiers.</returns>
 	public static IReadOnlyList<Category> CreateDefaultCategories() =>
 	[
-		new Category { Id = FeatureCategoryId, Name = "Feature", Color = CategoryColor.Green },
-		new Category { Id = BugCategoryId, Name = "Bug", Color = CategoryColor.Pink },
-		new Category { Id = ChoreCategoryId, Name = "Chore", Color = CategoryColor.Neutral },
+		new Category { Id = FeatureCategoryId, Name = "Feature", Color = CategoryColors.Green },
+		new Category { Id = BugCategoryId, Name = "Bug", Color = CategoryColors.Pink },
+		new Category { Id = ChoreCategoryId, Name = "Chore", Color = CategoryColors.Neutral },
 	];
 }

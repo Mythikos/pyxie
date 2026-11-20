@@ -13,6 +13,7 @@ using Pyxie.Runtime.Gates;
 using Pyxie.Runtime.Git;
 using Pyxie.Runtime.Harnesses;
 using Pyxie.Runtime.Integration;
+using Pyxie.Runtime.Media;
 using Pyxie.Runtime.Sandboxes;
 using Pyxie.Runtime.Workspaces;
 
@@ -37,6 +38,7 @@ public sealed class RoundExecutor
 	private readonly GateRunner _gateRunner;
 	private readonly CardIntegrator _integrator;
 	private readonly PipelineOptions _options;
+	private readonly RoundMedia _media;
 
 	/// <summary>Initializes a new instance of the <see cref="RoundExecutor"/> class.</summary>
 	/// <param name="openProject">The open project, whose folder holds the round logs.</param>
@@ -50,7 +52,8 @@ public sealed class RoundExecutor
 	/// <param name="gateRunner">The gate runner.</param>
 	/// <param name="integrator">The merge step.</param>
 	/// <param name="options">The pipeline options.</param>
-	public RoundExecutor(OpenProject openProject, IRepositoryService repositories, IGateService gates, ISandboxSettingsService sandboxSettings, ICardService cardService, CardSandboxes cards, GitClient git, HarnessRunner harness, GateRunner gateRunner, CardIntegrator integrator, IOptions<PipelineOptions> options)
+	/// <param name="media">The round's media hand-in and hand-out.</param>
+	public RoundExecutor(OpenProject openProject, IRepositoryService repositories, IGateService gates, ISandboxSettingsService sandboxSettings, ICardService cardService, CardSandboxes cards, GitClient git, HarnessRunner harness, GateRunner gateRunner, CardIntegrator integrator, IOptions<PipelineOptions> options, RoundMedia media)
 	{
 		_openProject = openProject;
 		_repositories = repositories;
@@ -63,6 +66,7 @@ public sealed class RoundExecutor
 		_gateRunner = gateRunner;
 		_integrator = integrator;
 		_options = options.Value;
+		_media = media;
 	}
 
 	private TimeSpan RoundTimeout => TimeSpan.FromMinutes(_options.RoundTimeoutMinutes);
@@ -88,7 +92,7 @@ public sealed class RoundExecutor
 
 		try
 		{
-			return (await RunInRepositoryAsync(project.Folder, repository, work, cancellationToken), repository);
+			return (await RunInRepositoryAsync(project, repository, work, cancellationToken), repository);
 		}
 		catch (GitException exception)
 		{
@@ -133,8 +137,9 @@ public sealed class RoundExecutor
 		return card.Succeeded ? card.Value?.Description : null;
 	}
 
-	private async Task<RoundVerdict> RunInRepositoryAsync(string projectFolder, Repository repository, PipelineWork work, CancellationToken cancellationToken)
+	private async Task<RoundVerdict> RunInRepositoryAsync(Project project, Repository repository, PipelineWork work, CancellationToken cancellationToken)
 	{
+		string projectFolder = project.Folder;
 		if (work.Kind == RoundKind.Merge)
 		{
 			return await _integrator.IntegrateAsync(repository, work, DescribeCardAsync, cancellationToken);
@@ -156,14 +161,45 @@ public sealed class RoundExecutor
 
 		await using CardSandbox card = await _cards.OpenAsync(context, work, cancellationToken);
 
-		return work.Kind switch
+		if (!work.Kind.RunsAgent())
 		{
-			RoundKind.Work => await RunWorkAsync(context, card, work, logPath, cancellationToken),
-			RoundKind.Resolve => await RunResolveAsync(context, card, work, logPath, cancellationToken),
-			RoundKind.Review => await _harness.RunAsync(work, card.Sandbox, card.RepositoryPath, logPath, RoundTimeout, cancellationToken),
-			RoundKind.Gate => await RunGatesAsync(card, logPath, cancellationToken),
-			_ => throw new ArgumentOutOfRangeException(nameof(work), work.Kind, "Only work, resolve, review, and gate rounds run in a sandbox."),
-		};
+			return await RunGatesAsync(card, logPath, cancellationToken);
+		}
+
+		await _media.HandInAsync(project, work.RoundId, card.Sandbox, cancellationToken);
+		RoundVerdict? verdict = null;
+		MediaCollection collected = MediaCollection.Empty;
+		try
+		{
+			verdict = work.Kind switch
+			{
+				RoundKind.Work => await RunWorkAsync(context, card, work, logPath, cancellationToken),
+				RoundKind.Resolve => await RunResolveAsync(context, card, work, logPath, cancellationToken),
+				_ => await _harness.RunAsync(work, card.Sandbox, card.RepositoryPath, logPath, RoundTimeout, cancellationToken),
+			};
+		}
+		finally
+		{
+			// Finalized files from failed or interrupted rounds matter too. Quiesce before inspecting untrusted paths, and bound cleanup independently of the cancelled round.
+			using CancellationTokenSource cleanup = new(TimeSpan.FromSeconds(30));
+			try
+			{
+				await card.Sandbox.EndProcessesAsync(cleanup.Token);
+				string? commit = work.Kind == RoundKind.Review ? card.BaseCommit : verdict?.Result == RoundResult.Succeeded ? await _git.ResolveCommitAsync(repository.Path, $"refs/heads/{card.Branch}", cleanup.Token) : null;
+				collected = await _media.CollectAsync(project, work.CardId, work.RoundId, card.Sandbox.OutputFolder, commit, cleanup.Token);
+			}
+			catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SandboxException or SandboxUnavailableException or GitException or OperationCanceledException)
+			{
+				collected = new MediaCollection([], ["Media collection was interrupted or unavailable. Finalized files are recovered when possible."]);
+			}
+		}
+
+		string? report = verdict.Report;
+		if (collected.Problems.Count > 0)
+		{
+			report = $"{report}\n\nMedia:\n{string.Join('\n', collected.Problems)}";
+		}
+		return verdict with { Media = collected.Files, Report = report };
 	}
 
 	// The worker's changes are committed on the card's branch and taken back into the hub; a commit git refuses (a hook, say) is worth another attempt with the reason in the next briefing. Whatever the worker left running is ended first, so nothing changes the sandbox while Pyxie reads it.

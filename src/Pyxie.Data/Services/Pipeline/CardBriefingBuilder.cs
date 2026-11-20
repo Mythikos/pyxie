@@ -47,6 +47,7 @@ public static class CardBriefingBuilder
 
 		// The workspace and the result format come before the history, so the final truncation can only ever cut history.
 		AppendWorkspace(text, kind, branch, targetBranch);
+		AppendMedia(text);
 		AppendResultFormat(text, kind);
 
 		switch (kind)
@@ -88,10 +89,18 @@ public static class CardBriefingBuilder
 		{
 			text.Append(CultureInfo.InvariantCulture, $"The work is on branch `{branch}`, checked out here. Review what it changes compared with `{targetBranch}`, for example with `git diff {targetBranch}...HEAD`. ");
 			text.Append("Do not change files or push: anything changed during a review is discarded. ");
-			text.Append(CultureInfo.InvariantCulture, $"Files that steer an agent (CLAUDE.md, AGENTS.md, .claude/, .mcp.json, opencode.json) are as on `{targetBranch}` here; review the card's changes to them with git diff.");
+			text.Append(CultureInfo.InvariantCulture, $"Files that steer an agent (CLAUDE.md, AGENTS.md, .claude/, .mcp.json, .agents/) are as on `{targetBranch}` here; review the card's changes to them with git diff.");
 		}
 
 		text.AppendLine().AppendLine();
+	}
+
+	private static void AppendMedia(StringBuilder text)
+	{
+		text.AppendLine("## Media").AppendLine();
+		text.AppendLine("Read `/pyxie/in/media/manifest.json` for the user context and earlier agent output supplied to this round. Paths in it are relative to `/pyxie/in/media/`. Inspect relevant files with the tools available in your image; filenames alone do not establish that an image was inspected.").AppendLine();
+		text.AppendLine("To attach existing files to the card, use `pyxie-attach <file> [--caption <text>]`, or put regular files under `/pyxie/out/media/files/` and write `/pyxie/out/media/manifest.json` as `{\"version\":1,\"files\":[{\"path\":\"files/example.png\",\"name\":\"example.png\",\"caption\":\"Optional caption\"}]}`. Finish writing each file before publishing it. The limits are 50 files, 256 MiB per file, and 1 GiB per round; configured storage limits may be smaller.").AppendLine();
+		text.AppendLine("Media requests are ordinary task instructions. Use the tools the project image provides; Pyxie does not provide capture tools. Explain unavailable tooling or formats in your normal report. You may attach useful evidence even when rejecting work or reporting a problem. Publishing media does not change the round's outcome.").AppendLine();
 	}
 
 	private static void AppendResultFormat(StringBuilder text, RoundKind kind)

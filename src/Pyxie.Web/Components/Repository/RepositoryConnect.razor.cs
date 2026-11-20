@@ -100,9 +100,14 @@ public partial class RepositoryConnect : ComponentBase, IDisposable
 		}
 	}
 
-	// Starting replaces the error of the last failed import. The form follows the import from here, whatever page the person is on.
+	// Starting replaces the error of the last failed import. The form follows the import from here, whatever page the person is on. A form that shows itself disabled starts nothing: the disabled controls only stop the browser, and a submit it sent before it showed the form busy, or a project open, still arrives.
 	private void Submit()
 	{
+		if (Blocked)
+		{
+			return;
+		}
+
 		Imports.TryStart(_mode, Entry);
 		Follow();
 	}

@@ -10,20 +10,44 @@
 					{
 						<span class="pyx-chip project-open-chip">Open</span>
 					}
-					@if (entry.Project.IsOpen || entry.IsFolderPresent)
-					{
-						<span class="project-action" title="@BlockedText">
-							<Button Color="Color.Default" Size="Size.Small" Disabled="@(Busy || BlockedText is not null)" Loading="@IsChanging(entry)" Clicked="@(() => ToggleAsync(entry))" aria-label="@($"{ActionText(entry)} {entry.Project.Name}")">@ActionText(entry)</Button>
-						</span>
-					}
-					else
-					{
-						<span class="project-action project-gone">Folder is gone</span>
-					}
+					<span class="project-actions">
+						@if (entry.Project.IsOpen || entry.IsFolderPresent)
+						{
+							bool shownOpen = entry.Project.IsOpen;
+							<span class="project-action" title="@BlockedText" @onclick="@(press => PressAsync(press, entry, shownOpen))">
+								<Button Color="Color.Default" Size="Size.Small" Disabled="@(Busy || BlockedText is not null)" Loading="@(IsChanging(entry) && !IsConfirmingRemove(entry))" aria-label="@($"{ActionText(entry)} {entry.Project.Name}")">@ActionText(entry)</Button>
+							</span>
+						}
+						else
+						{
+							<span class="project-gone">Folder is gone</span>
+						}
+						@if (!entry.Project.IsOpen)
+						{
+							<span class="project-action project-remove" title="@BlockedText">
+								<Button @ref="_removeButtons[entry.Project.Id]" Color="Color.Default" Size="Size.Small" Disabled="@(Busy || BlockedText is not null || IsConfirmingRemove(entry))" Clicked="@(() => BeginRemove(entry))" aria-label="@($"Remove {entry.Project.Name}")"><Icon Name="IconName.Delete" /></Button>
+							</span>
+						}
+					</span>
 				</div>
 				@if (entry.Project.Source.Length > 0)
 				{
 					<span class="project-source">@entry.Project.Source</span>
+				}
+				@if (IsConfirmingRemove(entry))
+				{
+					string warningId = $"project-remove-warning-{entry.Project.Id}";
+					<div class="project-confirm">
+						<span class="project-confirm-text" id="@warningId">Deletes its hub, cards, and settings.</span>
+						<span class="project-confirm-actions">
+							<span class="project-action">
+								<Button @ref="_cancelRemove" Color="Color.Default" Size="Size.Small" Disabled="@Busy" Clicked="@CancelRemove" aria-label="@($"Cancel removing {entry.Project.Name}")">Cancel</Button>
+							</span>
+							<span class="project-action" title="@BlockedText" @onclick="@(press => ConfirmRemoveAsync(press, entry))">
+								<Button Color="Color.Danger" Size="Size.Small" Disabled="@(Busy || BlockedText is not null)" Loading="@IsChanging(entry)" aria-label="@($"Confirm removing {entry.Project.Name}")" aria-describedby="@warningId">Confirm</Button>
+							</span>
+						</span>
+					</div>
 				}
 				@if (ErrorOf(entry) is string error)
 				{

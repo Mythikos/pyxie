@@ -1,0 +1,15 @@
+<SettingsPanel Section="SettingsSections.Global">
+	<Check @key="_switchRevision" TValue="bool" Value="@Access.Enabled" ValueChanged="@SetEnabled" ElementId="mcp-enabled">Enable MCP access</Check>
+	@if (_error is not null)
+	{
+		<Alert Color="Color.Danger" Visible="true">@_error</Alert>
+	}
+	@if (Access.Enabled)
+	{
+		<div class="mcp-connection">
+			<label for="mcp-uri">Streamable HTTP endpoint</label>
+			<input id="mcp-uri" readonly value="@Endpoint" />
+			<span>Local clients can read and change Pyxie without a token.</span>
+		</div>
+	}
+</SettingsPanel>

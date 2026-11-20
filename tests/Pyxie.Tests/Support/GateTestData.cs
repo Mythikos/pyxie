@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Pyxie.Data.Entities;
+using Pyxie.Data.Limits;
 using Pyxie.Data.Persistence;
 
 using Xunit;
@@ -15,15 +16,19 @@ public static class GateTestData
 	/// <param name="name">The gate name; unique across gates.</param>
 	/// <param name="sortOrder">The position to store.</param>
 	/// <param name="isEnabled">Whether gate rounds run it.</param>
+	/// <param name="command">The command; <c>dotnet</c> unless given.</param>
+	/// <param name="arguments">The arguments; <c>test</c> unless given.</param>
+	/// <param name="timeoutMinutes">The timeout; the default unless given.</param>
 	/// <returns>The stored gate.</returns>
-	public static async Task<Gate> AddAtAsync(TestDatabase database, string name, int sortOrder, bool isEnabled = true)
+	public static async Task<Gate> AddAtAsync(TestDatabase database, string name, int sortOrder, bool isEnabled = true, string command = "dotnet", string arguments = "test", int timeoutMinutes = PyxieLimits.DefaultGateTimeoutMinutes)
 	{
 		await using ProjectDbContext context = database.CreateContext();
 		Gate gate = new()
 		{
 			Name = name,
-			Command = "dotnet",
-			Arguments = "test",
+			Command = command,
+			Arguments = arguments,
+			TimeoutMinutes = timeoutMinutes,
 			SortOrder = sortOrder,
 			IsEnabled = isEnabled,
 		};

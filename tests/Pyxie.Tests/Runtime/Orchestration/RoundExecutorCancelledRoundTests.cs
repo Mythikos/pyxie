@@ -23,7 +23,7 @@ public sealed class RoundExecutorCancelledRoundTests
 		await using RoundExecutorRig rig = await RoundExecutorRig.CreateAsync();
 		string started = Path.Combine(rig.MarkerFolder, "started.jsonl");
 		string[] holding = ["--record", started, "--sleep", HoldMilliseconds];
-		await rig.Runtime.AddGateAsync(new GateInput("Held gate", FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(HarnessKind.Other, holding), TimeoutMinutes: 5, IsEnabled: true));
+		await rig.Runtime.AddGateAsync(new GateInput("Held gate", FakeHarnessAgent.Command, FakeHarnessAgent.Arguments(holding), TimeoutMinutes: 5, IsEnabled: true));
 		AgentSnapshot reviewer = FakeHarnessAgent.Snapshot("Held reviewer", HarnessKind.Other, [.. holding, "--outcome", "approved"]);
 		string workerCommit = await rig.WorkAsync();
 		PipelineWork round = rig.NextRound(kind, kind == RoundKind.Review ? reviewer : null);

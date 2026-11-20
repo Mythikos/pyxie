@@ -10,6 +10,7 @@ builder.Services.AddPyxieDatabase(builder.Configuration);
 builder.Services.AddPyxieData();
 builder.Services.AddPyxieRuntime(builder.Configuration);
 builder.Services.AddPyxieBlazorise(builder.Configuration);
+PyxieMcpHosting.Register(builder.Services);
 
 WebApplication app = builder.Build();
 
@@ -20,10 +21,13 @@ if (!app.Environment.IsDevelopment())
 	app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UsePyxieRouting();
 app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapPyxieRepositoryArchive();
+app.MapPyxieSettingsExport();
+app.MapPyxieMedia();
+PyxieMcpHosting.Map(app);
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 await app.RunAsync();

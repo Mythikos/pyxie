@@ -1,0 +1,118 @@
+@using Pyxie.Data.Entities
+
+@if (!ReadOnly || _files.Count > 0 || _error is not null)
+{
+	<section @ref="_section" tabindex="-1" class="card-media" aria-label="Media">
+		<div class="media-heading">
+			<h4>Media</h4>
+			@if (!ReadOnly)
+			{
+				<Button Color="Color.Default" Size="Size.Small" Disabled="@(!_ready || _uploading || Busy)" Clicked="ChooseAsync">Attach files</Button>
+				<input @ref="_input" type="file" multiple hidden />
+			}
+		</div>
+		@if (_error is not null)
+		{
+			<div class="media-error" role="alert">@_error</div>
+			@if (_uploadFailed && !_uploading)
+			{
+				<Button Color="Color.Default" Size="Size.Small" Clicked="DismissFailureAsync">Dismiss failed upload</Button>
+			}
+		}
+		@if (_uploading)
+		{
+			<div class="media-progress" role="status">@_uploadName <progress max="100" value="@_progress">@_progress%</progress></div>
+		}
+		@if (_preview is MediaFile preview)
+		{
+			<div class="media-preview">
+				<div class="media-preview-actions">
+					<Button Color="Color.Default" Size="Size.Small" Clicked="ClosePreview">Back</Button>
+					<span>@preview.Name</span>
+					<a href="@Href(preview, true)" download>Download</a>
+				</div>
+				@if (preview.ContentType.StartsWith("image/", StringComparison.Ordinal))
+				{
+					<img src="@Href(preview)" alt="@(preview.Caption ?? preview.Name)" @onerror="PreviewFailed" />
+				}
+				else if (preview.ContentType.StartsWith("video/", StringComparison.Ordinal))
+				{
+					<video src="@Href(preview)" controls preload="metadata" @onerror="PreviewFailed"></video>
+				}
+				else
+				{
+					<audio src="@Href(preview)" controls preload="metadata" @onerror="PreviewFailed"></audio>
+				}
+				@if (!string.IsNullOrWhiteSpace(preview.Caption))
+				{
+					<p>@preview.Caption</p>
+				}
+			</div>
+		}
+		else
+		{
+			@if (ContextFiles.Count > 0)
+			{
+				<h5>Context</h5>
+				<div class="media-grid">
+					@foreach (MediaFile file in ContextFiles)
+					{
+						@FileTile(file, !ReadOnly)
+					}
+				</div>
+			}
+			@foreach (IGrouping<int?, MediaFile> group in OutputGroups.Take(_shownGroups))
+			{
+				<h5>@RoundLabel(group.Key)</h5>
+				<div class="media-grid">
+					@foreach (MediaFile file in group)
+					{
+						@FileTile(file, false)
+					}
+				</div>
+			}
+			@if (OutputGroups.Count > _shownGroups)
+			{
+				<Button Color="Color.Default" Size="Size.Small" Clicked="ShowOlder">Older output</Button>
+			}
+			@if (_files.Any(file => file.RemovedUtc is not null))
+			{
+				<details class="earlier-context"><summary>Earlier context</summary><div class="media-grid">
+					@foreach (MediaFile file in _files.Where(file => file.RemovedUtc is not null))
+					{
+						@FileTile(file, false)
+					}
+				</div></details>
+			}
+		}
+	</section>
+}
+
+@code {
+	private RenderFragment FileTile(MediaFile file, bool removable) => @<div class="media-file" @key="file.Id">
+		@if (CanPreview(file))
+		{
+			<button type="button" class="media-open" @onclick="() => Preview(file)" aria-label="@($"Preview {file.Name}")">
+				@if ((file.ContentType is "image/png" or "image/jpeg" or "image/webp") && file.Length <= 20 * 1024 * 1024)
+				{
+					<img src="@Href(file)" alt="" loading="lazy" />
+				}
+				else
+				{
+					<span class="media-symbol" aria-hidden="true">▶</span>
+				}
+				<span class="media-name">@file.Name</span>
+			</button>
+		}
+		else
+		{
+			<a class="media-download" href="@Href(file, true)" download>@file.Name</a>
+		}
+		<div class="media-file-footer"><span>@SizeText(file.Length)</span>
+		@if (removable)
+		{
+			<button type="button" class="media-remove" disabled="@(_uploading || Busy)" @onclick="args => RemoveAsync(file, args)" aria-label="@($"Remove {file.Name}")">×</button>
+		}
+		</div>
+	</div>;
+}

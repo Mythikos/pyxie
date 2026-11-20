@@ -275,6 +275,22 @@ public sealed class RepositoryConnectTests
 	}
 
 	[Fact]
+	public async Task Submit_SentBeforeTheBrowserShowedAProjectOpen_StartsNothing()
+	{
+		await using ConnectCard card = await ConnectCard.OpenAsync();
+		await card.Host.TypeAsync(Entry(await card.Host.ElementsAsync()), card.MissingFolder);
+		GateRenderedElement form = Assert.Single(Forms(await card.Host.ElementsAsync()));
+		await card.Host.HoldAcknowledgementsAsync();
+		await card.Host.UpdateAsync(new Dictionary<string, object?> { [nameof(RepositoryConnect.ProjectOpen)] = true });
+
+		await card.Host.SubmitAsync(form);
+		await card.Host.AcknowledgeAsync();
+
+		Assert.Null(card.Imports.Imports.Current);
+		Assert.Empty(Errors(await card.Host.ElementsAsync()));
+	}
+
+	[Fact]
 	public async Task Render_GivesNoReasonWhileNoProjectIsOpen()
 	{
 		await using ConnectCard card = await ConnectCard.OpenAsync();

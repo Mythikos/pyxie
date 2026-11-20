@@ -1,3 +1,4 @@
+using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Limits;
 using Pyxie.Data.Services.Inputs;
@@ -11,6 +12,8 @@ namespace Pyxie.Runtime.Orchestration;
 /// <param name="Report">The details: the agent's report, gate output, or merge result.</param>
 public sealed record RoundVerdict(RoundResult Result, string? Note, string? Report)
 {
+	/// <summary>Gets the durable output files finalized with this verdict.</summary>
+	public IReadOnlyList<MediaFile> Media { get; init; } = [];
 	// Keeps the start of long output, where the command line and first errors are, and more of its end, where summaries are.
 	private const int ReportHeadLength = 20_000;
 
@@ -76,6 +79,6 @@ public sealed record RoundVerdict(RoundResult Result, string? Note, string? Repo
 
 		string? report = string.IsNullOrWhiteSpace(Report) ? null : ReportText.Excerpt(Report, PyxieLimits.MaxRoundReportLength, ReportHeadLength);
 
-		return new RoundReport(note, report);
+		return new RoundReport(note, report) { Media = Media };
 	}
 }

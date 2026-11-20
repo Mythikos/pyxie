@@ -182,6 +182,12 @@ internal sealed class ScriptedSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
+	{
+		return Task.CompletedTask;
+	}
+
+	/// <inheritdoc/>
 	public Task RemoveCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
 	{
 		throw new NotSupportedException("The settings page never removes a card's sandboxes.");
@@ -191,6 +197,12 @@ internal sealed class ScriptedSandboxes : ISandboxes
 	public Task RemoveLeftoverRoundsAsync(string projectKey, CancellationToken cancellationToken)
 	{
 		throw new NotSupportedException("The settings page never removes leftover sandboxes.");
+	}
+
+	/// <inheritdoc/>
+	public Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		throw new NotSupportedException("The settings page never removes a project.");
 	}
 
 	/// <inheritdoc/>

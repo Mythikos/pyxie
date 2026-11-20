@@ -7,7 +7,7 @@ namespace Pyxie.Tests.Support;
 public sealed class StandInSignIns : ISandboxSignIns
 {
 	/// <inheritdoc/>
-	public SandboxSignIn ForAgent(HarnessKind harness, string signInFolder)
+	public SandboxSignIn ForAgent(HarnessKind harness, AgentAuthentication authentication)
 	{
 		return SandboxSignIn.None;
 	}
@@ -15,6 +15,6 @@ public sealed class StandInSignIns : ISandboxSignIns
 	/// <inheritdoc/>
 	public SandboxSignInStatus GetStatus()
 	{
-		return new SandboxSignInStatus("claude-oauth-token", ClaudeTokenFound: false, "auth.json", CodexSignInFound: false);
+		return new SandboxSignInStatus(new("claude-oauth-token", false), new("anthropic-api-key", false), new("auth.json", false), new("openai-api-key", false), new(".credentials.yaml", false), new("deepseek-api-key", false));
 	}
 }

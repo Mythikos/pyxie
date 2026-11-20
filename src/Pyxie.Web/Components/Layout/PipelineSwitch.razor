@@ -11,8 +11,11 @@
 	{
 		<span class="pipeline-stop-reason" role="status">@StopReason</span>
 	}
-	<span title="@StartBlockedText">
-		<Button Class="@ActionClass" Color="@(IsRunning ? Color.Default : Color.Primary)" Disabled="@(!IsRunning && !ProjectOpen)" Clicked="@ActionClicked"><svg class="pipeline-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+	@{
+		bool shownRunning = IsRunning;
+	}
+	<span title="@StartBlockedText" @onclick="@(press => Press(press, shownRunning))">
+		<Button Class="@ActionClass" Color="@(IsRunning ? Color.Default : Color.Primary)" Disabled="@(!IsRunning && !ProjectOpen)"><svg class="pipeline-glyph" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
 			@if (IsRunning)
 			{
 				<rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />

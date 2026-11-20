@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Publish an existing file to the card. This helper does not create media."""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import tempfile
+import uuid
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("file", type=Path)
+parser.add_argument("--caption")
+args = parser.parse_args()
+root = Path("/pyxie/out/media")
+root.mkdir(parents=True, exist_ok=True)
+(root / "files").mkdir(exist_ok=True)
+
+if args.caption and len(args.caption) > 1000:
+    parser.error("captions cannot exceed 1000 characters")
+source_stat = args.file.lstat()
+if not stat.S_ISREG(source_stat.st_mode) or source_stat.st_nlink != 1:
+    parser.error("publish a regular file without links")
+if source_stat.st_size > 256 * 1024 * 1024:
+    parser.error("files cannot exceed 256 MiB")
+
+with (root / ".publish.lock").open("a") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {"version": 1, "files": []}
+    if manifest.get("version") != 1 or not isinstance(manifest.get("files"), list):
+        parser.error("existing manifest must use version 1")
+    if len(manifest["files"]) >= 50:
+        parser.error("a round can publish at most 50 files")
+    relative = "files/" + uuid.uuid4().hex
+    destination = root / relative
+    shutil.copyfile(args.file, destination, follow_symlinks=False)
+    entry = {"path": relative, "name": args.file.name}
+    if args.caption:
+        entry["caption"] = args.caption
+    manifest["files"].append(entry)
+    descriptor, temporary = tempfile.mkstemp(prefix=".manifest-", dir=root)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(manifest, stream, ensure_ascii=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, manifest_path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    print(relative)

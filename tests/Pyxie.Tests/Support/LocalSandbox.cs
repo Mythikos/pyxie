@@ -108,8 +108,13 @@ public sealed class LocalSandbox : ISandbox
 	/// <inheritdoc/>
 	public Task DeleteFileAsync(string path, CancellationToken cancellationToken)
 	{
-		// Like rm -f: a file that is not there, also in a folder that is not there, is already deleted.
-		if (File.Exists(path))
+		// rm -f unlinks the entry itself, including a link to a directory or a missing target.
+		DirectoryInfo directory = new(path);
+		if (directory.Exists && directory.LinkTarget is not null)
+		{
+			directory.Delete();
+		}
+		else if (File.Exists(path) || new FileInfo(path).LinkTarget is not null)
 		{
 			File.Delete(path);
 		}

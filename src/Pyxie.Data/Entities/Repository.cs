@@ -14,7 +14,7 @@ public class Repository
 	/// <summary>Gets or sets the absolute path of the hub in the project's folder. Everything the pipeline writes goes here.</summary>
 	public string Path { get; set; } = string.Empty;
 
-	/// <summary>Gets or sets the folder or URL the clone was made from, which stays the clone's <c>origin</c>.</summary>
+	/// <summary>Gets or sets the display address of the source. Older project databases may contain the original clone URL.</summary>
 	public string Origin { get; set; } = string.Empty;
 
 	/// <summary>Gets or sets the branch finished cards are merged into, and that new card branches start from: the branch checked out in the source when it was imported.</summary>

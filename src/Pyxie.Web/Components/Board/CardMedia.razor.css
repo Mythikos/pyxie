@@ -1,0 +1,25 @@
+.card-media { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--pyx-border); }
+.media-heading, .media-preview-actions, .media-file-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.media-heading h4 { margin: 0; font-size: 14px; font-weight: 600; }
+h5 { margin: 12px 0 8px; font-size: 12px; font-weight: 600; color: var(--pyx-text-2); }
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.media-file { min-width: 0; padding: 8px; border: 1px solid var(--pyx-border); border-radius: var(--pyx-radius-control-sm); background: var(--pyx-surface); }
+.media-open { display: block; width: 100%; border: 0; padding: 0; background: none; color: var(--pyx-text); text-align: left; font: inherit; cursor: pointer; }
+.media-open img { width: 100%; height: 100px; object-fit: contain; background: var(--pyx-ground); }
+.media-symbol { display: grid; place-items: center; height: 100px; background: var(--pyx-ground); color: var(--pyx-primary); }
+.media-name, .media-download { display: block; margin-top: 4px; overflow-wrap: anywhere; font-size: 13px; }
+.media-file-footer { min-height: 24px; color: var(--pyx-text-muted); font-size: 12px; }
+.media-remove { border: 0; background: none; color: var(--pyx-text-2); font-size: 20px; cursor: pointer; }
+.media-open:focus-visible, .media-remove:focus-visible { outline: 2px solid var(--pyx-primary); outline-offset: 2px; }
+.media-error { margin-top: 8px; color: var(--pyx-error-text); font-size: 12px; white-space: pre-line; }
+.media-progress { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0; font-size: 12px; }
+.media-progress progress { accent-color: var(--pyx-primary); }
+.media-preview { margin-top: 12px; }
+.media-preview-actions { margin-bottom: 10px; font-size: 13px; }
+.media-preview-actions span { flex: 1; overflow-wrap: anywhere; }
+.media-preview img, .media-preview video { display: block; max-width: 100%; max-height: 60vh; margin: auto; object-fit: contain; }
+.media-preview audio { width: 100%; }
+.media-preview p { font-size: 13px; overflow-wrap: anywhere; }
+.earlier-context { margin-top: 12px; font-size: 12px; color: var(--pyx-text-muted); }
+.earlier-context summary { cursor: pointer; margin-bottom: 8px; }
+@media (max-width: 450px) { .media-grid { grid-template-columns: minmax(0, 1fr); } }

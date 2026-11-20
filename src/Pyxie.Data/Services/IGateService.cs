@@ -25,11 +25,26 @@ public interface IGateService
 	/// <returns>The updated gate, or a failure describing why the change was rejected.</returns>
 	Task<ServiceResult<Gate>> UpdateAsync(int id, GateInput input, CancellationToken cancellationToken);
 
+	/// <summary>Applies this operation only while the item still has the definition the caller read.</summary>
+	/// <param name="id">The item identifier.</param>
+	/// <param name="input">The replacement fields.</param>
+	/// <param name="expectedRevision">The revision from <see cref="SettingsRevision"/>, or null for an unconditional request.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>The operation result, including a refusal if the item changed.</returns>
+	Task<ServiceResult<Gate>> UpdateIfCurrentAsync(int id, GateInput input, string? expectedRevision, CancellationToken cancellationToken);
+
 	/// <summary>Deletes a gate. The gates after it move up so positions stay consecutive, in the same transaction.</summary>
 	/// <param name="id">The gate identifier.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>A failure when the gate is missing.</returns>
 	Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken);
+
+	/// <summary>Applies this operation only while the item still has the definition the caller read.</summary>
+	/// <param name="id">The item identifier.</param>
+	/// <param name="expectedRevision">The revision from <see cref="SettingsRevision"/>, or null for an unconditional request.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>The operation result, including a refusal if the item changed.</returns>
+	Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken);
 
 	/// <summary>Moves a gate to a position in the order gates run, and renumbers every gate from zero.</summary>
 	/// <param name="id">The gate identifier.</param>
@@ -37,4 +52,12 @@ public interface IGateService
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>A failure when the gate is missing.</returns>
 	Task<ServiceResult> MoveAsync(int id, int position, CancellationToken cancellationToken);
+
+	/// <summary>Moves a gate while the list still has the order the caller used to pick its destination.</summary>
+	/// <param name="id">The gate to move.</param>
+	/// <param name="position">The desired zero-based position.</param>
+	/// <param name="expectedOrder">The ordered gate IDs the caller saw, or null for an unconditional move.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>The result of the move.</returns>
+	Task<ServiceResult> MoveIfOrderMatchesAsync(int id, int position, IReadOnlyList<int>? expectedOrder, CancellationToken cancellationToken);
 }

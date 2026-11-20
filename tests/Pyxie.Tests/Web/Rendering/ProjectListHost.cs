@@ -23,16 +23,17 @@ using Xunit;
 
 namespace Pyxie.Tests.Web.Rendering;
 
-/// <summary>The projects list open in an interactive host, over the real service that opens and closes projects and a catalog of projects the host stored without importing anything (see <see cref="StoredProjects"/>), so a test presses a project's Open or Close the way a person would. The pipeline is the host's own controller, which the service that opens and closes projects asks, so a test starts it to see the list wait. Imports run in the background as in the application, against a catalog the test answers for, so a test holds one running to see its row.</summary>
+/// <summary>The projects list open in an interactive host, over the real service that opens, closes, and removes projects (with the rig's stand-in sandboxes) and a catalog of projects the host stored without importing anything (see <see cref="StoredProjects"/>), so a test presses a project's Open, Close, or Remove the way a person would. The pipeline is the host's own controller, which the service that opens and closes projects asks, so a test starts it to see the list wait. Imports run in the background as in the application, against a catalog the test answers for, so a test holds one running to see its row.</summary>
 internal sealed class ProjectListHost : IAsyncDisposable
 {
 	private readonly ServiceProvider _services;
 	private readonly StubProjectCatalog _importCatalog;
 	private readonly Dictionary<string, object?> _parameters;
 
-	private ProjectListHost(RepositoryRig rig, IReadOnlyList<Project> projects, PipelineController controller, ImportsHost imports, StubProjectCatalog importCatalog, ServiceProvider services, GateInteractiveHost host, Dictionary<string, object?> parameters)
+	private ProjectListHost(RepositoryRig rig, IReadOnlyList<Project> projects, PipelineController controller, ImportsHost imports, StubProjectCatalog importCatalog, ServiceProvider services, GateInteractiveHost host, GateStubJsRuntime browser, Dictionary<string, object?> parameters)
 	{
 		Rig = rig;
+		Browser = browser;
 		Projects = projects;
 		Controller = controller;
 		Imports = imports;
@@ -56,6 +57,9 @@ internal sealed class ProjectListHost : IAsyncDisposable
 
 	/// <summary>Gets the host the list is open in.</summary>
 	public GateInteractiveHost Host { get; }
+
+	/// <summary>Gets the browser's script runtime, which records where the list moved the keyboard focus.</summary>
+	public GateStubJsRuntime Browser { get; }
 
 	/// <summary>Stores closed projects and opens the list of them, checking each project's folder as the Repository page does.</summary>
 	/// <param name="projects">The projects to store, by name, and whether each has the folder opening it needs.</param>
@@ -141,13 +145,14 @@ internal sealed class ProjectListHost : IAsyncDisposable
 		}
 
 		PipelineController controller = new(rig.OpenProject);
-		ProjectSessions sessions = new(rig.Catalog, new SqliteProjectDatabase(), controller, rig.Activity);
+		ProjectSessions sessions = new(rig.Catalog, new SqliteProjectDatabase(), controller, rig.Activity, rig.Sandboxes, rig.ImageBuilds, rig.Layout, rig.Media);
 		StubProjectCatalog importCatalog = new();
 		ImportsHost imports = new(importCatalog);
 
 		ServiceCollection services = new();
 		services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
-		services.AddSingleton<IJSRuntime, GateStubJsRuntime>();
+		GateStubJsRuntime browser = new();
+		services.AddSingleton<IJSRuntime>(browser);
 		services.AddBlazorise().AddAntDesignProviders().AddAntDesignIcons();
 		services.AddSingleton(sessions);
 		services.AddSingleton(controller);
@@ -157,6 +162,6 @@ internal sealed class ProjectListHost : IAsyncDisposable
 		Dictionary<string, object?> parameters = new() { [nameof(ProjectList.Projects)] = ToEntries(stored) };
 		await host.StartAsync<ProjectList>(parameters);
 
-		return new ProjectListHost(rig, stored, controller, imports, importCatalog, provider, host, parameters);
+		return new ProjectListHost(rig, stored, controller, imports, importCatalog, provider, host, browser, parameters);
 	}
 }

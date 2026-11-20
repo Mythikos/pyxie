@@ -376,7 +376,7 @@ public sealed class PipelineControllerTests
 
 		Assert.Equal("A project is being opened or closed. Try again in a moment.", error);
 		Assert.False(workBegan, "No work begins while the project changes.");
-		Assert.Equal("Another project is being imported, opened, or closed. Try again once it is done.", second);
+		Assert.Equal("Another project is being imported, opened, closed, or removed. Try again once it is done.", second);
 		ResultAssert.Succeeded(controller.Start());
 	}
 

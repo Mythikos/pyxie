@@ -173,13 +173,13 @@ public sealed class CardPipelineServiceResolveRecoveryTests
 		ResultAssert.Succeeded(await rig.Pipeline.InterruptAsync(resolve.RoundId, Stopped, Token));
 		Agent merger = await MergeAgentAsync(rig);
 		ResultAssert.Succeeded(await rig.Agents.DeleteAsync(merger.Id, Token));
-		await TestData.AddAgentAsync(rig.Database, "Newcomer", canWork: false, canReview: false, HarnessKind.OpenCode, "opencode", canMerge: true);
+		await TestData.AddAgentAsync(rig.Database, "Newcomer", canWork: false, canReview: false, HarnessKind.DeepSeek, "dsh", canMerge: true);
 
 		PipelineWork resumed = await rig.ClaimAsync();
 
 		Assert.Equal(RoundKind.Resolve, resumed.Kind);
 		Assert.Equal("Newcomer", resumed.Agent?.Name);
-		Assert.Equal(HarnessKind.OpenCode, resumed.Agent?.Harness);
+		Assert.Equal(HarnessKind.DeepSeek, resumed.Agent?.Harness);
 	}
 
 	[Theory]

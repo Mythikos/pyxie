@@ -1,3 +1,4 @@
+@inherits Pyxie.Web.Components.Projects.ProjectEditorComponent
 @using Pyxie.Runtime.Sandboxes
 @using Pyxie.Runtime.Workspaces
 
@@ -25,9 +26,9 @@
 					<span title="@BuildBlockedText">
 						<Button Color="Color.Default" Disabled="@(HasChanges || !ImageBuilds.CanStart)" Loading="@IsBuilding" Clicked="@Build">@(IsBuilding ? "Building" : "Build")</Button>
 					</span>
-					@if (CanCancel)
+					@if (CancellableBuild is SandboxImageBuild shown)
 					{
-						<Button Color="Color.Default" Clicked="@Cancel">Cancel</Button>
+						<span @onclick="@(press => Cancel(press, shown))"><Button Color="Color.Default">Cancel</Button></span>
 					}
 					<Button Class="sandbox-save" Color="Color.Primary" Disabled="@(!HasChanges || _saving)" Clicked="@SaveAsync">Save</Button>
 				</div>
@@ -42,8 +43,10 @@
 			<div class="sandbox-side">
 				<h3 class="sandbox-side-title">Sign-ins</h3>
 				<ul class="sandbox-signins">
-					<SignInRow Name="Claude Code token" Found="@signIns.ClaudeTokenFound" Fix="@($"Run claude setup-token and save the token in {signIns.ClaudeTokenPath}.")" />
-					<SignInRow Name="Codex sign-in" Found="@signIns.CodexSignInFound" Fix="@($"Run codex login; Pyxie copies {signIns.CodexSignInPath} into each sandbox.")" />
+					@foreach (HarnessCredentialGuide guide in HarnessCredentialGuide.From(signIns))
+					{
+						<SignInRow Name="@guide.Name" Found="@guide.Found" Fix="@guide.Instructions" />
+					}
 				</ul>
 			</div>
 		}

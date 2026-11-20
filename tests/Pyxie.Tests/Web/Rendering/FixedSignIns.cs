@@ -16,7 +16,7 @@ internal sealed class FixedSignIns : ISandboxSignIns
 	}
 
 	/// <inheritdoc/>
-	public SandboxSignIn ForAgent(HarnessKind harness, string signInFolder)
+	public SandboxSignIn ForAgent(HarnessKind harness, AgentAuthentication authentication)
 	{
 		return SandboxSignIn.None;
 	}

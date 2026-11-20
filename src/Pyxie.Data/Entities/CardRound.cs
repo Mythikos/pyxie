@@ -40,4 +40,7 @@ public class CardRound
 
 	/// <summary>Gets or sets what the round produced: the worker's handoff summary, the gate output, the reviewer's findings, the merge result, or the merge agent's handoff on its resolution. Passed on to later rounds' briefings.</summary>
 	public string? Report { get; set; }
+
+	/// <summary>Gets the immutable selection of files supplied to this round.</summary>
+	public ICollection<RoundMediaInput> MediaInputs { get; } = [];
 }

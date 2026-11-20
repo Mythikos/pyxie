@@ -6,9 +6,29 @@ if [ -d /pyxie/secrets ]; then
 		[ -f "$file" ] || continue
 		name="$(basename "$file")"
 		value="$(cat "$file")"
+		# A Windows token file can end in CRLF; command substitution already removed the LF.
+		value=${value%"$(printf '\r')"}
 		export "$name=$value"
 	done
 fi
+case "${PYXIE_AUTH:-}" in
+	CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)
+		unset CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY ANTHROPIC_PROFILE
+		;;
+	CODEX_API_KEY|codex-account)
+		unset CODEX_API_KEY OPENAI_API_KEY CODEX_ACCESS_TOKEN
+		;;
+	DEEPSEEK_API_KEY|deepseek-account)
+		unset DEEPSEEK_API_KEY
+		;;
+esac
+case "${PYXIE_AUTH:-}" in
+	CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY|CODEX_API_KEY|DEEPSEEK_API_KEY)
+		if [ -f "$PYXIE_KEY_FILE" ]; then
+			export "$PYXIE_AUTH=$(cat "$PYXIE_KEY_FILE")"
+		fi
+		;;
+esac
 if ! command -v "$1" >/dev/null 2>&1; then
 	echo "pyxie-exec: $1: command not found" >&2
 	exit 127

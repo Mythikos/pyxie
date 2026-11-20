@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
@@ -107,13 +108,14 @@ public partial class CardTile : ComponentBase
 		return Clicked.InvokeAsync(Item);
 	}
 
-	private Task RetryAsync()
+	// Retry and Close act at once, and the board reads the cards again before a double click's second click arrives, so the next card can have slid under the pointer by then: a press the browser counts as part of a double click acts on no card.
+	private Task RetryAsync(MouseEventArgs press)
 	{
-		return RetryClicked.InvokeAsync(Item);
+		return press.Detail > 1 ? Task.CompletedTask : RetryClicked.InvokeAsync(Item);
 	}
 
-	private Task CloseAsync()
+	private Task CloseAsync(MouseEventArgs press)
 	{
-		return CloseClicked.InvokeAsync(Item);
+		return press.Detail > 1 ? Task.CompletedTask : CloseClicked.InvokeAsync(Item);
 	}
 }

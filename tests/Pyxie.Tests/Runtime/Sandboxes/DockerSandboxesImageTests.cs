@@ -1,7 +1,11 @@
+using Microsoft.Extensions.Options;
+
+using Pyxie.Data.Enums;
 using Pyxie.Data.Sandboxes;
 using Pyxie.Data.Services.Results;
 using Pyxie.Runtime.Processes;
 using Pyxie.Runtime.Sandboxes;
+using Pyxie.Runtime.Workspaces;
 using Pyxie.Tests.Runtime.Orchestration;
 
 using Xunit;
@@ -76,11 +80,115 @@ public sealed class DockerSandboxesImageTests
 	{
 		await using DockerSandboxRig rig = new(_image);
 		await using ISandbox sandbox = await rig.Sandboxes.StartAsync(rig.Spec(1, SandboxRole.Gates), Token);
-		string script = "for tool in git node npm python3 curl claude codex opencode; do command -v \"$tool\" >/dev/null || { echo \"missing $tool\"; exit 1; }; done";
+		string script = "for tool in git node npm python3 curl claude codex dsh; do command -v \"$tool\" >/dev/null || { echo \"missing $tool\"; exit 1; }; done";
 
 		ProcessResult result = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", script], sandbox.WorkPath), Token);
 
 		Assert.True(result.Succeeded, $"The base image lacks a tool: {result.Output}");
+	}
+
+	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
+	public async Task DeepSeekAccount_InstallsOnlyItsGrantWithPrivatePermissionsAndReadsTheNextSignIn()
+	{
+		await using DockerSandboxRig rig = new(_image);
+		string store = Path.Combine(rig.Folder, "host.yaml");
+		const string Source = """
+			version: 1
+			refs: {OPENAI_API_KEY: unrelated-key}
+			records:
+			  deepseek-account-platform/default:
+			    kind: grant
+			    payload: {version: 1, issuer: 'https://platform.deepseek.com', token: account-one}
+			  unrelated/provider: {kind: api-key, key: unrelated-key}
+			""";
+		await File.WriteAllTextAsync(store, Source, Token);
+		SandboxSignIn signIn = DeepSeekAccountSignIn.ForAgent(store);
+		Assert.Empty(signIn.Mounts);
+		Assert.Empty(signIn.Secrets);
+		SandboxSpec spec = rig.Spec(1, SandboxRole.Worker) with { Environment = signIn.Environment };
+		await using ISandbox sandbox = await rig.Sandboxes.StartAsync(spec, Token);
+		foreach (string token in new[] { "account-one", "account-two" })
+		{
+			string content = Source.Replace("account-one", token, StringComparison.Ordinal);
+			await File.WriteAllTextAsync(store, content, Token);
+			SandboxSignIn fresh = DeepSeekAccountSignIn.ForAgent(store);
+			Assert.NotNull(fresh.PrepareAsync);
+			await fresh.PrepareAsync(sandbox, Token);
+			const string Check = """
+				set -eu
+				file="$DSH_HOME/.credentials.yaml"
+				test "$(stat -c %a "$file")" = 600
+				grep -q "$1" "$file"
+				if grep -q unrelated "$file"; then exit 1; fi
+				test -z "${DEEPSEEK_API_KEY:-}"
+				grep -q 'provider: deepseek-account' "$DSH_HOME/profiles/headless/cordis.patch.yml"
+				""";
+			ProcessResult check = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", Check, "sh", token], sandbox.WorkPath), Token);
+			Assert.True(check.Succeeded, "The DSH account profile must receive only the current account grant.");
+			Assert.Equal(content, await File.ReadAllTextAsync(store, Token));
+		}
+	}
+
+	[Theory(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
+	[InlineData(HarnessKind.Codex, AgentAuthentication.ApiKey, "CODEX_API_KEY", "OPENAI_API_KEY", "openai-api-key")]
+	[InlineData(HarnessKind.ClaudeCode, AgentAuthentication.Account, "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "claude-oauth-token")]
+	[InlineData(HarnessKind.ClaudeCode, AgentAuthentication.ApiKey, "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "anthropic-api-key")]
+	[InlineData(HarnessKind.DeepSeek, AgentAuthentication.ApiKey, "DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY", "deepseek-api-key")]
+	public async Task KeyRound_UsesTheSelectedCredentialAndReadsItsReplacement(HarnessKind harness, AgentAuthentication authentication, string selected, string ambient, string file)
+	{
+		await using DockerSandboxRig rig = new(_image);
+		WorkspaceLayout layout = new(Options.Create(new WorkspaceOptions { Root = rig.Folder }));
+		string secrets = Path.Combine(rig.Folder, "secrets");
+		Directory.CreateDirectory(secrets);
+		string path = Path.Combine(secrets, file);
+		await File.WriteAllTextAsync(path, "first-key\r\n", Token);
+		SandboxSignIns signIns = new(layout);
+		SandboxSignIn signIn = signIns.ForAgent(harness, authentication);
+		Dictionary<string, string> environment = new(signIn.Environment) { [ambient] = "ambient-value" };
+		SandboxSpec spec = rig.Spec(1, SandboxRole.Worker) with { Environment = environment };
+		await using ISandbox sandbox = await rig.Sandboxes.StartAsync(spec, Token);
+		foreach (string expected in new[] { "first-key", "rotated-key" })
+		{
+			await File.WriteAllTextAsync(path + ".new", expected + "\r\n", Token);
+			File.Move(path + ".new", path, overwrite: true);
+			SandboxSignIn fresh = signIns.ForAgent(harness, authentication);
+			Assert.NotNull(fresh.PrepareAsync);
+			await fresh.PrepareAsync(sandbox, Token);
+			const string Check = """
+				set -eu
+				test "$(printenv "$1")" = "$3"
+				test "$(stat -c %a "$PYXIE_KEY_FILE")" = 600
+				if [ "$1" = CODEX_API_KEY ]; then test -d "$CODEX_HOME" && test ! -e "$CODEX_HOME/auth.json" || exit 1; fi
+				if [ "$1" != "$2" ]; then ! printenv "$2" >/dev/null; fi
+				""";
+			ProcessResult result = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", Check, "sh", selected, ambient, expected], sandbox.WorkPath), Token);
+			Assert.True(result.Succeeded, "The runner should expose only the current selected credential.");
+		}
+	}
+
+	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
+	public async Task CodexAccount_InstallsOnlyTheChatGptLoginAndLeavesTheHostCopyAlone()
+	{
+		await using DockerSandboxRig rig = new(_image);
+		string path = Path.Combine(rig.Folder, "auth.json");
+		const string Login = """{"auth_mode":"chatgpt","tokens":{"access_token":"access","refresh_token":"refresh","id_token":"e30.e30.synthetic"},"OPENAI_API_KEY":"unrelated"}""";
+		await File.WriteAllTextAsync(path, Login, Token);
+		SandboxSignIn signIn = SandboxSignIns.CodexAccount(path);
+		Dictionary<string, string> environment = new(signIn.Environment) { ["OPENAI_API_KEY"] = "ambient", ["CODEX_API_KEY"] = "ambient" };
+		await using ISandbox sandbox = await rig.Sandboxes.StartAsync(rig.Spec(1, SandboxRole.Worker) with { Environment = environment }, Token);
+		Assert.NotNull(signIn.PrepareAsync);
+		await signIn.PrepareAsync(sandbox, Token);
+		const string Check = """
+			set -eu
+			file="$CODEX_HOME/auth.json"
+			test "$(stat -c %a "$file")" = 600
+			grep -q chatgpt "$file"
+			if grep -q unrelated "$file" || printenv OPENAI_API_KEY >/dev/null || printenv CODEX_API_KEY >/dev/null; then exit 1; fi
+			echo changed > "$file"
+			""";
+		ProcessResult result = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", Check], sandbox.WorkPath), Token);
+		Assert.True(result.Succeeded, "The account round should receive only a private copy of its ChatGPT login.");
+		Assert.Equal(Login, await File.ReadAllTextAsync(path, Token));
 	}
 
 	private static string ReadLog(string path)

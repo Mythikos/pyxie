@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Limits;
+using Pyxie.Data.Media;
 using Pyxie.Data.Persistence;
 using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Internal;
@@ -194,6 +195,7 @@ public sealed class CardPipelineService : ICardPipelineService
 			finished.EndedUtc = now;
 			finished.Note = note;
 			finished.Report = reportText;
+			MediaStore.AddOutputs(context, card, roundId, report.Media);
 
 			// The next round opens after the finished one is closed, so its briefing includes the result just recorded.
 			PipelineSetup setup = await SetupAsync(context, cancellationToken);
@@ -210,9 +212,15 @@ public sealed class CardPipelineService : ICardPipelineService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> InterruptAsync(int roundId, string note, CancellationToken cancellationToken)
+	public Task<ServiceResult> InterruptAsync(int roundId, string note, CancellationToken cancellationToken)
 	{
-		string? normalizedNote = NormalizeNote(note);
+		return InterruptAsync(roundId, new RoundReport(note, null), cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult> InterruptAsync(int roundId, RoundReport report, CancellationToken cancellationToken)
+	{
+		string? normalizedNote = NormalizeNote(report.Note);
 		string? inputError = normalizedNote is null ? "A note is required when a round is interrupted." : ValidateNote(normalizedNote);
 		if (inputError is not null)
 		{
@@ -261,6 +269,9 @@ public sealed class CardPipelineService : ICardPipelineService
 			running.Outcome = RoundOutcome.Interrupted;
 			running.EndedUtc = now;
 			running.Note = normalizedNote;
+			running.Report = report.Report;
+			WorkCard card = await LoadForPipelineAsync(context, roundCardId, cancellationToken);
+			MediaStore.AddOutputs(context, card, roundId, report.Media);
 			await context.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
 
@@ -371,6 +382,13 @@ public sealed class CardPipelineService : ICardPipelineService
 		};
 
 		card.Rounds.Add(round);
+		if (kind.RunsAgent())
+		{
+			foreach (MediaFile file in MediaStore.InputsFor(card))
+			{
+				round.MediaInputs.Add(new RoundMediaInput { MediaFileId = file.Id, File = file });
+			}
+		}
 
 		return round;
 	}
@@ -474,7 +492,7 @@ public sealed class CardPipelineService : ICardPipelineService
 
 	private static async Task<WorkCard> LoadForPipelineAsync(ProjectDbContext context, int cardId, CancellationToken cancellationToken)
 	{
-		return await context.Cards.Include(card => card.Category).Include(card => card.WorkerAgent).Include(card => card.ReviewerAgent).Include(card => card.Rounds).FirstAsync(card => card.Id == cardId, cancellationToken);
+		return await context.Cards.Include(card => card.Category).Include(card => card.WorkerAgent).Include(card => card.ReviewerAgent).Include(card => card.Rounds).Include(card => card.MediaFiles).FirstAsync(card => card.Id == cardId, cancellationToken);
 	}
 
 	// A stopped card goes to the top of the Queue, where it runs next once retried; any other card that changed lanes goes to the bottom of its new lane. Either way the lane it left closes the gap.

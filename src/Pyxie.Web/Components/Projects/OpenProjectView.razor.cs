@@ -6,7 +6,7 @@ using Pyxie.Runtime.Orchestration;
 
 namespace Pyxie.Web.Components.Projects;
 
-/// <summary>Shows its content for the open project, or something else while none is open, and follows projects being imported, opened, or closed, on any page and in any tab. The content is created again for each project, so nothing a child read from one project's database stays on screen once another is open.</summary>
+/// <summary>Shows its content for the open project, or something else while none is open, and follows projects being imported, opened, closed, or removed, on any page and in any tab. The content is created again for each project, so nothing a child read from one project's database stays on screen once another is open.</summary>
 public partial class OpenProjectView : ComponentBase, IDisposable
 {
 	// The project as last announced. An import announces only after it finished, so a project it opens and then rolls back never shows.
@@ -49,7 +49,7 @@ public partial class OpenProjectView : ComponentBase, IDisposable
 		_project = OpenProject.Current;
 	}
 
-	// Raised on the thread that imported, opened, or closed a project, which can be a background import: the work moves onto the component's own context.
+	// Raised on the thread that imported, opened, closed, or removed a project, which can be a background import: the work moves onto the component's own context.
 	private void OnProjectChanged()
 	{
 		_ = InvokeAsync(Refresh);

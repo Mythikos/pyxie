@@ -11,7 +11,7 @@ namespace Pyxie.Tests.Web;
 
 public sealed class SettingsPageTests
 {
-	private static readonly string[] s_ids = ["agents", "gates", "categories", "sandbox"];
+	private static readonly string[] s_ids = ["agents", "gates", "categories", "sandbox", "global"];
 
 	[Fact]
 	public async Task Page_SaysNoProjectIsOpenAndLinksToTheRepositoryPageWhileNoneIs()
@@ -24,8 +24,8 @@ public sealed class SettingsPageTests
 
 		Assert.Contains(NoProjectOpen.Text, html, StringComparison.Ordinal);
 		Assert.Contains("href=\"repository\"", html, StringComparison.Ordinal);
-		Assert.DoesNotContain("Settings sections", html, StringComparison.Ordinal);
-		Assert.DoesNotMatch(@"<h2\b", html);
+		Assert.Equal([("settings#global", "Global")], Links(html));
+		Assert.Equal(["Global"], CurrentLinks(html));
 		Assert.Empty(GateHtml.TextOfElementsWithClass(html, "gate-text"));
 		Assert.Equal(0, GateHtml.CountIconButtons(html, "Add gate"));
 		Assert.DoesNotContain("Dockerfile", html, StringComparison.Ordinal);
@@ -50,11 +50,11 @@ public sealed class SettingsPageTests
 
 		Assert.DoesNotContain("Feature", closed, StringComparison.Ordinal);
 		Assert.Empty(GateHtml.TextOfElementsWithClass(closed, "gate-text"));
-		Assert.DoesNotMatch(@"<h2\b", closed);
+		Assert.Equal(["Global"], CurrentLinks(closed));
 	}
 
 	[Fact]
-	public async Task Page_ShowsAgentsGatesCategoriesAndSandboxInThatOrder()
+	public async Task Page_ShowsProjectSectionsAndGlobalSettingsInOrder()
 	{
 		await using TestDatabase database = new();
 		await GateTestData.AddOrderedAsync(database, "Build", "Tests");
@@ -66,7 +66,7 @@ public sealed class SettingsPageTests
 
 		List<string> headings = [.. Regex.Matches(open, @"<h2\b[^>]*>(.*?)</h2>").Select(match => match.Groups[1].Value)];
 		List<string> ids = [.. Regex.Matches(open, @"<section id=""([^""]+)""").Select(match => match.Groups[1].Value)];
-		Assert.Equal(["Agents", "Gates", "Categories", "Sandbox"], headings);
+		Assert.Equal(["Agents", "Gates", "Categories", "Sandbox", "Global"], headings);
 		Assert.Equal(s_ids, ids);
 		Assert.Equal(["Build", "Tests"], GateHtml.TextOfElementsWithClass(open, "gate-text"));
 		Assert.Equal(1, GateHtml.CountIconButtons(open, "Add gate"));
@@ -101,7 +101,7 @@ public sealed class SettingsPageTests
 		string open = await OpenPageAsync(page);
 
 		Assert.Matches(@"<nav class=""settings-nav""[^>]*aria-label=""Settings sections""", open);
-		Assert.Equal([("settings#agents", "Agents"), ("settings#gates", "Gates"), ("settings#categories", "Categories"), ("settings#sandbox", "Sandbox")], Links(open));
+		Assert.Equal([("settings#agents", "Agents"), ("settings#gates", "Gates"), ("settings#categories", "Categories"), ("settings#sandbox", "Sandbox"), ("settings#global", "Global")], Links(open));
 	}
 
 	[Fact]
@@ -202,7 +202,7 @@ public sealed class SettingsPageTests
 
 		Assert.Contains("FROM ${PYXIE_BASE}", open, StringComparison.Ordinal);
 		Assert.Matches(@"<h3 class=""sandbox-side-title""[^>]*>Sign-ins</h3>", open);
-		Assert.Equal(["Not found", "Not found"], SandboxEditorHost.ReadSignIns(open).Select(row => row.Status));
+		Assert.Equal([("Claude Code account", "Not found"), ("Claude Code API key", "Not found"), ("Codex account", "Not found"), ("Codex API key", "Not found"), ("DeepSeek account", "Not found"), ("DeepSeek API key", "Not found")], SandboxEditorHost.ReadSignIns(open).Select(row => (row.Name, row.Status)));
 		Assert.Matches(@"<button\b[^>]*sandbox-save[^>]*>Save</button>", open);
 	}
 

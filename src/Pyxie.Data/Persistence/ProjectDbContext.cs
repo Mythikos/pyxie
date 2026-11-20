@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Persistence.Configuration;
 using Pyxie.Data.Persistence.Converters;
@@ -28,6 +29,15 @@ public class ProjectDbContext : DbContext
 	/// <summary>Gets the pipeline rounds that make up each card's history.</summary>
 	public DbSet<CardRound> Rounds => Set<CardRound>();
 
+	/// <summary>Gets staged and retained media metadata.</summary>
+	public DbSet<MediaFile> MediaFiles => Set<MediaFile>();
+
+	/// <summary>Gets expiring card editor upload sessions.</summary>
+	public DbSet<MediaUpload> MediaUploads => Set<MediaUpload>();
+
+	/// <summary>Gets the files supplied to each round.</summary>
+	public DbSet<RoundMediaInput> RoundMediaInputs => Set<RoundMediaInput>();
+
 	/// <summary>Gets the automated checks gate rounds run.</summary>
 	public DbSet<Gate> Gates => Set<Gate>();
 
@@ -49,5 +59,6 @@ public class ProjectDbContext : DbContext
 	{
 		// Also covers DateTime? properties such as WorkCard.ClosedUtc; UtcTimestampTests pins it.
 		configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+		configurationBuilder.Properties<HexColor>().HaveConversion<HexColorConverter>().HaveMaxLength(HexColor.Length);
 	}
 }

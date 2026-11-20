@@ -59,14 +59,15 @@ internal sealed class RenderedComponent<TComponent>
 		return _renderer.Dispatcher.InvokeAsync(() => work(Instance));
 	}
 
-	/// <summary>Does what a click on a button does: runs the component's private handler of that name on the component's context, and renders the component again afterwards, as the framework does after an event handler. The static render has no browser to click in, so a test names the handler the button is wired to.</summary>
+	/// <summary>Does what a click on a button, or an event a child component raises, does: runs the component's private handler of that name on the component's context, and renders the component again afterwards, as the framework does after an event handler. The static render has no browser to click in, so a test names the handler the button or the child is wired to.</summary>
 	/// <param name="handler">The name of the handler method, which returns a task or nothing.</param>
+	/// <param name="arguments">What the event passes the handler, such as the value a modal reports; none for a click.</param>
 	/// <returns>A task that completes when the handler has, and the render after it.</returns>
-	public Task ClickAsync(string handler)
+	public Task ClickAsync(string handler, params object?[] arguments)
 	{
 		MethodInfo method = typeof(TComponent).GetMethod(handler, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public) ?? throw new MissingMethodException(typeof(TComponent).Name, handler);
 		IHandleEvent events = Instance as IHandleEvent ?? throw new InvalidOperationException($"{typeof(TComponent).Name} does not handle events.");
-		Func<Task> invoke = () => method.Invoke(Instance, null) as Task ?? Task.CompletedTask;
+		Func<Task> invoke = () => method.Invoke(Instance, arguments) as Task ?? Task.CompletedTask;
 
 		return _renderer.Dispatcher.InvokeAsync(() => events.HandleEventAsync(new EventCallbackWorkItem(invoke), null));
 	}

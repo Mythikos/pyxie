@@ -5,6 +5,7 @@ using Pyxie.Data.Entities;
 using Pyxie.Data.Persistence;
 using Pyxie.Data.Sandboxes;
 using Pyxie.Data.Services.Inputs;
+using Pyxie.Data.Services.Internal;
 using Pyxie.Data.Services.Results;
 
 namespace Pyxie.Data.Services;
@@ -33,8 +34,7 @@ public sealed class SandboxSettingsService : ISandboxSettingsService
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-		return await context.SandboxSettings.AsNoTracking().OrderBy(settings => settings.Id).FirstOrDefaultAsync(cancellationToken)
-			?? new SandboxSettings { Dockerfile = SandboxDefaults.Dockerfile };
+		return await SandboxSettingsStore.FindAsync(context, cancellationToken) ?? new SandboxSettings { Dockerfile = SandboxDefaults.Dockerfile };
 	}
 
 	/// <inheritdoc/>
@@ -49,14 +49,14 @@ public sealed class SandboxSettingsService : ISandboxSettingsService
 		DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-		SandboxSettings? stored = await context.SandboxSettings.AsNoTracking().OrderBy(settings => settings.Id).FirstOrDefaultAsync(cancellationToken);
+		SandboxSettings? stored = await SandboxSettingsStore.FindAsync(context, cancellationToken);
 
 		if (stored is null)
 		{
 			return expectedVersion == 0 ? await InsertAsync(context, dockerfile, now, cancellationToken) : ServiceResult<SandboxSettings>.Failure(ChangedMessage);
 		}
 
-		int updated = await context.SandboxSettings.Where(settings => settings.Id == stored.Id && settings.Version == expectedVersion).ExecuteUpdateAsync(setters => setters.SetProperty(settings => settings.Dockerfile, dockerfile).SetProperty(settings => settings.UpdatedUtc, now).SetProperty(settings => settings.Version, settings => settings.Version + 1), cancellationToken);
+		int updated = await SandboxSettingsStore.UpdateAsync(context, stored.Id, expectedVersion, dockerfile, now, cancellationToken);
 
 		return updated == 0 ? ServiceResult<SandboxSettings>.Failure(ChangedMessage) : ServiceResult<SandboxSettings>.Success(new SandboxSettings { Id = stored.Id, Dockerfile = dockerfile, UpdatedUtc = now, Version = expectedVersion + 1 });
 	}
@@ -66,11 +66,7 @@ public sealed class SandboxSettingsService : ISandboxSettingsService
 	{
 		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-		SandboxSettings settings = new() { Dockerfile = dockerfile, UpdatedUtc = now, Version = 1 };
-		context.SandboxSettings.Add(settings);
-		await context.SaveChangesAsync(cancellationToken);
-
-		if (await context.SandboxSettings.CountAsync(cancellationToken) > 1)
+		if (await SandboxSettingsStore.InsertFirstAsync(context, dockerfile, now, cancellationToken) is not SandboxSettings settings)
 		{
 			return ServiceResult<SandboxSettings>.Failure(ChangedMessage);
 		}

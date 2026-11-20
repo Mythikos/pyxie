@@ -8,8 +8,8 @@ using Pyxie.Data.Projects;
 
 namespace Pyxie.Data.Sqlite.Persistence;
 
-/// <summary>Creates contexts on the database in the open project's folder, so every data service works on whichever project is open.</summary>
-public sealed class SqliteProjectDbContextFactory : IDbContextFactory<ProjectDbContext>
+/// <summary>Creates contexts on the database in a project's folder: the open project's, so every data service works on whichever project is open, or a project a service read as open (<see cref="IProjectDbContextSource"/>).</summary>
+public sealed class SqliteProjectDbContextFactory : IDbContextFactory<ProjectDbContext>, IProjectDbContextSource
 {
 	private readonly OpenProject _openProject;
 
@@ -27,8 +27,12 @@ public sealed class SqliteProjectDbContextFactory : IDbContextFactory<ProjectDbC
 	/// <exception cref="InvalidOperationException">No project is open.</exception>
 	public ProjectDbContext CreateDbContext()
 	{
-		Project project = _openProject.Current ?? throw new InvalidOperationException("No project is open.");
+		return CreateFor(_openProject.Current ?? throw new InvalidOperationException("No project is open."));
+	}
 
+	/// <inheritdoc/>
+	public ProjectDbContext CreateFor(Project project)
+	{
 		return new ProjectDbContext(_options.GetOrAdd(project.Folder, CreateOptions));
 	}
 

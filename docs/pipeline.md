@@ -1,5 +1,7 @@
 # Pipeline
 
+Agent rounds receive immutable card [media](media.md) snapshots and can publish files independently of their work verdict. User requests for screenshots or recordings are ordinary description instructions; missing media introduces no new lane, outcome, or completion gate. Publications are retained with their producing round, including unsuccessful and interrupted rounds, and the latest outputs are supplied to later agents.
+
 Pyxie is a software factory: people queue work, and the pipeline carries each card through work, automated gates, agent review, and a merge into the target branch, with no person in the loop. A merge that conflicts is resolved by the project's merge agent, when it has one, and the resolution is gated and reviewed again before it merges. Agents never move cards. The pipeline invokes them, reports what happened, and Pyxie's state machine decides where the card goes and records the history.
 
 This document is the design contract. `PipelineRules`, `CardPipelineService`, `CardBriefingBuilder`, `PipelineContract`, and the runtime in `Pyxie.Runtime` implement it; change them and this document together.
@@ -38,7 +40,7 @@ So a card cannot make the harnesses run without bound: each run has at most `Att
 Every pass through a stage is a round (`CardRound`), appended to the card's history and never edited afterwards. A round records:
 
 - its kind (work, gate, review, merge, resolve), its sequence in the card's history, and its attempt;
-- a copy of the agent that ran it (name, harness, command, arguments), taken when the round opened (the card's worker, its reviewer, or the project's merge agent), so history survives agents being renamed, reconfigured, or deleted, and the pipeline invokes exactly what it recorded, with the arguments kept as configured and their tokens filled in when the round runs;
+- a copy of the agent that ran it (name, harness, authentication method, command, arguments), taken when the round opened (the card's worker, its reviewer, or the project's merge agent), so history survives agents being renamed, reconfigured, or deleted, and the pipeline invokes exactly what it recorded, with the arguments kept as configured and their tokens filled in when the round runs;
 - the briefing the agent was given (work, review, and resolve rounds);
 - start and end times, the outcome, a short note, and a report (the worker's handoff, the gate output, the reviewer's findings, the merge result, or the merge agent's handoff followed by the resolution as a diff).
 
@@ -128,7 +130,7 @@ The briefing is stored on the round, so history shows exactly what each agent kn
 
 `PipelineContract` owns the file names, branch names, prompt, and result words; the briefing and the runtime both read it.
 
-- Pyxie writes the briefing to `.pyxie/briefing.md` in the card's repository in its sandbox and starts the agent's command with its arguments there; the command is the one the sandbox's image provides. The prompt is short and fixed: read the briefing and write the result. It goes to the harness on standard input (Claude Code `-p` and `codex exec` read it there); OpenCode takes it as its last argument. Long context never travels on the command line.
+- Pyxie writes the briefing to `.pyxie/briefing.md` in the card's repository in its sandbox and starts the agent's command with its arguments there; the command is the one the sandbox's image provides. The prompt is short and fixed: read the briefing and write the result. All harnesses read it on standard input. Long context never travels on the command line.
 - An agent's arguments can carry tokens that Pyxie fills in for each round: `{CARD_ID}`, `{CARD_NAME}`, `{BRANCH}` (the card's branch, `pyxie/card-<id>`), `{STAGE}` (Work, Review, or Resolve), and `{ATTEMPT}`. A Claude Code agent with `--name "{CARD_NAME}"`, for example, names its session after the card. The arguments are split first and each argument is filled in once, so a value with spaces or quotes stays one argument and a value is never filled in again; a token can sit inside an argument, and `--name={CARD_NAME}` keeps a card name that starts with `-` the flag's value. A value is not quoted for a shell, so a `sh -c` script takes it as one of the script's own arguments (`sh -c "... \"$1\"" sh {CARD_NAME}`). `${NAME}` is left for a shell; any other name in capitals between braces is refused when the agent is saved and blocks a round that would run it. `AgentArgumentTokens` owns the list.
 - Permission flags are the agent's own configuration: an agent whose arguments do not grant a non-interactive permission mode will have its tool calls denied.
 - The agent writes `.pyxie/result.json`: `{ "outcome": "...", "note": "...", "report": "..." }`. Work rounds use `completed`, `errored`, or `blocked`; review rounds use `approved`, `rejected`, `errored`, or `blocked`; resolve rounds use `resolved`, `errored`, or `blocked`. A missing or unreadable file is an error.

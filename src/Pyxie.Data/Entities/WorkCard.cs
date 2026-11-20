@@ -63,6 +63,9 @@ public class WorkCard
 	/// <summary>Gets the card's pipeline rounds. Loaded only by queries that include them.</summary>
 	public ICollection<CardRound> Rounds { get; } = [];
 
+	/// <summary>Gets the card's current and historical attachments, when included.</summary>
+	public ICollection<MediaFile> MediaFiles { get; } = [];
+
 	/// <summary>Gets or sets the UTC time the card was created.</summary>
 	public DateTime CreatedUtc { get; set; }
 

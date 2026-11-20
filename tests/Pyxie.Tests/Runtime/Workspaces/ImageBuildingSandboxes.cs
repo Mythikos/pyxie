@@ -196,6 +196,12 @@ public sealed class ImageBuildingSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
+	{
+		return Task.CompletedTask;
+	}
+
+	/// <inheritdoc/>
 	public Task RemoveCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
 	{
 		throw new NotSupportedException("Image builds never remove a card's sandboxes.");
@@ -205,6 +211,12 @@ public sealed class ImageBuildingSandboxes : ISandboxes
 	public Task RemoveLeftoverRoundsAsync(string projectKey, CancellationToken cancellationToken)
 	{
 		throw new NotSupportedException("Image builds never remove leftover sandboxes.");
+	}
+
+	/// <inheritdoc/>
+	public Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		throw new NotSupportedException("Image builds never remove a project.");
 	}
 
 	/// <inheritdoc/>

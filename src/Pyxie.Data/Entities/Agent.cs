@@ -14,6 +14,9 @@ public class Agent
 	/// <summary>Gets or sets the harness the agent runs through.</summary>
 	public HarnessKind Harness { get; set; }
 
+	/// <summary>Gets or sets the credential selected for this agent.</summary>
+	public AgentAuthentication Authentication { get; set; } = AgentAuthentication.Account;
+
 	/// <summary>Gets or sets the executable used to start the harness.</summary>
 	public string Command { get; set; } = string.Empty;
 

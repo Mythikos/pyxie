@@ -11,7 +11,7 @@ using Pyxie.Web.Components.Settings.Models;
 namespace Pyxie.Web.Components.Settings;
 
 /// <summary>Lists the gates in the order they run. A gate moves with the arrow keys on its handle or by dragging the handle to another gate, switches on and off at once, and is added, edited, and deleted through the editor.</summary>
-public partial class GateTable : ComponentBase, IDisposable
+public partial class GateTable : IDisposable
 {
 	private const string ArrowUp = "ArrowUp";
 	private const string ArrowDown = "ArrowDown";
@@ -32,6 +32,8 @@ public partial class GateTable : ComponentBase, IDisposable
 	private int? _draggingId;
 	private int? _dropIndex;
 	private int? _focusGateId;
+
+	internal bool IsEditing => _editorVisible || _busy || _draggingId.HasValue;
 
 	/// <summary>Gets or sets the gate service, supplied by the framework.</summary>
 	[Inject]
@@ -206,7 +208,8 @@ public partial class GateTable : ComponentBase, IDisposable
 	// The position is the row's place in the list as shown, not its stored sort order: stored orders can have gaps, and the service treats the position as an index.
 	private async Task MoveAsync(Gate gate, int position)
 	{
-		await RunAsync(() => GateService.MoveAsync(gate.Id, position, _cts.Token));
+		int[] order = [.. _gates.Select(item => item.Id)];
+		await RunAsync(() => GateService.MoveIfOrderMatchesAsync(gate.Id, position, order, _cts.Token));
 	}
 
 	// The switch saves at once, carrying every other field of the gate unchanged.
@@ -218,7 +221,7 @@ public partial class GateTable : ComponentBase, IDisposable
 
 		await RunAsync(async () =>
 		{
-			ServiceResult<Gate> result = await GateService.UpdateAsync(gate.Id, input, _cts.Token);
+			ServiceResult<Gate> result = await GateService.UpdateIfCurrentAsync(gate.Id, input, SettingsRevision.Of(gate), _cts.Token);
 
 			return result.Succeeded ? ServiceResult.Success() : ServiceResult.Failure(result.Error ?? "The gate could not be saved.");
 		});
@@ -227,6 +230,12 @@ public partial class GateTable : ComponentBase, IDisposable
 	// Whatever the outcome, the list is read again so the table shows what the database holds; a refusal shows the service's message.
 	private async Task RunAsync(Func<Task<ServiceResult>> operation)
 	{
+		using var lease = AcquireProject(out _error);
+		if (lease is null)
+		{
+			return;
+		}
+
 		_busy = true;
 		_error = null;
 

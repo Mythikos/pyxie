@@ -1,3 +1,4 @@
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Limits;
@@ -28,8 +29,8 @@ public sealed class CategoryServiceTests
 		await using TestDatabase database = new();
 		CategoryService service = new(database.ContextFactory);
 		CancellationToken token = TestContext.Current.CancellationToken;
-		ResultAssert.Succeeded(await service.CreateAsync("Docs", token));
-		ResultAssert.Succeeded(await service.CreateAsync("Alpha", token));
+		ResultAssert.Succeeded(await service.CreateAsync("Docs", CategoryColors.Neutral, token));
+		ResultAssert.Succeeded(await service.CreateAsync("Alpha", CategoryColors.Neutral, token));
 
 		IReadOnlyList<Category> categories = await service.ListAsync(token);
 
@@ -42,7 +43,7 @@ public sealed class CategoryServiceTests
 		await using TestDatabase database = new();
 		CategoryService service = new(database.ContextFactory);
 
-		Category created = ResultAssert.Succeeded(await service.CreateAsync("Research", TestContext.Current.CancellationToken));
+		Category created = ResultAssert.Succeeded(await service.CreateAsync("Research", CategoryColors.Neutral, TestContext.Current.CancellationToken));
 
 		Category? stored = await TestData.FindCategoryAsync(database, created.Id);
 		Assert.NotNull(stored);
@@ -61,7 +62,7 @@ public sealed class CategoryServiceTests
 		await using TestDatabase database = new();
 		CategoryService service = new(database.ContextFactory);
 
-		ResultAssert.Failed(await service.CreateAsync(name, TestContext.Current.CancellationToken));
+		ResultAssert.Failed(await service.CreateAsync(name, CategoryColors.Neutral, TestContext.Current.CancellationToken));
 
 		Assert.Equal(3, (await service.ListAsync(TestContext.Current.CancellationToken)).Count);
 	}
@@ -73,8 +74,8 @@ public sealed class CategoryServiceTests
 		CategoryService service = new(database.ContextFactory);
 		CancellationToken token = TestContext.Current.CancellationToken;
 
-		ResultAssert.Failed(await service.CreateAsync(new string('c', PyxieLimits.MaxNameLength + 1), token));
-		ResultAssert.Succeeded(await service.CreateAsync(new string('c', PyxieLimits.MaxNameLength), token));
+		ResultAssert.Failed(await service.CreateAsync(new string('c', PyxieLimits.MaxNameLength + 1), CategoryColors.Neutral, token));
+		ResultAssert.Succeeded(await service.CreateAsync(new string('c', PyxieLimits.MaxNameLength), CategoryColors.Neutral, token));
 
 		Assert.Equal(4, (await service.ListAsync(token)).Count);
 	}
@@ -89,7 +90,7 @@ public sealed class CategoryServiceTests
 		await using TestDatabase database = new();
 		CategoryService service = new(database.ContextFactory);
 
-		ResultAssert.Failed(await service.CreateAsync(name, TestContext.Current.CancellationToken));
+		ResultAssert.Failed(await service.CreateAsync(name, CategoryColors.Neutral, TestContext.Current.CancellationToken));
 
 		Assert.Equal(3, (await service.ListAsync(TestContext.Current.CancellationToken)).Count);
 	}
@@ -100,9 +101,9 @@ public sealed class CategoryServiceTests
 		await using TestDatabase database = new();
 		CategoryService service = new(database.ContextFactory);
 		CancellationToken token = TestContext.Current.CancellationToken;
-		ResultAssert.Succeeded(await service.CreateAsync("Research", token));
+		ResultAssert.Succeeded(await service.CreateAsync("Research", CategoryColors.Neutral, token));
 
-		ResultAssert.Failed(await service.CreateAsync("RESEARCH", token));
+		ResultAssert.Failed(await service.CreateAsync("RESEARCH", CategoryColors.Neutral, token));
 	}
 
 	[Fact]

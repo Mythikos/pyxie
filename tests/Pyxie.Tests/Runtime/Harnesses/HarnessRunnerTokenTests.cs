@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Harnesses;
 
-/// <summary><see cref="HarnessRunner"/> and the tokens in an agent's arguments: the harness is started with each token filled in with the round's values, a value stays one argument and is not filled in again, OpenCode's prompt follows the filled-in arguments, a shell's <c>${NAME}</c> is passed on as it is, and a name in capitals that is not a token blocks the round before anything reaches the sandbox.</summary>
+/// <summary><see cref="HarnessRunner"/> and the tokens in an agent's arguments: the harness is started with each token filled in with the round's values, a value stays one argument and is not filled in again, a shell's <c>${NAME}</c> is passed on as it is, and a name in capitals that is not a token blocks the round before anything reaches the sandbox.</summary>
 public sealed class HarnessRunnerTokenTests
 {
 	private static readonly TimeSpan s_timeout = TimeSpan.FromMinutes(2);
@@ -69,20 +69,19 @@ public sealed class HarnessRunnerTokenTests
 	}
 
 	[Fact(Timeout = RuntimeTestTimeouts.TestMilliseconds)]
-	public async Task RunAsync_ForOpenCode_FillsInTheArgumentsAndThenAppendsThePromptUnchanged()
+	public async Task RunAsync_ForDeepSeek_FillsInTheArgumentsAndSendsThePromptUnchanged()
 	{
 		await using HarnessRig rig = await HarnessRig.CreateAsync();
 		string record = rig.Combine("record.txt");
 
-		// The fake harness agent for OpenCode ends its arguments with --report, which takes the prompt the runner adds after the filled-in arguments.
-		AgentSnapshot agent = FakeHarnessAgent.Snapshot("Agent", HarnessKind.OpenCode, "--record", record, "--note", "{CARD_NAME} {BRANCH}");
+		AgentSnapshot agent = FakeHarnessAgent.Snapshot("Agent", HarnessKind.DeepSeek, "--record", record, "--note", "{CARD_NAME} {BRANCH}");
 
 		RoundVerdict verdict = await rig.StartAsync(Round(agent, RoundKind.Work), s_timeout, Token).WithinLimitAsync();
 
-		Assert.Equal(new RoundVerdict(RoundResult.Succeeded, "Fix the login page pyxie/card-12", PipelineContract.Prompt), verdict);
+		Assert.Equal(new RoundVerdict(RoundResult.Succeeded, "Fix the login page pyxie/card-12", null), verdict);
 		FakeHarnessRecord run = await FakeHarnessRecord.ReadSingleAsync(record);
-		Assert.Equal(string.Empty, run.Input);
-		Assert.Equal(["--record", record, "--note", "Fix the login page pyxie/card-12", "--report", PipelineContract.Prompt], run.Arguments);
+		Assert.Equal(PipelineContract.Prompt, run.Input);
+		Assert.Equal(["--record", record, "--note", "Fix the login page pyxie/card-12"], run.Arguments);
 	}
 
 	[Fact(Timeout = RuntimeTestTimeouts.TestMilliseconds)]

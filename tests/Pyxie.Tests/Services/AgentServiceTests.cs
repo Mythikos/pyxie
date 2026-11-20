@@ -43,7 +43,7 @@ public sealed class AgentServiceTests
 	[Theory]
 	[InlineData(HarnessKind.ClaudeCode)]
 	[InlineData(HarnessKind.Codex)]
-	[InlineData(HarnessKind.OpenCode)]
+	[InlineData(HarnessKind.DeepSeek)]
 	[InlineData(HarnessKind.Other)]
 	public async Task CreateAsync_PersistsEveryField(HarnessKind harness)
 	{
@@ -361,12 +361,12 @@ public sealed class AgentServiceTests
 		await TestData.AddCardAsync(database, "One", workerAgentId: agent.Id, reviewerAgentId: agent.Id);
 		AgentService service = new(database.ContextFactory, database.Clock);
 
-		ResultAssert.Succeeded(await service.UpdateAsync(agent.Id, Input("Renamed", harness: HarnessKind.OpenCode, command: "opencode"), TestContext.Current.CancellationToken));
+		ResultAssert.Succeeded(await service.UpdateAsync(agent.Id, Input("Renamed", harness: HarnessKind.DeepSeek, command: "dsh"), TestContext.Current.CancellationToken));
 
 		Agent? stored = await TestData.FindAgentAsync(database, agent.Id);
 		Assert.NotNull(stored);
 		Assert.Equal("Renamed", stored.Name);
-		Assert.Equal(HarnessKind.OpenCode, stored.Harness);
+		Assert.Equal(HarnessKind.DeepSeek, stored.Harness);
 	}
 
 	[Fact]

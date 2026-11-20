@@ -1,3 +1,5 @@
+using Pyxie.Data.Transfer;
+
 namespace Pyxie.Web.Components.Settings;
 
 /// <summary>The sections of the Settings page in the order they are shown, and which one a URL points at.</summary>
@@ -15,8 +17,28 @@ public static class SettingsSections
 	/// <summary>Gets the sandbox section.</summary>
 	public static SettingsSection Sandbox { get; } = new("sandbox", "Sandbox");
 
-	/// <summary>Gets every section in the order the page shows them.</summary>
-	public static IReadOnlyList<SettingsSection> All { get; } = [Agents, Gates, Categories, Sandbox];
+	/// <summary>Gets the global settings, always available.</summary>
+	public static SettingsSection Global { get; } = new("global", "Global");
+
+	/// <summary>Gets the sections of an open project's settings in display order.</summary>
+	public static IReadOnlyList<SettingsSection> ProjectSections { get; } = [Agents, Gates, Categories, Sandbox];
+
+	/// <summary>Gets every settings section in display order.</summary>
+	public static IReadOnlyList<SettingsSection> All { get; } = [.. ProjectSections, Global];
+
+	/// <summary>Gets the section that shows a part of the settings a settings file carries, so an import names the parts as the page does.</summary>
+	/// <param name="section">The part of the settings.</param>
+	/// <returns>The section.</returns>
+	public static SettingsSection Of(TransferSection section)
+	{
+		return section switch
+		{
+			TransferSection.Agents => Agents,
+			TransferSection.Gates => Gates,
+			TransferSection.Categories => Categories,
+			_ => Sandbox,
+		};
+	}
 
 	/// <summary>Finds the section a URL points at by its fragment.</summary>
 	/// <param name="uri">The absolute URL of the page, such as <c>http://localhost/settings#gates</c>.</param>

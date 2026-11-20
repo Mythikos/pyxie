@@ -4,6 +4,7 @@ using Pyxie.Data.Entities;
 using Pyxie.Data.Persistence;
 using Pyxie.Data.Projects;
 using Pyxie.Data.Services;
+using Pyxie.Data.Services.Results;
 using Pyxie.Runtime.Projects;
 using Pyxie.Runtime.Workspaces;
 
@@ -12,7 +13,16 @@ namespace Pyxie.Web.Hosting;
 /// <summary>Startup tasks for the web application.</summary>
 internal static partial class PyxieWebApplicationExtensions
 {
-	/// <summary>Brings the machine database up to date and opens the project it records as open: when that project's folder, database, or hub is gone, the project is closed and a warning logged; otherwise its database is brought up to date and it becomes <see cref="OpenProject.Current"/>.</summary>
+	/// <summary>Routes operator pages and local MCP requests. A page error reexecutes routing to render the Not Found page.</summary>
+	/// <param name="app">The application.</param>
+	public static void UsePyxieRouting(this WebApplication app)
+	{
+		app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+		app.UseRouting();
+		app.Use(PyxieMcpHosting.GuardAsync);
+	}
+
+	/// <summary>Brings the machine database up to date and opens the project it records as open: when that project's folder, database, or hub is gone, or its database cannot be brought up to date, the project is closed and a warning logged; otherwise it becomes <see cref="OpenProject.Current"/>.</summary>
 	/// <param name="app">The application.</param>
 	/// <returns>A task that completes when the databases are ready.</returns>
 	public static async Task OpenPyxieDatabasesAsync(this WebApplication app)
@@ -33,7 +43,12 @@ internal static partial class PyxieWebApplicationExtensions
 		{
 			if (ProjectSessions.IsFolderPresent(open))
 			{
-				await scope.ServiceProvider.GetRequiredService<IProjectDatabase>().MigrateAsync(open.Folder, CancellationToken.None);
+				ServiceResult migration = await scope.ServiceProvider.GetRequiredService<IProjectDatabase>().MigrateAsync(open.Folder, CancellationToken.None);
+				if (!migration.Succeeded)
+				{
+					await catalog.CloseAsync(open.Id, CancellationToken.None);
+					LogOpenProjectDatabaseFailed(app.Logger, open.Name, open.Folder, migration.Error);
+				}
 			}
 			else
 			{
@@ -47,4 +62,7 @@ internal static partial class PyxieWebApplicationExtensions
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "The open project {Name} was closed because its folder {Folder}, its database, or its hub is gone.")]
 	private static partial void LogOpenProjectGone(ILogger logger, string name, string folder);
+
+	[LoggerMessage(Level = LogLevel.Warning, Message = "The open project {Name} in {Folder} was closed because its database could not be brought up to date: {Reason}")]
+	private static partial void LogOpenProjectDatabaseFailed(ILogger logger, string name, string folder, string? reason);
 }

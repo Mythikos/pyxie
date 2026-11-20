@@ -56,7 +56,7 @@ public sealed class HarnessRunnerGuardTests
 	{
 		await using HarnessRig rig = await HarnessRig.CreateAsync();
 		RecordingSandbox recorder = new(rig.Sandbox);
-		AgentSnapshot agent = new("Writer", HarnessKind.ClaudeCode, command, string.Empty);
+		AgentSnapshot agent = new("Writer", HarnessKind.ClaudeCode, command, string.Empty, AgentAuthentication.Account);
 
 		RoundVerdict verdict = await rig.StartAsync(HarnessRig.Work(agent), TimeSpan.FromMinutes(1), Token, recorder).WithinLimitAsync();
 

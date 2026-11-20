@@ -3,88 +3,85 @@ using Pyxie.Runtime.Workspaces;
 
 namespace Pyxie.Runtime.Sandboxes;
 
-/// <summary>Signs agents in with the person's own subscriptions (see <c>docs/sandboxing.md</c>). Claude Code gets the token <c>claude setup-token</c> printed, which the person saved in the workspace root's <c>secrets</c> folder. Codex gets a copy of the person's Codex sign-in, made fresh for each sandbox, so a sandbox that refreshes its tokens never writes to the person's own. OpenCode and other harnesses get nothing from Pyxie.</summary>
+/// <summary>Detects machine-local credentials and gives each round only its selected sign-in.</summary>
 public sealed class SandboxSignIns : ISandboxSignIns
 {
-	private const string CodexHomeInside = "/pyxie/codex";
-	private const string CodexAuthFile = "auth.json";
-
+	private const string CodexAccountHome = "/pyxie/auth/codex-account";
 	private readonly WorkspaceLayout _layout;
 
-	/// <summary>Initializes a new instance of the <see cref="SandboxSignIns"/> class.</summary>
-	/// <param name="layout">The workspace layout, which places the Claude Code token.</param>
+	/// <summary>Initializes the sign-ins for this workspace.</summary>
 	public SandboxSignIns(WorkspaceLayout layout)
 	{
 		_layout = layout;
 	}
 
-	// Codex keeps its sign-in in CODEX_HOME, or in .codex in the person's profile.
-	private static string CodexAuthPath
-	{
-		get
-		{
-			string? home = Environment.GetEnvironmentVariable("CODEX_HOME");
-			string folder = string.IsNullOrWhiteSpace(home) ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex") : home;
-
-			return Path.Combine(folder, CodexAuthFile);
-		}
-	}
-
 	/// <inheritdoc/>
-	public SandboxSignIn ForAgent(HarnessKind harness, string signInFolder)
+	public SandboxSignIn ForAgent(HarnessKind harness, AgentAuthentication authentication)
 	{
-		return harness switch
+		return (harness, authentication) switch
 		{
-			HarnessKind.ClaudeCode => ClaudeCode(),
-			HarnessKind.Codex => Codex(signInFolder),
-			_ => SandboxSignIn.None,
+			(HarnessKind.ClaudeCode, AgentAuthentication.Account) => FromKey(_layout.ClaudeTokenPath, "CLAUDE_CODE_OAUTH_TOKEN", "Run claude setup-token and save the token"),
+			(HarnessKind.ClaudeCode, AgentAuthentication.ApiKey) => FromKey(_layout.ClaudeApiKeyPath, "ANTHROPIC_API_KEY", "Save your Anthropic API key"),
+			(HarnessKind.Codex, AgentAuthentication.Account) => CodexAccount(CodexLogin.PathOnHost),
+			(HarnessKind.Codex, AgentAuthentication.ApiKey) => FromKey(_layout.CodexApiKeyPath, "CODEX_API_KEY", "Save your OpenAI API key"),
+			(HarnessKind.DeepSeek, AgentAuthentication.Account) => DeepSeekAccountSignIn.ForAgent(DeepSeekAccountSignIn.StorePath),
+			(HarnessKind.DeepSeek, AgentAuthentication.ApiKey) => FromKey(_layout.DeepSeekApiKeyPath, "DEEPSEEK_API_KEY", "Save your DeepSeek API key"),
+			(HarnessKind.Other, AgentAuthentication.None) => SandboxSignIn.None,
+			_ => SandboxSignIn.Missing("Choose a supported harness and authentication method in Settings → Agents."),
 		};
 	}
 
 	/// <inheritdoc/>
 	public SandboxSignInStatus GetStatus()
 	{
-		string token = _layout.ClaudeTokenPath;
-		string codex = CodexAuthPath;
-
-		return new SandboxSignInStatus(token, HasText(token), codex, File.Exists(codex));
+		string codex = CodexLogin.PathOnHost;
+		string deepSeek = DeepSeekAccountSignIn.StorePath;
+		return new SandboxSignInStatus(
+			KeyStatus(_layout.ClaudeTokenPath),
+			KeyStatus(_layout.ClaudeApiKeyPath),
+			new(codex, CodexLogin.ReadAccount(codex) is not null),
+			KeyStatus(_layout.CodexApiKeyPath),
+			new(deepSeek, DeepSeekAccountSignIn.ReadToken(deepSeek) is not null),
+			KeyStatus(_layout.DeepSeekApiKeyPath));
 	}
 
-	private static bool HasText(string path)
+	internal static SandboxSignIn CodexAccount(string path)
 	{
-		return File.Exists(path) && new FileInfo(path).Length > 0;
+		string? account = CodexLogin.ReadAccount(path);
+		return account is not null
+			? SandboxCredential.Create(account, CodexAccountHome, "auth.json", new Dictionary<string, string> { ["CODEX_HOME"] = CodexAccountHome, ["PYXIE_AUTH"] = "codex-account" })
+			: SandboxSignIn.Missing($"Run codex login with ChatGPT using file storage. Pyxie needs the account sign-in in {path}.");
 	}
 
-	private static SandboxSignIn Codex(string signInFolder)
+	private static SandboxCredentialStatus KeyStatus(string path) => new(path, SandboxCredential.ReadKey(path) is not null);
+
+	private static SandboxSignIn FromKey(string path, string variable, string instruction)
 	{
-		string source = CodexAuthPath;
-		if (!File.Exists(source))
+		string? key = SandboxCredential.ReadKey(path);
+		return key is null ? SandboxSignIn.Missing($"{instruction} in {path}.") : Key(key, variable);
+	}
+
+	private static SandboxSignIn Key(string key, string variable)
+	{
+		(string homeVariable, string home) = variable switch
 		{
-			return SandboxSignIn.Missing($"Codex is not signed in on this machine: run codex login. Pyxie copies {source} into each sandbox.");
+			"CLAUDE_CODE_OAUTH_TOKEN" => ("CLAUDE_CONFIG_DIR", "/pyxie/auth/claude-account"),
+			"ANTHROPIC_API_KEY" => ("CLAUDE_CONFIG_DIR", "/pyxie/auth/claude-api"),
+			"CODEX_API_KEY" => ("CODEX_HOME", "/pyxie/auth/codex-api"),
+			"DEEPSEEK_API_KEY" => ("DSH_HOME", "/pyxie/auth/dsh-api"),
+			_ => throw new ArgumentOutOfRangeException(nameof(variable)),
+		};
+		Dictionary<string, string> environment = new()
+		{
+			[homeVariable] = home,
+			["PYXIE_AUTH"] = variable,
+			["PYXIE_KEY_FILE"] = $"{home}/{variable}",
+		};
+		if (homeVariable == "CLAUDE_CONFIG_DIR")
+		{
+			environment["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1";
 		}
 
-		Directory.CreateDirectory(signInFolder);
-		File.Copy(source, Path.Combine(signInFolder, CodexAuthFile), overwrite: true);
-
-		return new SandboxSignIn(
-			[],
-			[new SandboxMount(signInFolder, CodexHomeInside, ReadOnly: false)],
-			new Dictionary<string, string> { ["CODEX_HOME"] = CodexHomeInside },
-			null);
-	}
-
-	private SandboxSignIn ClaudeCode()
-	{
-		string token = _layout.ClaudeTokenPath;
-		if (!HasText(token))
-		{
-			return SandboxSignIn.Missing($"There is no Claude Code token: run claude setup-token and save the token it prints in {token}.");
-		}
-
-		return new SandboxSignIn(
-			[new SandboxSecret(token, "CLAUDE_CODE_OAUTH_TOKEN")],
-			[],
-			new Dictionary<string, string> { ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1" },
-			null);
+		return SandboxCredential.Create(key, home, variable, environment);
 	}
 }

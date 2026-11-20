@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Options;
 
 using Pyxie.Data.Projects;
@@ -9,7 +10,7 @@ using Pyxie.Web.Components.Projects;
 
 namespace Pyxie.Web.Components.Layout;
 
-/// <summary>The header control that shows whether the pipeline is running, how many of its workers have a card, and starts or stops it with one button that is Start while the pipeline is stopped and Stop while it runs. It is the same button either way, so pressing it keeps the keyboard focus. Starting needs an open project, so it follows projects being imported, opened, or closed, on any page and in any tab.</summary>
+/// <summary>The header control that shows whether the pipeline is running, how many of its workers have a card, and starts or stops it with one button that is Start while the pipeline is stopped and Stop while it runs. It is the same button either way, so pressing it keeps the keyboard focus. A press does what the button showed when the person pressed it, so a press the browser sent before it showed the change, or one it counts as part of a double click, does not undo it. Starting needs an open project, so it follows projects being imported, opened, closed, or removed, on any page and in any tab.</summary>
 public partial class PipelineSwitch : IDisposable
 {
 	private bool _disposed;
@@ -68,9 +69,6 @@ public partial class PipelineSwitch : IDisposable
 
 	private string ActionClass => IsRunning ? "pipeline-stop" : "pipeline-start";
 
-	// What a press does is what the button says when it is drawn, so a press never does the opposite of its label if the pipeline changed state just before it.
-	private EventCallback ActionClicked => IsRunning ? EventCallback.Factory.Create(this, StopPipeline) : EventCallback.Factory.Create(this, StartPipelineAsync);
-
 	// The reason the disabled Start button gives when hovered; the browser shows it for the wrapper, which still receives the pointer when the button does not. A running pipeline has a project open and gives none.
 	private string? StartBlockedText => IsRunning || ProjectOpen ? null : NoProjectOpen.Text;
 
@@ -88,12 +86,28 @@ public partial class PipelineSwitch : IDisposable
 		}
 	}
 
-	// The controller refuses to start without an open project; the button is already disabled then, so a refusal only means the project closed a moment ago and the next render shows it.
-	private Task StartPipelineAsync()
+	// What a press does is what the button showed when the person pressed it. The wrapper handles the press, not the Blazorise button: that runs the Clicked it has when the press arrives, which is drawn for the pipeline's state now, while the wrapper's handler is drawn anew with each render, so a press the browser sent before it showed the change reaches the handler drawn with what it showed. That press, a press the browser counts as part of a double click, and a press while Start is disabled, which reaches the wrapper, do nothing.
+	private void Press(MouseEventArgs press, bool shownRunning)
+	{
+		if (press.Detail > 1 || shownRunning != IsRunning)
+		{
+			return;
+		}
+
+		if (shownRunning)
+		{
+			StopPipeline();
+		}
+		else if (ProjectOpen)
+		{
+			StartPipeline();
+		}
+	}
+
+	// The controller refuses to start without an open project, which the button already shows disabled, and while a project is being opened or closed; the next render shows the pipeline as it is.
+	private void StartPipeline()
 	{
 		Controller.Start();
-
-		return Task.CompletedTask;
 	}
 
 	private void StopPipeline()

@@ -39,7 +39,7 @@ public sealed class SupportSmokeTests
 	[Theory]
 	[InlineData(HarnessKind.ClaudeCode)]
 	[InlineData(HarnessKind.Codex)]
-	[InlineData(HarnessKind.OpenCode)]
+	[InlineData(HarnessKind.DeepSeek)]
 	[InlineData(HarnessKind.Other)]
 	public async Task FakeHarnessAgent_Snapshot_RunsThroughTheHarnessRunnerAndWritesItsResultAndFiles(HarnessKind harness)
 	{
@@ -59,6 +59,7 @@ public sealed class SupportSmokeTests
 	[Theory]
 	[InlineData(HarnessKind.ClaudeCode)]
 	[InlineData(HarnessKind.Codex)]
+	[InlineData(HarnessKind.DeepSeek)]
 	[InlineData(HarnessKind.Other)]
 	public async Task FakeHarnessAgent_Snapshot_ForStandardInputHarnesses_ReceivesThePromptOnStandardInput(HarnessKind harness)
 	{
@@ -69,20 +70,6 @@ public sealed class SupportSmokeTests
 			RoundVerdict verdict = await RunWorkRoundAsync(agent, workspace);
 
 			Assert.True(verdict.Result == RoundResult.Succeeded, $"The fake harness did not get the prompt on standard input: {verdict.Note} {verdict.Report}");
-		});
-	}
-
-	[Fact]
-	public async Task FakeHarnessAgent_Snapshot_ForOpenCode_TakesThePromptArgumentAsTheReport()
-	{
-		AgentSnapshot agent = FakeHarnessAgent.Snapshot("Fake", HarnessKind.OpenCode, "--outcome", "completed");
-
-		await WithWorkspaceAsync(async workspace =>
-		{
-			RoundVerdict verdict = await RunWorkRoundAsync(agent, workspace);
-
-			Assert.Equal(RoundResult.Succeeded, verdict.Result);
-			Assert.Equal(PipelineContract.Prompt, verdict.Report);
 		});
 	}
 
@@ -97,7 +84,7 @@ public sealed class SupportSmokeTests
 	[InlineData("")]
 	public void FakeHarnessAgent_Arguments_GiveBackExactlyTheArgumentsTheRuntimeSplits(string argument)
 	{
-		string arguments = FakeHarnessAgent.Arguments(HarnessKind.Other, "--note", argument);
+		string arguments = FakeHarnessAgent.Arguments("--note", argument);
 
 		Assert.Equal([FakeHarnessAgent.DllPath, "--note", argument], CommandLine.Split(arguments));
 	}
@@ -127,12 +114,6 @@ public sealed class SupportSmokeTests
 		{
 			await Assert.ThrowsAsync<ArgumentException>(() => FakeHarnessAgent.WriteScriptAsync(workspace, ["--note", "say \"hi\""]));
 		});
-	}
-
-	[Fact]
-	public void FakeHarnessAgent_ScriptArguments_RefusesOpenCodeBecauseItsPromptArgumentBreaksScriptMode()
-	{
-		Assert.Throws<ArgumentException>(() => FakeHarnessAgent.ScriptArguments(HarnessKind.OpenCode, "script.txt"));
 	}
 
 	[Fact]

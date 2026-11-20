@@ -1,0 +1,104 @@
+/* The swatches sit on a white track, so they read the same on any tint, such as an editor in the color being chosen. */
+.category-colors {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px;
+	border-radius: var(--pyx-radius-pill);
+	background: var(--pyx-surface);
+}
+
+/* The swatches are the chip colors themselves: the tint, ringed in the chip's text color, and filled with it while chosen. */
+.category-swatch,
+.category-swatch-custom {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	border-radius: 50%;
+	box-sizing: border-box;
+	cursor: pointer;
+}
+
+.category-swatch {
+	appearance: none;
+	--swatch-tint: var(--pyx-lane);
+	--swatch-ink: var(--pyx-text-2);
+	border: 1.5px solid var(--swatch-ink);
+	background: var(--swatch-tint);
+}
+
+.category-swatch-green {
+	--swatch-tint: var(--pyx-success-tint);
+	--swatch-ink: var(--pyx-primary-hover);
+}
+
+.category-swatch-pink {
+	--swatch-tint: var(--pyx-pink-tint);
+	--swatch-ink: var(--pyx-pink-text);
+}
+
+.category-swatch:checked {
+	background: var(--swatch-ink);
+	box-shadow: inset 0 0 0 3px var(--swatch-tint);
+}
+
+/* The fourth swatch opens the browser's color picker: a dashed ring with a plus while a quick color is chosen, and the chosen color, drawn like a chosen swatch, while any other is. The color input covers it, unseen, so a press anywhere on it opens the picker. */
+.category-swatch-custom {
+	position: relative;
+	flex: none;
+	border: 1.5px dashed var(--pyx-text-muted);
+	background: linear-gradient(var(--pyx-text-muted), var(--pyx-text-muted)) center / 8px 1.5px no-repeat, linear-gradient(var(--pyx-text-muted), var(--pyx-text-muted)) center / 1.5px 8px no-repeat;
+}
+
+.category-swatch-custom-chosen {
+	border: 1.5px solid var(--chip-ink);
+	background: var(--chip-ink);
+	box-shadow: inset 0 0 0 3px var(--chip-tint);
+}
+
+.category-swatch-input {
+	position: absolute;
+	inset: -1.5px;
+	width: calc(100% + 3px);
+	height: calc(100% + 3px);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+/* The rings fall on the white track, where the primary green reads at 5.7:1, so they stay in it even in an editor whose chip rings its other controls in the chip's text color. */
+.category-swatch:focus-visible,
+.category-swatch-custom:has(.category-swatch-input:focus-visible) {
+	outline: 2px solid var(--pyx-primary);
+	outline-offset: 2px;
+}
+
+.category-swatch:disabled,
+.category-swatch-custom:has(.category-swatch-input:disabled) {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+.category-swatch-input:disabled {
+	cursor: not-allowed;
+}
+
+/* The swatches are colors to choose from, so forced colors must not repaint them. Their rings and the empty custom swatch carry no color of their own, so they take the theme's text color, which it keeps readable on its background. */
+@media (forced-colors: active) {
+	.category-swatch,
+	.category-swatch-custom {
+		forced-color-adjust: none;
+	}
+
+	.category-swatch:focus-visible,
+	.category-swatch-custom:has(.category-swatch-input:focus-visible) {
+		outline-color: CanvasText;
+	}
+
+	.category-swatch-custom:not(.category-swatch-custom-chosen) {
+		border-color: CanvasText;
+		background: linear-gradient(CanvasText, CanvasText) center / 8px 1.5px no-repeat, linear-gradient(CanvasText, CanvasText) center / 1.5px 8px no-repeat;
+	}
+}

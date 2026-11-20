@@ -13,7 +13,7 @@ public sealed class CardSandboxesTakeBackResolutionTests
 {
 	private const string ReceivedFile = "received.bundle";
 
-	private static readonly AgentSnapshot s_merger = new("Merger", HarnessKind.Other, "merger", "--resolve");
+	private static readonly AgentSnapshot s_merger = new("Merger", HarnessKind.Other, "merger", "--resolve", AgentAuthentication.None);
 
 	private static CancellationToken Token => TestContext.Current.CancellationToken;
 

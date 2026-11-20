@@ -1,17 +1,18 @@
 using Microsoft.Extensions.DependencyInjection;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
 using Pyxie.Data.Persistence.Configuration;
 using Pyxie.Data.Services;
 using Pyxie.Tests.Support;
+using Pyxie.Web.Components.Categories.Colors;
 using Pyxie.Web.Components.Settings;
 
 using Xunit;
 
 namespace Pyxie.Tests.Web;
 
-/// <summary>A category is deleted by its chip's remove button at once, and added with the form after the chips; the service's refusals show above the chips.</summary>
+/// <summary>A category is deleted by its chip's remove button at once, and added with the form after the chips, in the color chosen there; the service's refusals show above the chips.</summary>
 public sealed class CategoryListChangeTests
 {
 	[Fact]
@@ -74,7 +75,7 @@ public sealed class CategoryListChangeTests
 		await host.SubmitAsync(await AddFormAsync(host));
 
 		Category added = Assert.Single(await ReadAsync(database), category => category.Name == "Docs");
-		Assert.Equal(CategoryColor.Neutral, added.Color);
+		Assert.Equal(CategoryColors.Neutral, added.Color);
 		await host.FindButtonAsync("Edit Docs");
 		Assert.Equal(string.Empty, (await NewFieldAsync(host)).Attribute("value") ?? string.Empty);
 		Assert.Empty(await host.AlertsAsync());
@@ -108,6 +109,96 @@ public sealed class CategoryListChangeTests
 
 		Assert.Equal(["Category name is required."], await host.AlertsAsync());
 		Assert.Equal(3, (await ReadAsync(database)).Count);
+	}
+
+	[Fact]
+	public async Task Add_OffersTheColorChoiceForTheNewCategoryWithNeutralChosen()
+	{
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<CategoryList>();
+
+		Assert.Single(await host.FindElementsAsync("div", div => div.Attribute("role") == "group" && div.Attribute("aria-label") == "New category color"));
+		Assert.Equal(["true", null, null], (await AddFormSwatchesAsync(host)).Select(radio => radio.Attribute("checked")));
+		Assert.Equal("#edede9", (await WellAsync(host)).Attribute("value"));
+	}
+
+	[Fact]
+	public async Task Add_InAQuickColor_CreatesTheCategoryInIt()
+	{
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<CategoryList>();
+		await host.TypeAsync(await NewFieldAsync(host), "Docs");
+		await host.SetCheckedAsync(await host.FindRadioAsync("Pink"), true);
+
+		await host.SubmitAsync(await AddFormAsync(host));
+
+		Assert.Equal(CategoryColors.Pink, Assert.Single(await ReadAsync(database), category => category.Name == "Docs").Color);
+		Assert.Equal(2, (await host.FindElementsAsync("span", span => span.Attribute("class") == "category-chip pyx-chip pyx-chip-pink")).Count);
+	}
+
+	[Fact]
+	public async Task Add_InAColorPicked_CreatesTheCategoryInItAndShowsTheChipInIt()
+	{
+		HexColor color = HexColor.Parse("#1F3A93");
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<CategoryList>();
+		await host.TypeAsync(await NewFieldAsync(host), "Docs");
+		await host.TypeAsync(await WellAsync(host), "#1f3a93");
+
+		await host.SubmitAsync(await AddFormAsync(host));
+
+		Assert.Equal(color, Assert.Single(await ReadAsync(database), category => category.Name == "Docs").Color);
+		GateRenderedElement chip = Assert.Single(await host.FindElementsAsync("span", span => span.Attribute("class") == "category-chip pyx-chip pyx-chip-custom"));
+		Assert.Equal($"--chip-tint: #1F3A93; --chip-ink: {ChipInk.For(color)}", chip.Attribute("style"));
+	}
+
+	[Fact]
+	public async Task Add_ThatWentThrough_PutsTheColorChoiceBackToNeutral()
+	{
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<CategoryList>();
+		await host.TypeAsync(await NewFieldAsync(host), "Docs");
+		await host.TypeAsync(await WellAsync(host), "#1f3a93");
+
+		await host.SubmitAsync(await AddFormAsync(host));
+
+		Assert.Equal("true", (await host.FindRadioAsync("Neutral")).Attribute("checked"));
+		Assert.Equal("#edede9", (await WellAsync(host)).Attribute("value"));
+	}
+
+	[Fact]
+	public async Task Add_RefusedForItsName_KeepsTheColorChosen()
+	{
+		await using TestDatabase database = new();
+		await using ServiceProvider services = GateRenderHost.CreateServices(database);
+		await using GateInteractiveHost host = new(services);
+		await host.StartAsync<CategoryList>();
+		await host.TypeAsync(await NewFieldAsync(host), "bug");
+		await host.TypeAsync(await WellAsync(host), "#1f3a93");
+
+		await host.SubmitAsync(await AddFormAsync(host));
+
+		Assert.Equal(["A category named 'bug' already exists."], await host.AlertsAsync());
+		Assert.Equal("#1f3a93", (await WellAsync(host)).Attribute("value"));
+		Assert.All(await AddFormSwatchesAsync(host), radio => Assert.Null(radio.Attribute("checked")));
+	}
+
+	private static Task<IReadOnlyList<GateRenderedElement>> AddFormSwatchesAsync(GateInteractiveHost host)
+	{
+		return host.FindElementsAsync("input", input => input.Attribute("type") == "radio" && input.Attribute("name") == "New category color");
+	}
+
+	private static async Task<GateRenderedElement> WellAsync(GateInteractiveHost host)
+	{
+		return Assert.Single(await host.FindElementsAsync("input", input => input.Attribute("type") == "color" && input.Attribute("aria-label") == "Custom color"));
 	}
 
 	private static async Task<GateRenderedElement> NewFieldAsync(GateInteractiveHost host)

@@ -36,12 +36,15 @@ internal static class InputRules
 		return value.Length > maxLength ? $"{label} must be {maxLength} characters or fewer." : null;
 	}
 
+	/// <summary>Gets how names are compared where they must be unique: ignoring case, ordinally.</summary>
+	public static StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
+
 	/// <summary>Determines whether any existing name equals a candidate, ignoring case.</summary>
 	/// <param name="existingNames">The names already in use.</param>
 	/// <param name="name">The candidate name.</param>
 	/// <returns><see langword="true"/> when the candidate duplicates an existing name.</returns>
 	public static bool ContainsName(IEnumerable<string> existingNames, string name)
 	{
-		return existingNames.Any(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase));
+		return existingNames.Contains(name, NameComparer);
 	}
 }

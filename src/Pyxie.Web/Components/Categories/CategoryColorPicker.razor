@@ -1,0 +1,9 @@
+<div class="category-colors" role="group" aria-label="@GroupLabel">
+	@foreach (CategoryPreset preset in CategoryPreset.All)
+	{
+		<input type="radio" name="@GroupLabel" class="@($"category-swatch category-swatch-{preset.Name.ToLowerInvariant()}")" checked="@(Value == preset.Color)" disabled="@Disabled" aria-label="@OptionLabel(preset.Name)" @onchange="@(() => ChooseAsync(preset.Color))" />
+	}
+	<span class="@CustomClass" style="@_custom?.Style">
+		<input type="color" class="category-swatch-input" disabled="@Disabled" aria-label="@OptionLabel("Custom color")" @bind:get="WellValue" @bind:set="PickAsync" @bind:event="oninput" />
+	</span>
+</div>

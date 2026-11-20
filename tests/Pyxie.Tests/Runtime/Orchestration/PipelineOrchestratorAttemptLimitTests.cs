@@ -109,7 +109,7 @@ public sealed class PipelineOrchestratorAttemptLimitTests
 		await harness.AddGateAsync(new GateInput(
 			"Flaky check",
 			FakeHarnessAgent.Command,
-			FakeHarnessAgent.ScriptArguments(HarnessKind.Other, gateScript),
+			FakeHarnessAgent.ScriptArguments(gateScript),
 			TimeoutMinutes: 5,
 			IsEnabled: true));
 		Agent worker = await harness.AddWorkerAsync("Worker", "--write", "feature.txt=hello");

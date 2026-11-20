@@ -88,7 +88,7 @@ public sealed class DockerImagesBuildCacheTests
 		BuildCacheEntry[] entries =
 		[
 			Entry("other-from", null, "pulled from docker.io/library/node"),
-			Entry("other-npm", "other-from", "mount / from exec /bin/sh -c npm install -g @anthropic-ai/claude-code @openai/codex opencode-ai"),
+			Entry("other-npm", "other-from", "mount / from exec /bin/sh -c npm install -g @anthropic-ai/claude-code @openai/codex @deepseek-ai/dsh@0.2.2-rc.5"),
 			Entry("other-workdir", "other-npm", "[3/3] WORKDIR /work"),
 			Entry("other-context", null, "local source for context"),
 		];

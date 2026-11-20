@@ -25,7 +25,7 @@ public static class TestRound
 			Sequence = sequence,
 			Kind = kind,
 			Attempt = attempt,
-			Agent = agentName is null ? null : new AgentSnapshot(agentName, HarnessKind.ClaudeCode, "claude", string.Empty),
+			Agent = agentName is null ? null : new AgentSnapshot(agentName, HarnessKind.ClaudeCode, "claude", string.Empty, AgentAuthentication.Account),
 			StartedUtc = startedUtc,
 			EndedUtc = endedUtc,
 			Outcome = outcome,

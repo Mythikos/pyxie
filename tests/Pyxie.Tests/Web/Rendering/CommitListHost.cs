@@ -63,6 +63,7 @@ internal sealed class CommitListHost : IAsyncDisposable
 		RenderedComponent<CommitList> list = await harness.RenderAsync<CommitList>(new Dictionary<string, object>
 		{
 			[nameof(CommitList.Overview)] = overview,
+			[nameof(CommitList.ProjectId)] = rig.OpenProject.Current?.Id ?? 0,
 			[nameof(CommitList.Location)] = new RepositoryLocation(RepositoryTab.History, branch, string.Empty, string.Empty, page),
 		});
 

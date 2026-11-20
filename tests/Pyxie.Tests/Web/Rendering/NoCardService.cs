@@ -12,6 +12,9 @@ internal sealed class NoCardService : ICardService
 	private const string NoCards = "The project has no cards.";
 
 	/// <inheritdoc/>
+	public Task<IReadOnlyList<BoardCardSummary>> GetBoardPageAsync(int afterId, int count, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<BoardCardSummary>>([]);
+
+	/// <inheritdoc/>
 	public Task<IReadOnlyList<BoardCard>> GetBoardAsync(CancellationToken cancellationToken)
 	{
 		return Task.FromResult<IReadOnlyList<BoardCard>>([]);
@@ -42,7 +45,7 @@ internal sealed class NoCardService : ICardService
 	}
 
 	/// <inheritdoc/>
-	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken, int? expectedVersion = null)
 	{
 		return Task.FromResult(ServiceResult.Failure(NoCards));
 	}
@@ -58,4 +61,10 @@ internal sealed class NoCardService : ICardService
 	{
 		return Task.FromResult(ServiceResult.Failure(NoCards));
 	}
+
+	public Task<int> CloseCompletedAsync(CancellationToken cancellationToken) => Task.FromResult(0);
+
+	public Task<ServiceResult<IReadOnlyList<CardRound>>> GetHistoryPageAsync(int id, int firstSequence, int count, CancellationToken cancellationToken) => GetHistoryAsync(id, cancellationToken);
+
+	public Task<IReadOnlyList<CompletedCard>> GetCompletedAsync(DateTime fromUtc, DateTime untilUtc, int offset, int count, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<CompletedCard>>([]);
 }

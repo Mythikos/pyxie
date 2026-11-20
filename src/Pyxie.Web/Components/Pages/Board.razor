@@ -7,6 +7,10 @@
 <PageTitle>Board</PageTitle>
 
 <div class="board-page">
+	@if (_linkError is not null)
+	{
+		<Alert Color="Color.Warning" Visible="true">@_linkError</Alert>
+	}
 	@if (_loading)
 	{
 		<div class="board-status">Loading</div>
@@ -17,15 +21,18 @@
 	}
 	else
 	{
-		<div class="board-scroll">
+		int shownProject = _project.Id;
+		<div class="board-scroll" @key="_project.Id">
 			<div class="board" style="--lane-count: @CardLifecycleRules.BoardLanes.Count">
 				@foreach (CardLane lane in CardLifecycleRules.BoardLanes)
 				{
-					<BoardLane @ref="_lanes[lane]" Lane="@lane" Cards="@CardsIn(lane)" CardClicked="@OpenEditor" AddClicked="@OpenNewCard" RetryClicked="@RetryAsync" CloseClicked="@CloseAsync" Refusals="@_refusals" />
+					<BoardLane @ref="_lanes[lane]" Lane="@lane" Cards="@CardsIn(lane)" CardClicked="@(card => OpenEditor(card, shownProject))" AddClicked="@(() => OpenEditor(null, shownProject))" RetryClicked="@(card => RetryAsync(card, shownProject))" CloseClicked="@(card => CloseAsync(card, shownProject))" Refusals="@_refusals" />
 				}
 			</div>
 		</div>
 	}
 </div>
 
-<CardEditor @key="EditorKey" @ref="_editor" Categories="@_categories" Agents="@_agents" Changed="@AnnounceChange" />
+<CascadingValue Name="DisplayedProjectId" Value="@_project?.Id" @key="EditorKey" IsFixed="true">
+	<CardEditor @ref="_editor" Project="_project" Categories="@_categories" Agents="@_agents" Changed="@AnnounceChange" />
+</CascadingValue>

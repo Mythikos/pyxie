@@ -42,7 +42,7 @@ public sealed class RepositoryHeaderRenderTests
 
 		Assert.Contains("example.com/owner/app.git", html, StringComparison.Ordinal);
 		Assert.DoesNotContain("secret-token", html, StringComparison.Ordinal);
-		Assert.Matches(new Regex("<dd class=\"repo-origin\"[^>]*>https://example.com/owner/app.git</dd>", RegexOptions.None, TimeSpan.FromSeconds(5)), html);
+		Assert.Matches(new Regex("<dd class=\"repo-origin\"[^>]*>\\s*<code[^>]*>https://example.com/owner/app.git</code>", RegexOptions.None, TimeSpan.FromSeconds(5)), html);
 	}
 
 	[Fact]
@@ -66,7 +66,7 @@ public sealed class RepositoryHeaderRenderTests
 		string html = await host.Header.HtmlAsync();
 
 		Assert.DoesNotContain(">Close<", html, StringComparison.Ordinal);
-		Assert.Single(Regex.Matches(html, "<button\\b", RegexOptions.None, TimeSpan.FromSeconds(5)));
+		Assert.Equal(2, Regex.Matches(html, "<button\\b", RegexOptions.None, TimeSpan.FromSeconds(5)).Count);
 		Assert.Matches(new Regex(">\\s*Copy\\s*</button>", RegexOptions.None, TimeSpan.FromSeconds(5)), WebUtility.HtmlDecode(html));
 	}
 }

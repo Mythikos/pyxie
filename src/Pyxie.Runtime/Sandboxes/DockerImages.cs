@@ -247,6 +247,23 @@ internal sealed class DockerImages
 		await RemoveImagesAsync(images.Where(image => image != keep), cancellationToken);
 	}
 
+	/// <summary>Removes every image of a project (see <see cref="ISandboxes.RemoveProjectAsync"/>). The base image is shared by every project and every Pyxie on the machine, so it is left alone here. It does not wait for a build, because the caller makes sure none of the project's runs.</summary>
+	/// <param name="projectKey">The project's key.</param>
+	/// <param name="cancellationToken">A token to cancel the operation.</param>
+	/// <returns>A task that completes when the images that could be removed are gone.</returns>
+	internal async Task RemoveProjectImagesAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		// An image can carry several of the project's tags, when two Dockerfiles built the same image; the engine refuses to remove such an image by its ID without force, so its tags are removed one by one, and the last one takes the image with it.
+		string tags = await _docker.RunCheckedAsync(["image", "ls", "--filter", $"reference={SandboxNames.ProjectImage(projectKey)}:*", "--format", "{{.Repository}}:{{.Tag}}"], cancellationToken);
+		foreach (string tag in Lines(tags))
+		{
+			await _docker.RunAsync(["image", "rm", tag], cancellationToken);
+		}
+
+		// What a rebuild left without a tag is found by its label.
+		await RemoveImagesAsync(await ListImagesAsync([$"label={SandboxNames.ProjectLabel}={projectKey}"], cancellationToken), cancellationToken);
+	}
+
 	private async Task RemoveUnusedBaseImagesAsync(CancellationToken cancellationToken)
 	{
 		IReadOnlySet<string> bases = await ListImagesAsync([$"label={SandboxNames.ImageLabel}={SandboxNames.BaseImageKind}", $"reference={SandboxNames.BaseImage}:*"], cancellationToken);

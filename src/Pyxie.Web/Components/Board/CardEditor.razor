@@ -1,8 +1,9 @@
+@inherits Pyxie.Web.Components.Projects.ProjectEditorComponent
 @using Pyxie.Data.Entities
 @using Pyxie.Data.Limits
 @using Pyxie.Web.Components.Board.Models
 
-<Modal @bind-Visible="@_visible" Centered Scrollable Size="@(_rounds.Count > 0 ? ModalSize.Large : ModalSize.Default)">
+<Modal Visible="@_visible" VisibleChanged="@OnModalVisibleChanged" Closing="OnModalClosing" Centered Scrollable Size="@(_rounds.Count > 0 || _media?.HasFiles == true ? ModalSize.Large : ModalSize.Default)">
 	<ModalContent>
 		<ModalHeader>
 			<ModalTitle>
@@ -109,6 +110,10 @@
 					<div class="field-error">@DescriptionError</div>
 				}
 			</Field>
+			@if (_visible && Project is not null)
+			{
+				<CardMedia @key="_opening" @ref="_media" Project="Project" Card="_card" ReadOnly="ReadOnly" Busy="_busy" Rounds="_rounds" Changed="MediaChanged" />
+			}
 			@if (_card is not null && _rounds.Count > 0)
 			{
 				<CardHistory Summary="@_summary" Rounds="@_rounds" />
@@ -117,9 +122,21 @@
 			{
 				<div class="field-error">@_error</div>
 			}
+			@if (_needsReload)
+			{
+				<div role="status">This card changed. Reloading discards your draft.</div>
+			}
 		</ModalBody>
 		<ModalFooter>
-			@if (_confirming)
+			@if (_needsReload)
+			{
+				int opening = _opening;
+				<Button Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@HideAsync">Cancel</Button>
+				<span @onclick="@(() => ReloadDraftAsync(opening))">
+					<Button Width="@_actionWidth" Color="Color.Primary" Disabled="@_busy">Reload card</Button>
+				</span>
+			}
+			else if (_confirming)
 			{
 				<span class="confirm-prompt">@(ReadOnly ? "Remove this card from the board?" : "Delete this card?")</span>
 				<Button @ref="@_confirmBack" Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@CancelConfirmation">Back</Button>
@@ -149,9 +166,9 @@
 				<Button Width="@_actionWidth" Color="Color.Default" Disabled="@_busy" Clicked="@HideAsync">Cancel</Button>
 				@if (CanRetry)
 				{
-					<Button Width="@_actionWidth" Color="Color.Primary" Outline Disabled="@_busy" Clicked="@RetryAsync">Retry</Button>
+					<Button Width="@_actionWidth" Color="Color.Primary" Outline Disabled="@(_busy || !MediaReady)" Clicked="@RetryAsync">Retry</Button>
 				}
-				<Button Width="@_actionWidth" Color="Color.Primary" Disabled="@_busy" Clicked="@SaveAsync">Save</Button>
+				<Button Width="@_actionWidth" Color="Color.Primary" Disabled="@(_busy || !MediaReady)" Clicked="@SaveAsync">Save</Button>
 			}
 		</ModalFooter>
 	</ModalContent>

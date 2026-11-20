@@ -5,7 +5,7 @@ using Pyxie.Data.Services.Results;
 
 namespace Pyxie.Tests.Web.Rendering;
 
-/// <summary>An agent service that does what the real one does, but lets a test hold every write after it has started, so the page can be looked at while a write runs.</summary>
+/// <summary>An agent service that does what the real one does, but counts its creates and lets a test hold every write after it has started, so the page can be looked at while a write runs.</summary>
 internal sealed class HoldingAgentService : IAgentService
 {
 	private readonly IAgentService _inner;
@@ -24,6 +24,9 @@ internal sealed class HoldingAgentService : IAgentService
 	/// <summary>Gets a task that completes once the first write has started.</summary>
 	public Task Started => _started.Task;
 
+	/// <summary>Gets the probe that counts the creates of agents.</summary>
+	public CallProbe Creates { get; } = new();
+
 	/// <inheritdoc/>
 	public Task<IReadOnlyList<Agent>> ListAsync(CancellationToken cancellationToken)
 	{
@@ -33,17 +36,21 @@ internal sealed class HoldingAgentService : IAgentService
 	/// <inheritdoc/>
 	public async Task<ServiceResult<Agent>> CreateAsync(AgentInput input, CancellationToken cancellationToken)
 	{
+		await Creates.EnterAsync(cancellationToken);
 		await WaitAsync(cancellationToken);
 
 		return await _inner.CreateAsync(input, cancellationToken);
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken)
+	public Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, input, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult<Agent>> UpdateIfCurrentAsync(int id, AgentInput input, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		await WaitAsync(cancellationToken);
 
-		return await _inner.UpdateAsync(id, input, cancellationToken);
+		return await _inner.UpdateIfCurrentAsync(id, input, expectedRevision, cancellationToken);
 	}
 
 	/// <inheritdoc/>
@@ -55,11 +62,14 @@ internal sealed class HoldingAgentService : IAgentService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken) => DeleteIfCurrentAsync(id, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		await WaitAsync(cancellationToken);
 
-		return await _inner.DeleteAsync(id, cancellationToken);
+		return await _inner.DeleteIfCurrentAsync(id, expectedRevision, cancellationToken);
 	}
 
 	private async Task WaitAsync(CancellationToken cancellationToken)

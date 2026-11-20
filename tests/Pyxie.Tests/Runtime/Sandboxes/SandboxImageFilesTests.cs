@@ -44,11 +44,16 @@ public sealed class SandboxImageFilesTests
 	}
 
 	[Fact]
-	public void Files_EachScript_StartsWithAShellLine()
+	public void Files_EachScript_NamesItsInstalledInterpreter()
 	{
 		foreach ((string name, string text) in SandboxImageFiles.Files.Where(file => file.Key != Dockerfile))
 		{
-			Assert.True(text.StartsWith("#!/bin/sh\n", StringComparison.Ordinal), $"{name} does not start with #!/bin/sh, so the container cannot run it.");
+			string interpreter = name == "pyxie-attach" ? "#!/usr/bin/env python3\n" : "#!/bin/sh\n";
+			Assert.StartsWith(interpreter, text, StringComparison.Ordinal);
+			if (name == "pyxie-attach")
+			{
+				Assert.Contains("python3", SandboxImageFiles.Files[Dockerfile], StringComparison.Ordinal);
+			}
 		}
 	}
 

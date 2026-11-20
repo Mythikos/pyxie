@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 
 using Pyxie.Data.Entities;
@@ -16,6 +17,7 @@ namespace Pyxie.Tests.Web.Rendering;
 /// <summary>Renders the pages that belong to a project (Settings) over the real gate, agent, and category services on a test database, with an open project the test opens and closes and the announcements of project changes the pages follow. The test database stands in for whichever project is open.</summary>
 internal sealed class ProjectPageHost : IAsyncDisposable
 {
+	private readonly string _workspace = TempFolder.Create("pyx-mcp-settings");
 	private readonly ComponentHarness _harness;
 	private readonly OpenProject _openProject = new();
 	private readonly PipelineActivity _activity = new();
@@ -32,12 +34,14 @@ internal sealed class ProjectPageHost : IAsyncDisposable
 				services.AddSingleton(jsRuntime);
 			}
 
+			services.AddSingleton(new McpAccessSettings(new WorkspaceLayout(Options.Create(new WorkspaceOptions { Root = _workspace }))));
 			services.AddSingleton(_openProject);
 			services.AddSingleton(_activity);
 			services.AddSingleton<IGateService>(new GateService(database.ContextFactory));
 			services.AddSingleton<IAgentService>(new AgentService(database.ContextFactory, database.Clock));
 			services.AddSingleton<ICategoryService>(new CategoryService(database.ContextFactory));
 			services.AddSingleton<ISandboxSettingsService>(new SandboxSettingsService(database.ContextFactory, database.Clock));
+			services.AddSingleton<ISettingsTransferService>(new SettingsTransferService(database.ContextSource, _openProject, database.Clock));
 			services.AddSingleton<ISandboxes, LocalSandboxes>(_ => new LocalSandboxes(new ProcessRunner(TimeProvider.System), Path.Combine(Path.GetTempPath(), $"pyxie-page-sandboxes-{Guid.NewGuid():N}")));
 			services.AddSingleton(provider => new SandboxImageBuilds(provider.GetRequiredService<ISandboxes>(), database.Clock));
 			services.AddSingleton<ISandboxSignIns, StandInSignIns>();
@@ -77,8 +81,9 @@ internal sealed class ProjectPageHost : IAsyncDisposable
 	}
 
 	/// <inheritdoc/>
-	public ValueTask DisposeAsync()
+	public async ValueTask DisposeAsync()
 	{
-		return _harness.DisposeAsync();
+		await _harness.DisposeAsync();
+		await TempFolder.DeleteAsync(_workspace);
 	}
 }

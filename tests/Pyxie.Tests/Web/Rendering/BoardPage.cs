@@ -54,6 +54,7 @@ internal sealed class BoardPage : IAsyncDisposable
 		ComponentHarness harness = new(services =>
 		{
 			services.AddSingleton(database.ContextFactory);
+			services.AddSingleton<Pyxie.Data.Persistence.IProjectDbContextSource>(database.ContextSource);
 			services.AddSingleton(time ?? database.Clock);
 			services.AddSingleton(project);
 			services.AddPyxieData();
@@ -90,6 +91,6 @@ internal sealed class BoardPage : IAsyncDisposable
 	{
 		MethodInfo method = typeof(Board).GetMethod(handler, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public) ?? throw new MissingMethodException(typeof(Board).Name, handler);
 
-		return Board.RunAsync(board => ((IHandleEvent)board).HandleEventAsync(new EventCallbackWorkItem(() => method.Invoke(board, [card]) as Task ?? Task.CompletedTask), null));
+		return Board.RunAsync(board => ((IHandleEvent)board).HandleEventAsync(new EventCallbackWorkItem(() => method.Invoke(board, [card, OpenProject.Current?.Id ?? 0]) as Task ?? Task.CompletedTask), null));
 	}
 }

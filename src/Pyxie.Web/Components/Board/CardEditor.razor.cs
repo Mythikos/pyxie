@@ -34,8 +34,15 @@ public partial class CardEditor : IDisposable
 	private bool _visible;
 	private bool _busy;
 	private bool _confirming;
+	private bool _needsReload;
 	private bool _focusConfirmBack;
 	private bool _focusConfirmOpener;
+	private CardMedia? _media;
+	private int _opening;
+
+	/// <summary>Gets or sets the project this dialog belongs to.</summary>
+	[Parameter]
+	public Project? Project { get; set; }
 
 	/// <summary>Gets or sets the categories offered by the category field.</summary>
 	[Parameter]
@@ -58,12 +65,51 @@ public partial class CardEditor : IDisposable
 	/// <returns>A task that completes when the editor has been shown.</returns>
 	public async Task OpenAsync(WorkCard? card)
 	{
-		Show(card);
+		using var lease = AcquireProject(out _error);
+		if (lease is null)
+		{
+			return;
+		}
+
+		int opening = ++_opening;
+		_media = null;
 		_error = null;
-		_busy = false;
-		await LoadHistoryAsync();
-		_visible = true;
-		StateHasChanged();
+		_busy = true;
+		try
+		{
+			if (card is not null)
+			{
+				ServiceResult<WorkCard> current = await CardService.GetAsync(card.Id, _disposeCts.Token);
+				if (opening != _opening || _disposeCts.IsCancellationRequested)
+				{
+					return;
+				}
+
+				_error = current.Error;
+				card = current.Value ?? card;
+			}
+
+			Show(card);
+			opening = _opening;
+			if (_error is not null)
+			{
+				_mode = CardEditorMode.Gone;
+				_rounds = [];
+				_summary = CardHistorySummary.Empty;
+				return;
+			}
+
+			await LoadHistoryAsync();
+		}
+		finally
+		{
+			if (opening == _opening && !_disposeCts.IsCancellationRequested)
+			{
+				_busy = false;
+				_visible = true;
+				StateHasChanged();
+			}
+		}
 	}
 
 	/// <inheritdoc/>
@@ -96,7 +142,7 @@ public partial class CardEditor : IDisposable
 
 	private bool CanCloseCard => _mode == CardEditorMode.Review && _card is not null && CardLifecycleRules.CanClose(_card.Lane);
 
-	private bool CanRetry => _mode == CardEditorMode.Edit && _card is not null && CardLifecycleRules.CanRetry(_card.Lane, _card.State);
+	private bool CanRetry => !_needsReload && _mode == CardEditorMode.Edit && _card is not null && CardLifecycleRules.CanRetry(_card.Lane, _card.State);
 
 	private string Title => _mode switch
 	{
@@ -112,14 +158,50 @@ public partial class CardEditor : IDisposable
 
 	private string AttemptsText => _card is null ? string.Empty : AttemptProgress.Text(_card.Attempt, _card.AttemptLimit);
 
+	// Saving, retrying, deleting, and closing out happen only while the dialog is open and nothing is running, whatever the browser showed. A second click on Save that the person made while the app was busy saving is handled once the save has ended, when the closed dialog still has its buttons and they are enabled again: the dialog must not do its work twice.
+	private bool AcceptsAction => _visible && !_busy && !_needsReload;
+	private bool MediaReady => Project is null || _media?.CanSave == true;
+	private void MediaChanged() => StateHasChanged();
+	private CardInput EditedInput() => (_media?.Apply(_form.ToInput()) ?? _form.ToInput()) with { ExpectedVersion = _card?.Version };
+
+	/// <summary>Follows published results while a card is open without replacing unsaved fields.</summary>
+	/// <returns>A task completing after history and media refresh.</returns>
+	public async Task RefreshAsync()
+	{
+		if (!_visible || _busy || _card is null)
+		{
+			return;
+		}
+
+		using var lease = AcquireProject(out _);
+		if (lease is null)
+		{
+			return;
+		}
+
+		await FollowCardAsync();
+		if (_media is not null)
+		{
+			await _media.RefreshAsync();
+		}
+		StateHasChanged();
+	}
+
 	// Shows a card as the database holds it: a new card, one in the Queue that people can edit, or any other card for review only. The fields start from its stored values.
 	private void Show(WorkCard? card)
 	{
+		bool wasReadOnly = ReadOnly;
 		_card = card;
 		_mode = card is null ? CardEditorMode.Create : CardLifecycleRules.CanEdit(card.Lane) ? CardEditorMode.Edit : CardEditorMode.Review;
 		_form = card is null ? CardFormModel.CreateNew() : CardFormModel.FromCard(card);
 		_attempted = false;
 		_confirming = false;
+		_needsReload = false;
+		if (_visible && wasReadOnly != ReadOnly)
+		{
+			_opening++;
+			_media = null;
+		}
 	}
 
 	// The history is shown beside the fields of any stored card; a new card has none, and a failed read simply shows none. The summary follows it, and it follows the card's state, so it is read again whenever the card was.
@@ -128,21 +210,27 @@ public partial class CardEditor : IDisposable
 		_rounds = [];
 		_summary = CardHistorySummary.Empty;
 
-		if (_card is null)
+		if (_card is not WorkCard card)
 		{
 			return;
 		}
 
+		int opening = _opening;
 		try
 		{
-			ServiceResult<IReadOnlyList<CardRound>> history = await CardService.GetHistoryAsync(_card.Id, _disposeCts.Token);
+			ServiceResult<IReadOnlyList<CardRound>> history = await CardService.GetHistoryAsync(card.Id, _disposeCts.Token);
+			if (opening != _opening || !ReferenceEquals(card, _card))
+			{
+				return;
+			}
 			_rounds = history.Value ?? [];
 		}
 		catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
 		{
+			return;
 		}
 
-		_summary = CardHistorySummary.From(_card.State, _rounds.Select(RoundSummary.From));
+		_summary = CardHistorySummary.From(card.State, _rounds.Select(RoundSummary.From));
 	}
 
 	private Task HideAsync()
@@ -151,11 +239,29 @@ public partial class CardEditor : IDisposable
 		return Task.CompletedTask;
 	}
 
+	// The modal reports a close the person made, with Escape or the backdrop. It also repeats the dialog's own opening once its animation has ended, 150 ms later, when the dialog may already have done its work and closed: taken as an opening, that would make a closed dialog accept a second save. Only the dialog opens itself. A close the dialog made itself is repeated late as well, and closes the dialog again if it was opened again within those 150 ms.
+	private void OnModalVisibleChanged(bool visible)
+	{
+		if (!visible)
+		{
+			_visible = false;
+		}
+	}
+
+	private Task OnModalClosing(ModalClosingEventArgs args)
+	{
+		args.Cancel = _busy || (args.CloseReason == CloseReason.EscapeClosing && _media?.DismissPreview() == true);
+		return Task.CompletedTask;
+	}
+
 	// The one confirmed action of the open card: closing it out when it is open for review only, deleting it when it can be edited.
 	private Task BeginConfirmation()
 	{
-		_confirming = true;
-		_focusConfirmBack = true;
+		if (AcceptsAction && _card is not null && (_mode == CardEditorMode.Edit || CanCloseCard))
+		{
+			_confirming = true;
+			_focusConfirmBack = true;
+		}
 		return Task.CompletedTask;
 	}
 
@@ -179,13 +285,18 @@ public partial class CardEditor : IDisposable
 
 	private async Task SaveAsync()
 	{
+		if (!AcceptsAction || !MediaReady || ReadOnly || _confirming)
+		{
+			return;
+		}
+
 		_attempted = true;
 		if (!_form.IsValid)
 		{
 			return;
 		}
 
-		CardInput input = _form.ToInput();
+		CardInput input = EditedInput();
 
 		await RunAsync(() => SaveCardAsync(input));
 	}
@@ -193,13 +304,13 @@ public partial class CardEditor : IDisposable
 	// Retrying carries out what the dialog shows. Edits the person has not saved are saved first, so that nothing typed is lost and the card starts again at work with the changed task.
 	private async Task RetryAsync()
 	{
-		if (_card is null)
+		if (!AcceptsAction || !MediaReady || !CanRetry || _confirming || _card is null)
 		{
 			return;
 		}
 
 		int id = _card.Id;
-		bool edited = _form.DiffersFrom(_card);
+		bool edited = _form.DiffersFrom(_card) || _media?.HasChanges == true;
 
 		if (edited)
 		{
@@ -210,7 +321,7 @@ public partial class CardEditor : IDisposable
 			}
 		}
 
-		CardInput input = _form.ToInput();
+		CardInput input = EditedInput();
 
 		await RunAsync(async () =>
 		{
@@ -241,19 +352,20 @@ public partial class CardEditor : IDisposable
 
 	private async Task DeleteAsync()
 	{
-		if (_card is null)
+		if (!AcceptsAction || !_confirming || _mode != CardEditorMode.Edit || _card is null)
 		{
 			return;
 		}
 
 		int id = _card.Id;
 
-		await RunAsync(() => CardService.DeleteAsync(id, _disposeCts.Token));
+		int version = _card.Version;
+		await RunAsync(() => CardService.DeleteAsync(id, _disposeCts.Token, version));
 	}
 
 	private async Task CloseCardAsync()
 	{
-		if (_card is null)
+		if (!AcceptsAction || !_confirming || !CanCloseCard || _card is null)
 		{
 			return;
 		}
@@ -263,7 +375,7 @@ public partial class CardEditor : IDisposable
 		await RunAsync(() => CardService.CloseAsync(id, _disposeCts.Token));
 	}
 
-	// A refusal can mean the card changed while the dialog was open. Read it again so the dialog follows the database: a card an agent has picked up, or one that was closed, turns read-only with its real lane, and a card that no longer exists can only be dismissed. A card still in the Queue keeps the person's unsaved text, because the refusal was about the text, but takes on the stored card's state, so that a card someone else retried no longer offers a retry.
+	// A queued draft and its staged media belong to the version the person opened. Only loading the current fields and starting a fresh media session can advance that version.
 	private async Task FollowCardAsync()
 	{
 		if (_card is null)
@@ -271,26 +383,46 @@ public partial class CardEditor : IDisposable
 			return;
 		}
 
+		int opening = _opening;
 		ServiceResult<WorkCard> current = await CardService.GetAsync(_card.Id, _disposeCts.Token);
+		if (!_visible || opening != _opening)
+		{
+			return;
+		}
 
 		if (current.Value is not WorkCard stored)
 		{
 			_mode = CardEditorMode.Gone;
+			_confirming = false;
+			_needsReload = false;
+			_error = current.Error;
 		}
-		else if (!CardLifecycleRules.CanEdit(stored.Lane))
+		else if (stored.Lane != _card.Lane || (ReadOnly && stored.Version != _card.Version))
 		{
 			Show(stored);
 		}
-		else
+		else if (!ReadOnly && stored.Version != _card.Version)
 		{
-			_card = stored;
+			_needsReload = true;
+			_confirming = false;
 		}
 
 		await LoadHistoryAsync();
 	}
 
+	private Task ReloadDraftAsync(int opening)
+	{
+		return _needsReload && _visible && !_busy && opening == _opening && _card is not null ? OpenAsync(_card) : Task.CompletedTask;
+	}
+
 	private async Task RunAsync(Func<Task<ServiceResult>> operation)
 	{
+		using var lease = AcquireProject(out _error);
+		if (lease is null)
+		{
+			return;
+		}
+
 		_busy = true;
 		_error = null;
 

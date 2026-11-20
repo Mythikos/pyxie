@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
+using Pyxie.Data.Media;
 using Pyxie.Data.Persistence;
 using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Internal;
@@ -56,7 +57,35 @@ public sealed class CardService : ICardService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<IReadOnlyList<CardRound>>> GetHistoryAsync(int id, CancellationToken cancellationToken)
+	public async Task<IReadOnlyList<BoardCardSummary>> GetBoardPageAsync(int afterId, int count, CancellationToken cancellationToken)
+	{
+		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		CardLane[] boardLanes = [.. CardLifecycleRules.BoardLanes];
+		List<WorkCard> cards = await QueryWithReferences(context)
+			.Where(card => card.Id > afterId && boardLanes.Contains(card.Lane))
+			.OrderBy(card => card.Id)
+			.Take(count)
+			.ToListAsync(cancellationToken);
+		int[] ids = [.. cards.Select(card => card.Id)];
+		var counts = await context.Rounds.Where(round => ids.Contains(round.CardId))
+			.GroupBy(round => new { round.CardId, round.Kind, round.Outcome })
+			.Select(group => new { group.Key.CardId, group.Key.Kind, group.Key.Outcome, Count = group.Count() })
+			.ToListAsync(cancellationToken);
+		var countsByCard = counts.ToLookup(row => row.CardId, row => (row.Kind, row.Outcome, row.Count));
+
+		int[] stopped = [.. cards.Where(card => card.State == CardState.Error).Select(card => card.Id)];
+		Dictionary<int, RoundSummary> lastRounds = await context.Rounds.AsNoTracking()
+			.Where(round => stopped.Contains(round.CardId) && !context.Rounds.Any(later => later.CardId == round.CardId && later.Sequence > round.Sequence))
+			.Select(round => new RoundSummary(round.CardId, round.Sequence, round.Kind, round.Attempt, round.Outcome, round.Note, null, round.StartedUtc, round.EndedUtc))
+			.ToDictionaryAsync(round => round.CardId, cancellationToken);
+		return [.. cards.Select(card => new BoardCardSummary(card, CardHistorySummary.FromCounts(card.State, countsByCard[card.Id], lastRounds.GetValueOrDefault(card.Id))))];
+	}
+
+	/// <inheritdoc/>
+	public Task<ServiceResult<IReadOnlyList<CardRound>>> GetHistoryAsync(int id, CancellationToken cancellationToken) => GetHistoryPageAsync(id, 1, int.MaxValue, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult<IReadOnlyList<CardRound>>> GetHistoryPageAsync(int id, int firstSequence, int count, CancellationToken cancellationToken)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -67,8 +96,9 @@ public sealed class CardService : ICardService
 
 		List<CardRound> rounds = await context.Rounds
 			.AsNoTracking()
-			.Where(round => round.CardId == id)
+			.Where(round => round.CardId == id && round.Sequence >= firstSequence)
 			.OrderBy(round => round.Sequence)
+			.Take(count)
 			.ToListAsync(cancellationToken);
 
 		return ServiceResult<IReadOnlyList<CardRound>>.Success(rounds);
@@ -138,6 +168,11 @@ public sealed class CardService : ICardService
 			return ServiceResult<WorkCard>.Failure(changedReference);
 		}
 
+		if (await MediaStore.ApplyEditAsync(context, card.Id, null, null, input.Media, now, cancellationToken) is string mediaError)
+		{
+			return ServiceResult<WorkCard>.Failure(mediaError);
+		}
+
 		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult<WorkCard>.Success(await LoadAsync(context, card.Id, cancellationToken));
@@ -148,7 +183,9 @@ public sealed class CardService : ICardService
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-		CardLane? lane = await FindLaneAsync(context, id, cancellationToken);
+		var original = await context.Cards.AsNoTracking().Where(card => card.Id == id).Select(card => new { card.Lane, card.Version }).FirstOrDefaultAsync(cancellationToken);
+		CardLane? lane = original?.Lane;
+		int version = input.ExpectedVersion ?? original?.Version ?? -1;
 		string? refusal = EditRefusal(lane, "edited");
 		if (refusal is not null)
 		{
@@ -180,7 +217,7 @@ public sealed class CardService : ICardService
 		int updated;
 		try
 		{
-			updated = await context.Cards.Where(card => card.Id == id && card.Lane == lane).ExecuteUpdateAsync(changes => changes.SetProperty(card => card.ResumeRound, card => card.Name == name && card.Description == description && card.CategoryId == categoryId && card.WorkerAgentId == workerId && card.ReviewerAgentId == reviewerId ? card.ResumeRound : null).SetProperty(card => card.Name, name).SetProperty(card => card.Description, description).SetProperty(card => card.CategoryId, categoryId).SetProperty(card => card.WorkerAgentId, workerId).SetProperty(card => card.ReviewerAgentId, reviewerId).SetProperty(card => card.AttemptLimit, input.AttemptLimit).SetProperty(card => card.Version, card => card.Version + 1).SetProperty(card => card.UpdatedUtc, now), cancellationToken);
+			updated = await context.Cards.Where(card => card.Id == id && card.Lane == lane && card.Version == version).ExecuteUpdateAsync(changes => changes.SetProperty(card => card.ResumeRound, card => card.Name == name && card.Description == description && card.CategoryId == categoryId && card.WorkerAgentId == workerId && card.ReviewerAgentId == reviewerId ? card.ResumeRound : null).SetProperty(card => card.Name, name).SetProperty(card => card.Description, description).SetProperty(card => card.CategoryId, categoryId).SetProperty(card => card.WorkerAgentId, workerId).SetProperty(card => card.ReviewerAgentId, reviewerId).SetProperty(card => card.AttemptLimit, input.AttemptLimit).SetProperty(card => card.Version, card => card.Version + 1).SetProperty(card => card.UpdatedUtc, now), cancellationToken);
 		}
 		catch (DbException)
 		{
@@ -198,17 +235,24 @@ public sealed class CardService : ICardService
 			return ServiceResult<WorkCard>.Failure(changedReference);
 		}
 
+		if (await MediaStore.ApplyEditAsync(context, id, id, version, input.Media, now, cancellationToken) is string mediaError)
+		{
+			return ServiceResult<WorkCard>.Failure(mediaError);
+		}
+
 		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult<WorkCard>.Success(await LoadAsync(context, id, cancellationToken));
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken, int? expectedVersion = null)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-		CardLane? lane = await FindLaneAsync(context, id, cancellationToken);
+		var original = await context.Cards.AsNoTracking().Where(card => card.Id == id).Select(card => new { card.Lane, card.Version }).FirstOrDefaultAsync(cancellationToken);
+		CardLane? lane = original?.Lane;
+		int version = expectedVersion ?? original?.Version ?? -1;
 		string? refusal = EditRefusal(lane, "deleted");
 		if (refusal is not null)
 		{
@@ -217,8 +261,7 @@ public sealed class CardService : ICardService
 
 		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-		// The delete only matches while the card is still in the lane that passed the check, so a card an agent picks up in between is never removed.
-		int deleted = await context.Cards.Where(card => card.Id == id && card.Lane == lane).ExecuteDeleteAsync(cancellationToken);
+		int deleted = await context.Cards.Where(card => card.Id == id && card.Lane == lane && card.Version == version).ExecuteDeleteAsync(cancellationToken);
 		if (deleted == 0)
 		{
 			return ServiceResult.Failure(EditRefusal(await FindLaneAsync(context, id, cancellationToken), "deleted") ?? CardChanged);
@@ -286,7 +329,7 @@ public sealed class CardService : ICardService
 		DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
 		// The close only matches while the card is still in the lane that passed the check, so a card an agent moves in between is never closed.
-		int closed = await context.Cards.Where(card => card.Id == id && card.Lane == lane).ExecuteUpdateAsync(changes => changes.SetProperty(card => card.Lane, CardLane.Closed).SetProperty(card => card.ClosedUtc, now).SetProperty(card => card.Version, card => card.Version + 1).SetProperty(card => card.UpdatedUtc, now), cancellationToken);
+		int closed = await CloseCompletedAsync(context.Cards.Where(card => card.Id == id), now, cancellationToken);
 
 		if (closed == 0)
 		{
@@ -297,6 +340,29 @@ public sealed class CardService : ICardService
 		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult.Success();
+	}
+
+	/// <inheritdoc/>
+	public async Task<int> CloseCompletedAsync(CancellationToken cancellationToken)
+	{
+		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		return await CloseCompletedAsync(context.Cards, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IReadOnlyList<CompletedCard>> GetCompletedAsync(DateTime fromUtc, DateTime untilUtc, int offset, int count, CancellationToken cancellationToken)
+	{
+		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		return await (from round in context.Rounds
+					  join card in context.Cards on round.CardId equals card.Id
+					  where round.Kind == RoundKind.Merge && round.Outcome == RoundOutcome.Merged && round.EndedUtc >= fromUtc && round.EndedUtc < untilUtc
+					  orderby round.EndedUtc descending, card.Id
+					  select new CompletedCard(card.Id, card.Name, card.Lane, round.EndedUtc.GetValueOrDefault())).Skip(offset).Take(count).ToListAsync(cancellationToken);
+	}
+
+	private static Task<int> CloseCompletedAsync(IQueryable<WorkCard> selection, DateTime now, CancellationToken cancellationToken)
+	{
+		return selection.Where(card => card.Lane == CardLane.Complete).ExecuteUpdateAsync(changes => changes.SetProperty(card => card.Lane, CardLane.Closed).SetProperty(card => card.ClosedUtc, now).SetProperty(card => card.Version, card => card.Version + 1).SetProperty(card => card.UpdatedUtc, now), cancellationToken);
 	}
 
 	private static string? ValidateFields(CardInput input)

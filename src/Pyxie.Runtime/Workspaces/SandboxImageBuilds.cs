@@ -16,6 +16,7 @@ public sealed class SandboxImageBuilds : IDisposable
 	private readonly PipelineSignal _ended = new();
 	private readonly Lock _gate = new();
 	private readonly Dictionary<string, SandboxImageBuild> _finished = new(StringComparer.Ordinal);
+	private readonly Dictionary<string, SandboxImageBuild> _lastPersonBuild = new(StringComparer.Ordinal);
 	private SandboxImageBuild? _building;
 	private SandboxImageBuild? _personBuild;
 	private CancellationTokenSource? _personCancel;
@@ -47,7 +48,7 @@ public sealed class SandboxImageBuilds : IDisposable
 		}
 	}
 
-	/// <summary>Gets a person's build from the moment they ask for it until it ends, which <see cref="Cancel"/> stops; <see langword="null"/> when there is none. It can wait while the pipeline's build runs, and <see cref="Building"/> shows that one meanwhile.</summary>
+	/// <summary>Gets a person's build from the moment they ask for it until it ends, which <see cref="Cancel()"/> stops; <see langword="null"/> when there is none. It can wait while the pipeline's build runs, and <see cref="Building"/> shows that one meanwhile.</summary>
 	public SandboxImageBuild? PersonBuild
 	{
 		get
@@ -117,6 +118,18 @@ public sealed class SandboxImageBuilds : IDisposable
 		}
 	}
 
+	/// <summary>Finds an identified build that is active or retained as the latest operator build or latest outcome for this project.</summary>
+	/// <param name="projectKey">The owning project.</param>
+	/// <param name="id">The build identifier returned at start.</param>
+	/// <returns>The matching snapshot, or null when it belongs to another project or its outcome has expired.</returns>
+	public SandboxImageBuild? Find(string projectKey, int id)
+	{
+		lock (_gate)
+		{
+			return new[] { _personBuild, _building, _lastPersonBuild.GetValueOrDefault(projectKey), _finished.GetValueOrDefault(projectKey) }.FirstOrDefault(build => build?.Id == id && build.ProjectKey == projectKey);
+		}
+	}
+
 	/// <summary>Finds a project's image for a Dockerfile, which is there once a build of it succeeded, in this run of Pyxie or an earlier one, until something removes it. It is asked of the engine every time.</summary>
 	/// <param name="projectFolder">The project's folder.</param>
 	/// <param name="dockerfile">The project's Dockerfile.</param>
@@ -132,8 +145,16 @@ public sealed class SandboxImageBuilds : IDisposable
 	/// <param name="projectFolder">The project's folder.</param>
 	/// <param name="dockerfile">The project's saved Dockerfile.</param>
 	/// <returns><see langword="true"/> when the build started; <see langword="false"/> when one was already running or waiting.</returns>
-	public bool TryStart(string projectFolder, string dockerfile)
+	public bool TryStart(string projectFolder, string dockerfile) => TryStart(projectFolder, dockerfile, out _);
+
+	/// <summary>Starts a rebuild and returns its identifier atomically with accepting the request.</summary>
+	/// <param name="projectFolder">The owning project folder.</param>
+	/// <param name="dockerfile">The saved Dockerfile to build.</param>
+	/// <param name="buildId">The new build identifier, or zero when busy.</param>
+	/// <returns>Whether the build started.</returns>
+	public bool TryStart(string projectFolder, string dockerfile, out int buildId)
 	{
+		buildId = 0;
 		lock (_gate)
 		{
 			if (_personBuild is not null || _building is not null)
@@ -143,6 +164,7 @@ public sealed class SandboxImageBuilds : IDisposable
 
 			SandboxImageBuild build = NewBuild(projectFolder, dockerfile, SandboxImageBuildRequester.Person);
 			CancellationTokenSource cancel = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
+			buildId = build.Id;
 			_personBuild = build;
 			_building = build;
 			_personCancel = cancel;
@@ -156,11 +178,22 @@ public sealed class SandboxImageBuilds : IDisposable
 
 	/// <summary>Cancels a person's build, which stops it in the engine and leaves the project's image as it was.</summary>
 	/// <returns><see langword="true"/> when there was one to cancel.</returns>
-	public bool Cancel()
+	public bool Cancel() => Cancel(null, null);
+
+	/// <summary>Cancels only the person's build identified by the caller's project and build snapshot.</summary>
+	/// <param name="projectKey">Expected project key, or null for the current build.</param>
+	/// <param name="buildId">Expected build identifier, or null for the current build.</param>
+	/// <returns>Whether the matching build was cancelled.</returns>
+	public bool Cancel(string? projectKey, int? buildId)
 	{
 		CancellationTokenSource? cancel;
 		lock (_gate)
 		{
+			if ((projectKey is not null && _personBuild?.ProjectKey != projectKey) || (buildId.HasValue && _personBuild?.Id != buildId))
+			{
+				return false;
+			}
+
 			cancel = _personCancel;
 		}
 
@@ -180,6 +213,47 @@ public sealed class SandboxImageBuilds : IDisposable
 		}
 
 		return true;
+	}
+
+	/// <summary>Forgets a project that is being removed: a person's build of its image that runs or waits is cancelled and waited for, and the last of its builds is dropped, so a project that later gets the same key starts without it. Another project's build is left alone. The pipeline's builds are not looked at, because the pipeline builds only for the open project.</summary>
+	/// <param name="projectKey">The project's key.</param>
+	/// <returns>A task that completes when no build of the project runs any more.</returns>
+	public async Task ForgetProjectAsync(string projectKey)
+	{
+		CancellationTokenSource? cancel = null;
+		Task running = Task.CompletedTask;
+		lock (_gate)
+		{
+			if (_personBuild?.ProjectKey == projectKey)
+			{
+				cancel = _personCancel;
+				running = _running;
+			}
+		}
+
+		try
+		{
+			cancel?.Cancel();
+		}
+		catch (ObjectDisposedException)
+		{
+			// The build ended meanwhile.
+		}
+
+		// The person's build reports every outcome itself and never throws.
+		await running;
+
+		bool forgot;
+		lock (_gate)
+		{
+			forgot = _finished.Remove(projectKey);
+			forgot |= _lastPersonBuild.Remove(projectKey);
+		}
+
+		if (forgot)
+		{
+			Changed?.Invoke();
+		}
 	}
 
 	/// <summary>Gets a project's image for a round, building it when it is not there yet, and reports the build while it runs.</summary>
@@ -324,6 +398,7 @@ public sealed class SandboxImageBuilds : IDisposable
 			// A person's build is over in the same step its outcome is recorded, so nobody sees one without the other.
 			if (_personBuild?.Id == build.Id)
 			{
+				_lastPersonBuild[build.ProjectKey] = ended;
 				_personBuild = null;
 				_personCancel = null;
 			}

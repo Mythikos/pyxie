@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using Pyxie.Data.Entities;
 using Pyxie.Data.Persistence;
@@ -37,7 +38,7 @@ public sealed class GateService : IGateService
 	/// <inheritdoc/>
 	public async Task<ServiceResult<Gate>> CreateAsync(GateInput input, CancellationToken cancellationToken)
 	{
-		string? inputError = ValidateFields(input);
+		string? inputError = GateInputRules.Validate(input);
 		if (inputError is not null)
 		{
 			return ServiceResult<Gate>.Failure(inputError);
@@ -54,7 +55,7 @@ public sealed class GateService : IGateService
 		// One past the highest position rather than the count, so a gap left by an older write never puts the new gate among existing ones.
 		int? lastPosition = await context.Gates.MaxAsync(existing => (int?)existing.SortOrder, cancellationToken);
 		Gate gate = new() { SortOrder = (lastPosition ?? -1) + 1 };
-		Apply(gate, input);
+		GateStore.Apply(gate, input);
 		context.Gates.Add(gate);
 		if (!await TrySaveAsync(context, name, null, cancellationToken))
 		{
@@ -65,9 +66,12 @@ public sealed class GateService : IGateService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Gate>> UpdateAsync(int id, GateInput input, CancellationToken cancellationToken)
+	public Task<ServiceResult<Gate>> UpdateAsync(int id, GateInput input, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, input, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult<Gate>> UpdateIfCurrentAsync(int id, GateInput input, string? expectedRevision, CancellationToken cancellationToken)
 	{
-		string? inputError = ValidateFields(input);
+		string? inputError = GateInputRules.Validate(input);
 		if (inputError is not null)
 		{
 			return ServiceResult<Gate>.Failure(inputError);
@@ -75,6 +79,7 @@ public sealed class GateService : IGateService
 
 		string name = InputRules.Normalize(input.Name);
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		Gate? gate = await context.Gates.FirstOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 		if (gate is null)
@@ -82,91 +87,88 @@ public sealed class GateService : IGateService
 			return ServiceResult<Gate>.Failure(NotFoundMessage);
 		}
 
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(gate))
+		{
+			return ServiceResult<Gate>.Failure(SettingsRevision.ChangedMessage);
+		}
+
 		if (await IsNameTakenAsync(context, name, id, cancellationToken))
 		{
 			return ServiceResult<Gate>.Failure(DuplicateMessage(name));
 		}
 
-		Apply(gate, input);
+		GateStore.Apply(gate, input);
 		if (!await TrySaveAsync(context, name, id, cancellationToken))
 		{
 			return ServiceResult<Gate>.Failure(DuplicateMessage(name));
 		}
 
+		await transaction.CommitAsync(cancellationToken);
+
 		return ServiceResult<Gate>.Success(gate);
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken) => DeleteIfCurrentAsync(id, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-		List<Gate> gates = await LoadInOrderAsync(context, cancellationToken);
+		List<Gate> gates = await GateStore.LoadInOrderAsync(context, cancellationToken);
 		Gate? gate = gates.Find(existing => existing.Id == id);
 		if (gate is null)
 		{
 			return ServiceResult.Failure(NotFoundMessage);
+		}
+
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(gate))
+		{
+			return ServiceResult.Failure(SettingsRevision.ChangedMessage);
 		}
 
 		// The removal and the renumbering are one save, so a failure leaves the gate and the order as they were.
 		gates.Remove(gate);
 		context.Gates.Remove(gate);
-		Renumber(gates);
+		GateStore.Renumber(gates);
 		await context.SaveChangesAsync(cancellationToken);
+
+		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult.Success();
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> MoveAsync(int id, int position, CancellationToken cancellationToken)
+	public Task<ServiceResult> MoveAsync(int id, int position, CancellationToken cancellationToken) => MoveIfOrderMatchesAsync(id, position, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult> MoveIfOrderMatchesAsync(int id, int position, IReadOnlyList<int>? expectedOrder, CancellationToken cancellationToken)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
-		List<Gate> gates = await LoadInOrderAsync(context, cancellationToken);
+		List<Gate> gates = await GateStore.LoadInOrderAsync(context, cancellationToken);
 		Gate? gate = gates.Find(existing => existing.Id == id);
 		if (gate is null)
 		{
 			return ServiceResult.Failure(NotFoundMessage);
 		}
 
+		if (expectedOrder is not null && !gates.Select(item => item.Id).SequenceEqual(expectedOrder))
+		{
+			return ServiceResult.Failure("The gate order changed. Read the ordered gates before moving this one.");
+		}
+
 		// Without the gate, the list has every position it can be moved to: the first, each gap between gates, and the last.
 		gates.Remove(gate);
 		gates.Insert(Math.Clamp(position, 0, gates.Count), gate);
-		Renumber(gates);
+		GateStore.Renumber(gates);
 		await context.SaveChangesAsync(cancellationToken);
+		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult.Success();
-	}
-
-	private static string? ValidateFields(GateInput input)
-	{
-		return GateInputRules.ValidateName(input.Name) ?? GateInputRules.ValidateCommand(input.Command) ?? GateInputRules.ValidateArguments(input.Arguments) ?? GateInputRules.ValidateTimeout(input.TimeoutMinutes);
-	}
-
-	private static void Apply(Gate gate, GateInput input)
-	{
-		gate.Name = InputRules.Normalize(input.Name);
-		gate.Command = InputRules.Normalize(input.Command);
-		gate.Arguments = InputRules.Normalize(input.Arguments);
-		gate.TimeoutMinutes = input.TimeoutMinutes;
-		gate.IsEnabled = input.IsEnabled;
-	}
-
-	// Tracked, so renumbering writes only the gates whose position changes. The order is the one gates run in; older writes may have left gaps or ties, and the id settles a tie as ListAsync does.
-	private static async Task<List<Gate>> LoadInOrderAsync(ProjectDbContext context, CancellationToken cancellationToken)
-	{
-		return await context.Gates
-			.OrderBy(gate => gate.SortOrder)
-			.ThenBy(gate => gate.Id)
-			.ToListAsync(cancellationToken);
-	}
-
-	private static void Renumber(List<Gate> gates)
-	{
-		for (int position = 0; position < gates.Count; position++)
-		{
-			gates[position].SortOrder = position;
-		}
 	}
 
 	private static string DuplicateMessage(string name)

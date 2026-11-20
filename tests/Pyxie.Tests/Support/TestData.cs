@@ -50,6 +50,7 @@ public static class TestData
 		{
 			Name = name,
 			Harness = harness,
+			Authentication = harness == HarnessKind.Other ? AgentAuthentication.None : AgentAuthentication.Account,
 			Command = command,
 			Arguments = arguments,
 			CanWork = canWork,
@@ -200,7 +201,7 @@ public static class TestData
 			Sequence = sequence,
 			Kind = kind,
 			Attempt = attempt,
-			Agent = agentName is null ? null : new AgentSnapshot(agentName, HarnessKind.ClaudeCode, "claude", string.Empty),
+			Agent = agentName is null ? null : new AgentSnapshot(agentName, HarnessKind.ClaudeCode, "claude", string.Empty, AgentAuthentication.Account),
 			Briefing = briefing,
 			StartedUtc = startedUtc ?? now,
 			EndedUtc = endedUtc ?? (outcome is null ? null : now),

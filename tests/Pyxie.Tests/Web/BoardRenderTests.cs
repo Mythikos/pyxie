@@ -171,7 +171,7 @@ public sealed class BoardRenderTests
 		await using BoardPage page = await BoardPage.RenderAsync(database);
 		int announcements = 0;
 		page.Activity.CardsChanged += () => Interlocked.Increment(ref announcements);
-		await page.Board.ClickAsync("OpenNewCard");
+		await page.Board.ClickAsync("OpenEditor", null, page.OpenProject.Current?.Id);
 		CardEditor dialog = page.Board.ReadField<CardEditor>("_editor");
 		await TestData.AddCardAsync(database, "Saved in the dialog");
 
@@ -248,6 +248,17 @@ public sealed class BoardRenderTests
 		page.Activity.NotifyCardsChanged();
 
 		await page.Board.WaitForHtmlAsync(html => !html.Contains("role=\"alert\"", StringComparison.Ordinal), "The refusal should go once the board is read again");
+	}
+
+	[Fact]
+	public async Task CloseFromAnOlderBoardLeavesTheCurrentProjectsCompleteCardAlone()
+	{
+		await using TestDatabase database = new();
+		WorkCard card = await TestData.AddCardAsync(database, "Done", CardLane.Complete, attempt: 1);
+		await using BoardPage page = await BoardPage.RenderAsync(database);
+		int currentId = Assert.IsType<Project>(page.OpenProject.Current).Id;
+		await page.Board.ClickAsync("CloseAsync", card, currentId + 1);
+		Assert.Equal(CardLane.Complete, Assert.IsType<WorkCard>(await TestData.FindCardAsync(database, card.Id)).Lane);
 	}
 
 	[Fact]

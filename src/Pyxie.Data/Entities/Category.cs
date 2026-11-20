@@ -1,4 +1,4 @@
-using Pyxie.Data.Enums;
+using Pyxie.Data.Colors;
 
 namespace Pyxie.Data.Entities;
 
@@ -11,6 +11,6 @@ public class Category
 	/// <summary>Gets or sets the unique, case-insensitive display name.</summary>
 	public string Name { get; set; } = string.Empty;
 
-	/// <summary>Gets or sets the tint the category's chip is shown in. <see cref="CategoryColor.Neutral"/> unless a person chose another.</summary>
-	public CategoryColor Color { get; set; }
+	/// <summary>Gets or sets the color of the category's chip: its background, any color at all. <see cref="CategoryColors.Neutral"/> unless a person chose another.</summary>
+	public HexColor Color { get; set; } = CategoryColors.Neutral;
 }

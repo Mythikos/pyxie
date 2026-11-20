@@ -21,6 +21,7 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Harness = table.Column<int>(type: "INTEGER", nullable: false),
+                    Authentication = table.Column<int>(type: "INTEGER", nullable: false),
                     Command = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     Arguments = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: false),
                     CanWork = table.Column<bool>(type: "INTEGER", nullable: false),
@@ -39,11 +40,12 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    Color = table.Column<int>(type: "INTEGER", nullable: false)
+                    Color = table.Column<string>(type: "TEXT", maxLength: 7, nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Categories", x => x.Id);
+                    table.CheckConstraint("CK_Categories_Color", "\"Color\" GLOB '#[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]'");
                 });
 
             migrationBuilder.CreateTable(
@@ -142,6 +144,26 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                 });
 
             migrationBuilder.CreateTable(
+                name: "MediaUploads",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CardId = table.Column<int>(type: "INTEGER", nullable: true),
+                    CardVersion = table.Column<int>(type: "INTEGER", nullable: true),
+                    ExpiresUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MediaUploads", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MediaUploads_Cards_CardId",
+                        column: x => x.CardId,
+                        principalTable: "Cards",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Rounds",
                 columns: table => new
                 {
@@ -153,6 +175,7 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                     Attempt = table.Column<int>(type: "INTEGER", nullable: false),
                     Agent_Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
                     Agent_Harness = table.Column<int>(type: "INTEGER", nullable: true),
+                    Agent_Authentication = table.Column<int>(type: "INTEGER", nullable: true),
                     Agent_Command = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
                     Agent_Arguments = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
                     Briefing = table.Column<string>(type: "TEXT", maxLength: 60000, nullable: true),
@@ -173,14 +196,79 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "MediaFiles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CardId = table.Column<int>(type: "INTEGER", nullable: true),
+                    UploadId = table.Column<Guid>(type: "TEXT", nullable: true),
+                    RoundId = table.Column<int>(type: "INTEGER", nullable: true),
+                    PublicationKey = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 240, nullable: false),
+                    ContentType = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Length = table.Column<long>(type: "INTEGER", nullable: false),
+                    Sha256 = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    Caption = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
+                    Commit = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    CreatedUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    RemovedUtc = table.Column<DateTime>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MediaFiles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MediaFiles_Cards_CardId",
+                        column: x => x.CardId,
+                        principalTable: "Cards",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MediaFiles_MediaUploads_UploadId",
+                        column: x => x.UploadId,
+                        principalTable: "MediaUploads",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MediaFiles_Rounds_RoundId",
+                        column: x => x.RoundId,
+                        principalTable: "Rounds",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RoundMediaInputs",
+                columns: table => new
+                {
+                    RoundId = table.Column<int>(type: "INTEGER", nullable: false),
+                    MediaFileId = table.Column<Guid>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RoundMediaInputs", x => new { x.RoundId, x.MediaFileId });
+                    table.ForeignKey(
+                        name: "FK_RoundMediaInputs_MediaFiles_MediaFileId",
+                        column: x => x.MediaFileId,
+                        principalTable: "MediaFiles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RoundMediaInputs_Rounds_RoundId",
+                        column: x => x.RoundId,
+                        principalTable: "Rounds",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.InsertData(
                 table: "Categories",
                 columns: new[] { "Id", "Color", "Name" },
                 values: new object[,]
                 {
-                    { 1, 1, "Feature" },
-                    { 2, 2, "Bug" },
-                    { 3, 0, "Chore" }
+                    { 1, "#EAF3E2", "Feature" },
+                    { 2, "#FBE9EC", "Bug" },
+                    { 3, "#EDEDE9", "Chore" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -229,6 +317,32 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_MediaFiles_CardId",
+                table: "MediaFiles",
+                column: "CardId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MediaFiles_RoundId_PublicationKey",
+                table: "MediaFiles",
+                columns: new[] { "RoundId", "PublicationKey" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MediaFiles_UploadId",
+                table: "MediaFiles",
+                column: "UploadId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MediaUploads_CardId",
+                table: "MediaUploads",
+                column: "CardId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RoundMediaInputs_MediaFileId",
+                table: "RoundMediaInputs",
+                column: "MediaFileId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Rounds_CardId_Sequence",
                 table: "Rounds",
                 columns: new[] { "CardId", "Sequence" },
@@ -245,10 +359,19 @@ namespace Pyxie.Data.Sqlite.Migrations.Project
                 name: "Repositories");
 
             migrationBuilder.DropTable(
-                name: "Rounds");
+                name: "RoundMediaInputs");
 
             migrationBuilder.DropTable(
                 name: "SandboxSettings");
+
+            migrationBuilder.DropTable(
+                name: "MediaFiles");
+
+            migrationBuilder.DropTable(
+                name: "MediaUploads");
+
+            migrationBuilder.DropTable(
+                name: "Rounds");
 
             migrationBuilder.DropTable(
                 name: "Cards");

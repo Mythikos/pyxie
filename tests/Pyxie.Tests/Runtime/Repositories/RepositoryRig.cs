@@ -13,9 +13,11 @@ using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Sqlite.DependencyInjection;
 using Pyxie.Runtime.DependencyInjection;
 using Pyxie.Runtime.Git;
+using Pyxie.Runtime.Media;
 using Pyxie.Runtime.Orchestration;
 using Pyxie.Runtime.Projects;
 using Pyxie.Runtime.Repositories;
+using Pyxie.Runtime.Sandboxes;
 using Pyxie.Runtime.Workspaces;
 using Pyxie.Tests.Runtime.Git;
 using Pyxie.Tests.Support;
@@ -80,8 +82,13 @@ public sealed class RepositoryRig : IAsyncDisposable
 		Setup = _scope.ServiceProvider.GetRequiredService<ProjectSetupService>();
 		Sessions = _scope.ServiceProvider.GetRequiredService<ProjectSessions>();
 		Controller = _provider.GetRequiredService<PipelineController>();
+		Sandboxes = (LocalSandboxes)_provider.GetRequiredService<ISandboxes>();
+		ImageBuilds = _provider.GetRequiredService<SandboxImageBuilds>();
 		Browser = _scope.ServiceProvider.GetRequiredService<RepositoryBrowser>();
+		Media = _provider.GetRequiredService<MediaStorage>();
 	}
+
+	public MediaStorage Media { get; }
 
 	/// <summary>Gets the git client the services use.</summary>
 	public GitClient Git { get; }
@@ -109,6 +116,12 @@ public sealed class RepositoryRig : IAsyncDisposable
 
 	/// <summary>Gets the controller the service that opens and closes projects asks. A test starts it to see opening and closing refused; no pipeline runs.</summary>
 	public PipelineController Controller { get; }
+
+	/// <summary>Gets the stand-in sandboxes, whose folders lie under the workspace root, so a test can see what removing a project removes or make it fail.</summary>
+	public LocalSandboxes Sandboxes { get; }
+
+	/// <summary>Gets the builds of projects' sandbox images, which removing a project stops and forgets.</summary>
+	public SandboxImageBuilds ImageBuilds { get; }
 
 	/// <summary>Gets the browser under test.</summary>
 	public RepositoryBrowser Browser { get; }
@@ -148,7 +161,7 @@ public sealed class RepositoryRig : IAsyncDisposable
 		if (OpenProject.Current is null)
 		{
 			string folder = Path.Combine(Layout.ProjectsFolder, StandInProjectName);
-			await _provider.GetRequiredService<IProjectDatabase>().MigrateAsync(folder, token);
+			ResultAssert.Succeeded(await _provider.GetRequiredService<IProjectDatabase>().MigrateAsync(folder, token));
 			Project project = ResultAssert.Succeeded(await Catalog.AddAsync(StandInProjectName, folder, origin ?? path, token));
 			ResultAssert.Succeeded(await Catalog.OpenAsync(project.Id, token));
 		}

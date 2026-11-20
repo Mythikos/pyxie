@@ -1,0 +1,9 @@
+<div>
+	<div class="settings-transfer">
+		<Button Type="ButtonType.Link" To="@ExportHref" Color="Color.Default" download><Icon Name="@("download")" />Export</Button>
+		<Button Color="Color.Default" Loading="@_reading" Disabled="@_reading" Clicked="@ChooseFileAsync"><Icon Name="@("upload")" />Import</Button>
+		<span hidden><FileInput @ref="_fileInput" Filter="@SettingsFileFormat.Accept" AutoReset="false" DisableProgressReport Changed="@OnFileChangedAsync" /></span>
+	</div>
+	@* The dialog's always-present root sits beside the buttons, not among them, so it takes no place in the layout of the Settings page's side column. *@
+	<SettingsImportDialog Visible="@_dialogVisible" VisibleChanged="@OnDialogVisibleChanged" Opening="@_opening" Imported="@OnImportedAsync" />
+</div>

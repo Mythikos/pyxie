@@ -73,6 +73,23 @@ public sealed class CardServiceLaneRaceTests
 	}
 
 	[Fact]
+	public async Task DeleteAsync_RefusesAnEditInTheQueueBetweenTheCheckAndTheDelete()
+	{
+		CancellationToken token = TestContext.Current.CancellationToken;
+		ConcurrentWriteInterceptor interceptor = ConcurrentWriteInterceptor.BeforeTransaction();
+		await using TestDatabase database = new(interceptor);
+		WorkCard card = await TestData.AddCardAsync(database, "Original");
+		CardService service = new(database.ContextFactory, database.Clock);
+		CardInput edit = await TestCardInput.CreateAsync(database, "Revised");
+		interceptor.Arm(async () => ResultAssert.Succeeded(await service.UpdateAsync(card.Id, edit, token)));
+
+		ResultAssert.Failed(await service.DeleteAsync(card.Id, token));
+
+		interceptor.AssertFired();
+		Assert.Equal("Revised", (await TestData.FindCardAsync(database, card.Id))?.Name);
+	}
+
+	[Fact]
 	public async Task DeleteAsync_ReportsACardThatSomeoneElseDeletedAfterTheCheckAsNotFound()
 	{
 		ConcurrentWriteInterceptor interceptor = ConcurrentWriteInterceptor.BeforeTransaction();

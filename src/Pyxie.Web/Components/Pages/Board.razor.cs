@@ -12,7 +12,7 @@ using Pyxie.Web.Components.Board;
 
 namespace Pyxie.Web.Components.Pages;
 
-/// <summary>The kanban board page of the open project. It follows the pipeline and the open project: whenever cards change, or a project is imported, opened, or closed, here or in another tab, the board is read again. It also draws itself again every minute, so the time a running round has taken keeps up without reading anything.</summary>
+/// <summary>The kanban board page of the open project. It follows the pipeline and the open project: whenever cards change, or a project is imported, opened, closed, or removed, here or in another tab, the board is read again. It also draws itself again every minute, so the time a running round has taken keeps up without reading anything.</summary>
 public partial class Board : IDisposable
 {
 	private static readonly TimeSpan s_elapsedRefresh = TimeSpan.FromMinutes(1);
@@ -38,6 +38,16 @@ public partial class Board : IDisposable
 	private ITimer? _elapsedTimer;
 	private bool _loading = true;
 	private bool _disposed;
+	private string? _openedLink;
+	private string? _linkError;
+
+	/// <summary>Gets or sets the card requested by a repository history link.</summary>
+	[SupplyParameterFromQuery(Name = "card")]
+	public int? LinkedCard { get; set; }
+
+	/// <summary>Gets or sets the project owning the linked card.</summary>
+	[SupplyParameterFromQuery(Name = "project")]
+	public int? LinkedProject { get; set; }
 
 	// Where the focus goes after a Retry or Close that went through. It waits first for the board to be read again, and then for the board to be drawn from what was read: until then the tile the focus belongs on may not be there yet.
 	private BoardFocus? _focusAfterReload;
@@ -65,6 +75,10 @@ public partial class Board : IDisposable
 	/// <summary>Gets or sets the open project, whose board this is, supplied by the framework.</summary>
 	[Inject]
 	public required OpenProject OpenProject { get; set; }
+
+	/// <summary>Gets or sets the controller that holds the displayed project across board operations.</summary>
+	[Inject]
+	public required PipelineController Controller { get; set; }
 
 	/// <summary>Gets or sets the announcements of changed cards and of changes to the open project, supplied by the framework.</summary>
 	[Inject]
@@ -104,6 +118,39 @@ public partial class Board : IDisposable
 	/// <inheritdoc/>
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
+		string link = $"{LinkedProject}/{LinkedCard}/{_project?.Id}";
+		if (!_loading && _editor is CardEditor editor && LinkedCard is int linkedId && _openedLink != link)
+		{
+			_openedLink = link;
+			int? requestedProject = LinkedProject;
+			_linkError = null;
+			if (requestedProject is null || requestedProject != _project?.Id)
+			{
+				_linkError = "Open this card's project from Repository to view its history and media.";
+			}
+			else
+			{
+				using var lease = Controller.AcquireProject(requestedProject.Value).Value;
+				if (lease is null)
+				{
+					return;
+				}
+
+				ServiceResult<WorkCard> card = await CardService.GetAsync(linkedId, _stopping);
+				if (requestedProject == _project?.Id && requestedProject == OpenProject.Current?.Id && ReferenceEquals(editor, _editor))
+				{
+					if (card.Value is not null)
+					{
+						await editor.OpenAsync(card.Value);
+					}
+					else
+					{
+						_linkError = card.Error;
+					}
+				}
+			}
+			StateHasChanged();
+		}
 		if (_focusAfterRender is not BoardFocus focus)
 		{
 			return;
@@ -151,6 +198,12 @@ public partial class Board : IDisposable
 			return;
 		}
 
+		using var lease = Controller.AcquireProject(project.Id).Value;
+		if (lease is null)
+		{
+			return;
+		}
+
 		IReadOnlyList<BoardCard> cards = await CardService.GetBoardAsync(cancellationToken);
 		IReadOnlyList<Category> categories = await CategoryService.ListAsync(cancellationToken);
 		IReadOnlyList<Agent> agents = await AgentService.ListAsync(cancellationToken);
@@ -194,6 +247,10 @@ public partial class Board : IDisposable
 			_focusAfterReload = null;
 
 			await ReloadAsync();
+			if (_editor is not null && _project?.Id == OpenProject.Current?.Id)
+			{
+				await _editor.RefreshAsync();
+			}
 
 			if (focus is not null)
 			{
@@ -231,34 +288,36 @@ public partial class Board : IDisposable
 		}
 	}
 
-	private Task OpenEditor(WorkCard card)
+	private Task OpenEditor(WorkCard? card, int shownProject)
 	{
-		return _editor is null ? Task.CompletedTask : _editor.OpenAsync(card);
+		return _editor?.Project?.Id == shownProject ? _editor.OpenAsync(card) : Task.CompletedTask;
 	}
 
-	private Task OpenNewCard()
+	private Task RetryAsync(WorkCard card, int shownProject)
 	{
-		return _editor is null ? Task.CompletedTask : _editor.OpenAsync(null);
+		return ChangeAsync(card, shownProject, CardService.RetryAsync, BoardFocus.OnCard(card));
 	}
 
-	private Task RetryAsync(WorkCard card)
+	private Task CloseAsync(WorkCard card, int shownProject)
 	{
-		return ChangeAsync(card, CardService.RetryAsync, BoardFocus.OnCard(card));
-	}
-
-	private Task CloseAsync(WorkCard card)
-	{
-		return ChangeAsync(card, CardService.CloseAsync, BoardFocus.InPlaceOf(card, _cards));
+		return ChangeAsync(card, shownProject, CardService.CloseAsync, BoardFocus.InPlaceOf(card, _cards));
 	}
 
 	// A person retried or closed a card from its tile. Success is announced, which reads the board again on every open board, and moves the keyboard focus on once it has: the button that was pressed goes with the change. A refusal is shown on the card it was about, announces nothing, since nothing changed, and leaves the focus on the button.
-	private async Task ChangeAsync(WorkCard card, Func<int, CancellationToken, Task<ServiceResult>> change, BoardFocus focus)
+	private async Task ChangeAsync(WorkCard card, int shownProject, Func<int, CancellationToken, Task<ServiceResult>> change, BoardFocus focus)
 	{
+		if (shownProject != _project?.Id)
+		{
+			return;
+		}
+
 		ServiceResult result;
 
 		try
 		{
-			result = await change(card.Id, _stopping);
+			var project = Controller.AcquireProject(shownProject);
+			using var lease = project.Value;
+			result = lease is null ? ServiceResult.Failure(project.Error ?? "The project changed.") : await change(card.Id, _stopping);
 		}
 		catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
 		{

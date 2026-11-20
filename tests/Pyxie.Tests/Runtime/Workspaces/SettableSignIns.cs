@@ -9,7 +9,7 @@ namespace Pyxie.Tests.Runtime.Workspaces;
 public sealed class SettableSignIns : ISandboxSignIns
 {
 	private readonly SandboxSignIn _answer;
-	private readonly ConcurrentQueue<(HarnessKind Harness, string Folder)> _requests = new();
+	private readonly ConcurrentQueue<(HarnessKind Harness, AgentAuthentication Authentication)> _requests = new();
 
 	/// <summary>Initializes a new instance of the <see cref="SettableSignIns"/> class.</summary>
 	/// <param name="answer">What every agent gets.</param>
@@ -19,12 +19,12 @@ public sealed class SettableSignIns : ISandboxSignIns
 	}
 
 	/// <summary>Gets each request, in order: the agent's harness and the sign-in folder it was offered.</summary>
-	public IReadOnlyList<(HarnessKind Harness, string Folder)> Requests => [.. _requests];
+	public IReadOnlyList<(HarnessKind Harness, AgentAuthentication Authentication)> Requests => [.. _requests];
 
 	/// <inheritdoc/>
-	public SandboxSignIn ForAgent(HarnessKind harness, string signInFolder)
+	public SandboxSignIn ForAgent(HarnessKind harness, AgentAuthentication authentication)
 	{
-		_requests.Enqueue((harness, signInFolder));
+		_requests.Enqueue((harness, authentication));
 
 		return _answer;
 	}
@@ -32,6 +32,6 @@ public sealed class SettableSignIns : ISandboxSignIns
 	/// <inheritdoc/>
 	public SandboxSignInStatus GetStatus()
 	{
-		return new SandboxSignInStatus("claude-oauth-token", ClaudeTokenFound: false, "auth.json", CodexSignInFound: false);
+		return new SandboxSignInStatus(new("claude-oauth-token", false), new("anthropic-api-key", false), new("auth.json", false), new("openai-api-key", false), new(".credentials.yaml", false), new("deepseek-api-key", false));
 	}
 }

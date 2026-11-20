@@ -15,6 +15,7 @@ using Pyxie.Data.Projects;
 using Pyxie.Data.Sandboxes;
 using Pyxie.Data.Services;
 using Pyxie.Data.Services.Results;
+using Pyxie.Runtime.Orchestration;
 using Pyxie.Runtime.Sandboxes;
 using Pyxie.Runtime.Workspaces;
 using Pyxie.Tests.Runtime.Orchestration;
@@ -31,7 +32,13 @@ namespace Pyxie.Tests.Web.Rendering;
 internal sealed class SandboxEditorHost : IAsyncDisposable
 {
 	/// <summary>The sign-in status of a machine where neither sign-in was found.</summary>
-	public static readonly SandboxSignInStatus NoSignIns = new(@"C:\pyxie\secrets\claude-oauth-token", ClaudeTokenFound: false, @"C:\Users\person\.codex\auth.json", CodexSignInFound: false);
+	public static readonly SandboxSignInStatus NoSignIns = new(new(@"C:\pyxie\secrets\claude-oauth-token", false), new("anthropic-api-key", false), new(@"C:\Users\person\.codex\auth.json", false), new("openai-api-key", false), new(".credentials.yaml", false), new("deepseek-api-key", false));
+
+	/// <summary>Gets a machine where all six local credentials are present.</summary>
+	public static readonly SandboxSignInStatus AllSignIns = new(
+		NoSignIns.ClaudeAccount with { Found = true }, NoSignIns.ClaudeApiKey with { Found = true },
+		NoSignIns.CodexAccount with { Found = true }, NoSignIns.CodexApiKey with { Found = true },
+		NoSignIns.DeepSeekAccount with { Found = true }, NoSignIns.DeepSeekApiKey with { Found = true });
 
 	private readonly ServiceProvider _services;
 	private readonly List<string> _otherProjectFolders = [];
@@ -80,6 +87,7 @@ internal sealed class SandboxEditorHost : IAsyncDisposable
 		services.AddSingleton<IJSRuntime, GateStubJsRuntime>();
 		services.AddBlazorise().AddAntDesignProviders().AddAntDesignIcons();
 		services.AddSingleton(openProject);
+		services.AddSingleton<PipelineController>();
 		services.AddSingleton<ISandboxSettingsService>(new SandboxSettingsService(database.ContextFactory, database.Clock));
 		services.AddSingleton<ISandboxes>(sandboxes);
 		services.AddSingleton(provider => new SandboxImageBuilds(provider.GetRequiredService<ISandboxes>(), database.Clock));

@@ -11,7 +11,7 @@ namespace Pyxie.Tests.Runtime.Workspaces;
 /// <summary>A resolve round's sandbox is a fresh one on the card's last commit, in the middle of the merge Pyxie started: the target branch's commit that was current when the sandbox opened is merged into the card's branch without committing, so the merge agent finds the conflicts waiting. It has no volumes and nothing of an earlier round.</summary>
 public sealed class CardSandboxesResolveTests
 {
-	private static readonly AgentSnapshot s_merger = new("Merger", HarnessKind.Other, "merger", "--resolve");
+	private static readonly AgentSnapshot s_merger = new("Merger", HarnessKind.Other, "merger", "--resolve", AgentAuthentication.None);
 
 	private static CancellationToken Token => TestContext.Current.CancellationToken;
 

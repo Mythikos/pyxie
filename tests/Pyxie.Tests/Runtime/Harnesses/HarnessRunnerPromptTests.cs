@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Harnesses;
 
-/// <summary><see cref="HarnessRunner"/> and how the agent is started in the sandbox: the fixed prompt goes on standard input, except for OpenCode, which takes it as its last argument; the configured arguments are split the way Windows splits them; the agent runs in the card's repository; and the command carries the round's timeout and log.</summary>
+/// <summary><see cref="HarnessRunner"/> and how the agent is started in the sandbox: the fixed prompt goes on standard input; the configured arguments are split the way Windows splits them; the agent runs in the card's repository; and the command carries the round's timeout and log.</summary>
 public sealed class HarnessRunnerPromptTests
 {
 	private static CancellationToken Token => TestContext.Current.CancellationToken;
@@ -20,6 +20,7 @@ public sealed class HarnessRunnerPromptTests
 	[Theory(Timeout = RuntimeTestTimeouts.TestMilliseconds)]
 	[InlineData(HarnessKind.ClaudeCode)]
 	[InlineData(HarnessKind.Codex)]
+	[InlineData(HarnessKind.DeepSeek)]
 	[InlineData(HarnessKind.Other)]
 	public async Task RunAsync_SendsThePromptOnStandardInputAndNotAsAnArgument(HarnessKind harness)
 	{
@@ -32,21 +33,6 @@ public sealed class HarnessRunnerPromptTests
 		FakeHarnessRecord run = await FakeHarnessRecord.ReadSingleAsync(record);
 		Assert.Equal(PipelineContract.Prompt, run.Input);
 		Assert.Equal(["--record", record, "--require-prompt", PipelineContract.Prompt], run.Arguments);
-	}
-
-	[Fact(Timeout = RuntimeTestTimeouts.TestMilliseconds)]
-	public async Task RunAsync_ForOpenCode_PassesThePromptAsTheLastArgumentAndSendsNothingOnStandardInput()
-	{
-		await using HarnessRig rig = await HarnessRig.CreateAsync();
-		string record = rig.Combine("record.txt");
-
-		// The fake harness agent for OpenCode ends its arguments with --report, which takes the prompt the runner adds after it.
-		RoundVerdict verdict = await rig.RunAsync(FakeHarnessAgent.Snapshot("Agent", HarnessKind.OpenCode, "--record", record));
-
-		Assert.Equal(RoundResult.Succeeded, verdict.Result);
-		FakeHarnessRecord run = await FakeHarnessRecord.ReadSingleAsync(record);
-		Assert.Equal(string.Empty, run.Input);
-		Assert.Equal(["--record", record, "--report", PipelineContract.Prompt], run.Arguments);
 	}
 
 	[Fact(Timeout = RuntimeTestTimeouts.TestMilliseconds)]
@@ -85,7 +71,7 @@ public sealed class HarnessRunnerPromptTests
 		string record = rig.Combine("record.txt");
 		string arguments = $"\"{FakeHarnessAgent.DllPath}\"  --record \"{record}\"\t--note \"two  words\" --report \"say \\\"hi\\\"\"";
 
-		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Agent", HarnessKind.Other, FakeHarnessAgent.Command, arguments));
+		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Agent", HarnessKind.Other, FakeHarnessAgent.Command, arguments, AgentAuthentication.None));
 
 		Assert.Equal(new RoundVerdict(RoundResult.Succeeded, "two  words", "say \"hi\""), verdict);
 		Assert.Equal(["--record", record, "--note", "two  words", "--report", "say \"hi\""], (await FakeHarnessRecord.ReadSingleAsync(record)).Arguments);
@@ -98,7 +84,7 @@ public sealed class HarnessRunnerPromptTests
 		string record = rig.Combine("record.txt");
 		string launcher = await BatchScript.WriteAsync(rig.Folder, "agent.cmd", $"@\"{FakeHarnessAgent.Command}\" \"{FakeHarnessAgent.DllPath}\" --record \"{record}\"");
 
-		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Agent", HarnessKind.ClaudeCode, launcher, string.Empty));
+		RoundVerdict verdict = await rig.RunAsync(new AgentSnapshot("Agent", HarnessKind.ClaudeCode, launcher, string.Empty, AgentAuthentication.Account));
 
 		Assert.Equal(RoundResult.Succeeded, verdict.Result);
 		Assert.Equal(PipelineContract.Prompt, (await FakeHarnessRecord.ReadSingleAsync(record)).Input);

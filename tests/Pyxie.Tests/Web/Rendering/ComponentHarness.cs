@@ -9,6 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 
+using Pyxie.Runtime.Orchestration;
+using Pyxie.Tests.Support;
+
 namespace Pyxie.Tests.Web.Rendering;
 
 /// <summary>Renders the application's components to HTML on the server, with Blazorise and the Ant Design provider registered as in the application, so tests can check the markup a component produces for a state without a browser. Nothing that runs after the first render (JavaScript, focus, event handlers raised by a click) takes part.</summary>
@@ -26,6 +29,8 @@ internal sealed class ComponentHarness : IAsyncDisposable
 		services.AddSingleton<IJSRuntime, UnavailableJSRuntime>();
 		services.AddSingleton<NavigationManager>(Navigation);
 		services.AddBlazorise().AddAntDesignProviders().AddAntDesignIcons();
+		services.AddSingleton(StandInProject.Open());
+		services.AddSingleton<PipelineController>();
 		configure(services);
 
 		_provider = services.BuildServiceProvider();

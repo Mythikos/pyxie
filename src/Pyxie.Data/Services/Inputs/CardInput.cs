@@ -1,4 +1,5 @@
 using Pyxie.Data.Limits;
+using Pyxie.Data.Media;
 
 namespace Pyxie.Data.Services.Inputs;
 
@@ -15,4 +16,11 @@ public sealed record CardInput(
 	int CategoryId,
 	int? WorkerAgentId,
 	int? ReviewerAgentId,
-	int AttemptLimit = PyxieLimits.DefaultAttemptLimit);
+	int AttemptLimit = PyxieLimits.DefaultAttemptLimit)
+{
+	/// <summary>Gets the complete context selection, or null to preserve the existing selection.</summary>
+	public MediaEdit? Media { get; init; }
+
+	/// <summary>Gets the version the editor opened on, or null to check the version read when the operation starts.</summary>
+	public int? ExpectedVersion { get; init; }
+}

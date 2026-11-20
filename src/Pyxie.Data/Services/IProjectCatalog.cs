@@ -42,7 +42,7 @@ public interface IProjectCatalog
 	/// <returns>A failure when the project does not exist or is not open.</returns>
 	Task<ServiceResult> CloseAsync(int id, CancellationToken cancellationToken);
 
-	/// <summary>Removes a closed project from the list, for example to undo an import that failed. Its folder is left alone.</summary>
+	/// <summary>Removes a closed project from the list: an import that failed undoes itself with it, and removing a project ends with it, once the runtime has deleted the project's folder and sandboxes. The folder is left alone here.</summary>
 	/// <param name="id">The project's identifier.</param>
 	/// <param name="cancellationToken">A token to cancel the operation.</param>
 	/// <returns>A failure when the project does not exist or is open.</returns>

@@ -79,47 +79,11 @@
 	font-size: 13px;
 }
 
-.category-colors {
-	display: flex;
-	gap: 6px;
-}
-
-/* The swatches are the chip colors themselves: the tint, ringed in the chip's text color, and filled with it while chosen. */
-.category-swatch {
-	appearance: none;
-	width: 18px;
-	height: 18px;
-	margin: 0;
-	border-radius: 50%;
-	cursor: pointer;
-	--swatch-tint: var(--pyx-lane);
-	--swatch-ink: var(--pyx-text-2);
-	border: 1.5px solid var(--swatch-ink);
-	background: var(--swatch-tint);
-}
-
-.category-swatch-green {
-	--swatch-tint: var(--pyx-success-tint);
-	--swatch-ink: var(--pyx-primary-hover);
-}
-
-.category-swatch-pink {
-	--swatch-tint: var(--pyx-pink-tint);
-	--swatch-ink: var(--pyx-pink-text);
-}
-
-.category-swatch:checked {
-	background: var(--swatch-ink);
-	box-shadow: inset 0 0 0 3px var(--swatch-tint);
-}
-
-.category-swatch:disabled {
-	cursor: not-allowed;
-	opacity: 0.6;
-}
-
+/* On a narrow panel the add form wraps rather than running past the panel's edge. */
 .category-add {
 	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	gap: 6px;
 	margin: 0 0 0 4px;
 }

@@ -17,7 +17,6 @@ public sealed class CardSandboxes
 	private const string HandInFile = "card.bundle";
 	private const string HandOutFile = "result.bundle";
 	private const string ReceivedFile = "received.bundle";
-	private const string SignInFolder = "sign-in";
 	private const string WorkVolume = "work";
 	private const string HomeVolume = "home";
 	private const string GatesHomeVolume = "gates-home";
@@ -99,10 +98,11 @@ public sealed class CardSandboxes
 		string output = Path.Combine(folder, "out");
 		EmptyFolder(input);
 		EmptyFolder(output);
+		await File.WriteAllTextAsync(Path.Combine(folder, "media-round"), work.RoundId.ToString(CultureInfo.InvariantCulture), cancellationToken);
 
 		SandboxSignIn signIn = role == SandboxRole.Gates || work.Agent is not AgentSnapshot agent
 			? SandboxSignIn.None
-			: _signIns.ForAgent(agent.Harness, Path.Combine(folder, SignInFolder));
+			: _signIns.ForAgent(agent.Harness, agent.Authentication);
 		if (signIn.Problem is not null)
 		{
 			throw new SandboxException(signIn.Problem);
@@ -127,6 +127,11 @@ public sealed class CardSandboxes
 		ISandbox sandbox = await _sandboxes.StartAsync(spec, cancellationToken);
 		try
 		{
+			if (signIn.PrepareAsync is not null)
+			{
+				await signIn.PrepareAsync(sandbox, cancellationToken);
+			}
+
 			string repository = SandboxPaths.Combine(sandbox.WorkPath, RepositoryFolder);
 			string baseCommit = cardTip ?? targetTip;
 			await PrepareAsync(sandbox, repository, target, branch, baseCommit, keepLeftovers: role == SandboxRole.Worker, cancellationToken);

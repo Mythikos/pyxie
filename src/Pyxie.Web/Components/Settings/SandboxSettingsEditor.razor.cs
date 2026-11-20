@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 using Pyxie.Data.Entities;
-using Pyxie.Data.Projects;
 using Pyxie.Data.Services;
 using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Results;
@@ -36,11 +36,9 @@ public partial class SandboxSettingsEditor : IDisposable
 	[Inject]
 	public required ISandboxSignIns SignIns { get; set; }
 
-	/// <summary>Gets or sets the open project, whose image this is, supplied by the framework.</summary>
-	[Inject]
-	public required OpenProject OpenProject { get; set; }
-
 	private bool HasChanges => Normalized(_dockerfile) != Normalized(_settings.Dockerfile);
+
+	internal bool IsEditing => HasChanges || _saving;
 
 	private string? ProjectKey => OpenProject.Current is Project project ? SandboxNames.ProjectKey(project.Folder) : null;
 
@@ -48,9 +46,9 @@ public partial class SandboxSettingsEditor : IDisposable
 	private SandboxImageBuild? ProjectBuild => ProjectKey is string projectKey ? ImageBuilds.Latest(projectKey) : null;
 
 	// A person's build that waits for the pipeline's is building as far as they are concerned.
-	private bool IsBuilding => ProjectBuild is { IsRunning: true } || CanCancel;
+	private bool IsBuilding => ProjectBuild is { IsRunning: true } || CancellableBuild is not null;
 
-	private bool CanCancel => ImageBuilds.PersonBuild is SandboxImageBuild build && build.ProjectKey == ProjectKey;
+	private SandboxImageBuild? CancellableBuild => ImageBuilds.PersonBuild is SandboxImageBuild build && build.ProjectKey == ProjectKey ? build : null;
 
 	// A build of the project that runs shows only itself; the image it would replace is still there meanwhile.
 	private string? BuiltTag => IsBuilding ? null : _imageTag;
@@ -149,6 +147,12 @@ public partial class SandboxSettingsEditor : IDisposable
 
 	private async Task SaveAsync()
 	{
+		using var lease = AcquireProject(out _error);
+		if (lease is null || _saving || !HasChanges)
+		{
+			return;
+		}
+
 		_saving = true;
 		_error = null;
 		try
@@ -175,19 +179,21 @@ public partial class SandboxSettingsEditor : IDisposable
 	// Rebuilds from scratch in the background, which also brings the agents' command lines in Pyxie's base image up to date. The button is disabled while any build runs, so a refusal only means another began a moment ago, which the page then shows.
 	private Task Build()
 	{
-		if (OpenProject.Current is Project project)
+		using var lease = AcquireProject(out _);
+		if (lease is not null && !HasChanges && !_saving)
 		{
 			_error = null;
-			ImageBuilds.TryStart(project.Folder, _settings.Dockerfile);
+			ImageBuilds.TryStart(lease.Project.Folder, _settings.Dockerfile);
 		}
 
 		return Task.CompletedTask;
 	}
 
-	private Task Cancel()
+	private void Cancel(MouseEventArgs press, SandboxImageBuild shown)
 	{
-		ImageBuilds.Cancel();
-
-		return Task.CompletedTask;
+		if (press.Detail <= 1 && !_disposed.IsCancellationRequested)
+		{
+			ImageBuilds.Cancel(shown.ProjectKey, shown.Id);
+		}
 	}
 }

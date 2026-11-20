@@ -6,7 +6,7 @@ namespace Pyxie.Web.Components.Settings.Models;
 public static class HarnessInfo
 {
 	/// <summary>Gets every harness kind in display order.</summary>
-	public static IReadOnlyList<HarnessKind> All { get; } = Enum.GetValues<HarnessKind>();
+	public static IReadOnlyList<HarnessKind> All { get; } = [HarnessKind.ClaudeCode, HarnessKind.Codex, HarnessKind.DeepSeek, HarnessKind.Other];
 
 	/// <summary>Gets the display name of a harness kind.</summary>
 	/// <param name="harness">The harness kind.</param>
@@ -15,8 +15,17 @@ public static class HarnessInfo
 	{
 		HarnessKind.ClaudeCode => "Claude Code",
 		HarnessKind.Codex => "Codex",
-		HarnessKind.OpenCode => "OpenCode",
+		HarnessKind.DeepSeek => "DeepSeek",
+		RetiredHarnesses.OpenCode => "OpenCode (retired)",
 		_ => "Other",
+	};
+
+	/// <summary>Gets the authentication label shown in Settings.</summary>
+	public static string AuthenticationName(AgentAuthentication authentication) => authentication switch
+	{
+		AgentAuthentication.Account => "Account",
+		AgentAuthentication.ApiKey => "API key",
+		_ => "Choose authentication",
 	};
 
 	/// <summary>Gets the executable suggested for a harness kind.</summary>
@@ -26,7 +35,7 @@ public static class HarnessInfo
 	{
 		HarnessKind.ClaudeCode => "claude",
 		HarnessKind.Codex => "codex",
-		HarnessKind.OpenCode => "opencode",
+		HarnessKind.DeepSeek => "dsh",
 		_ => string.Empty,
 	};
 
@@ -37,7 +46,7 @@ public static class HarnessInfo
 	{
 		HarnessKind.ClaudeCode => "-p --dangerously-skip-permissions",
 		HarnessKind.Codex => "exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check",
-		HarnessKind.OpenCode => "run",
+		HarnessKind.DeepSeek => "--profile headless --permission-mode danger-full-access --approval-policy never",
 		_ => string.Empty,
 	};
 }

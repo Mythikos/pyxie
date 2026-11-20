@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
 using Pyxie.Data.Persistence;
 using Pyxie.Tests.Support;
 
@@ -21,7 +21,7 @@ public sealed class SeedDataTests
 
 		Assert.Equal(["Feature", "Bug", "Chore"], categories.Select(category => category.Name));
 		Assert.Equal([1, 2, 3], categories.Select(category => category.Id));
-		Assert.Equal([CategoryColor.Green, CategoryColor.Pink, CategoryColor.Neutral], categories.Select(category => category.Color));
+		Assert.Equal([CategoryColors.Green, CategoryColors.Pink, CategoryColors.Neutral], categories.Select(category => category.Color));
 	}
 
 	[Fact]

@@ -10,7 +10,7 @@ public sealed class MovingSignIns : ISandboxSignIns
 	public Func<Task>? Action { get; set; }
 
 	/// <inheritdoc/>
-	public SandboxSignIn ForAgent(HarnessKind harness, string signInFolder)
+	public SandboxSignIn ForAgent(HarnessKind harness, AgentAuthentication authentication)
 	{
 		// The interface is synchronous, so the action runs on the thread pool and is waited for there.
 		Func<Task>? action = Action;
@@ -26,6 +26,6 @@ public sealed class MovingSignIns : ISandboxSignIns
 	/// <inheritdoc/>
 	public SandboxSignInStatus GetStatus()
 	{
-		return new SandboxSignInStatus("claude-oauth-token", ClaudeTokenFound: false, "auth.json", CodexSignInFound: false);
+		return new SandboxSignInStatus(new("claude-oauth-token", false), new("anthropic-api-key", false), new("auth.json", false), new("openai-api-key", false), new(".credentials.yaml", false), new("deepseek-api-key", false));
 	}
 }

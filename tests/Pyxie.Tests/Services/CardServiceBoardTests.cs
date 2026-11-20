@@ -54,6 +54,25 @@ public sealed class CardServiceBoardTests
 		Assert.Equal(new CardHistorySummary(2, 1, 0, 0, 1, true, null), board.Single(entry => entry.Card.Id == looping.Id).History);
 		Assert.Equal(new CardHistorySummary(2, 2, 2, 0, 1, false, null), board.Single(entry => entry.Card.Id == done.Id).History);
 		Assert.Equal(new CardHistorySummary(1, 0, 0, 0, 0, false, null), board.Single(entry => entry.Card.Id == skippedStages.Id).History);
+
+		IReadOnlyList<BoardCardSummary> page = await service.GetBoardPageAsync(0, board.Count, TestContext.Current.CancellationToken);
+		Assert.Equal(board.OrderBy(row => row.Card.Id).Select(row => row.History), page.Select(row => row.History));
+	}
+
+	[Fact]
+	public async Task BoardPageContinuesByCardIdAfterAnEarlierCardIsClosed()
+	{
+		CancellationToken token = TestContext.Current.CancellationToken;
+		await using TestDatabase database = new();
+		WorkCard first = await TestData.AddCardAsync(database, "First", CardLane.Complete);
+		await TestData.AddCardAsync(database, "Closed", CardLane.Closed);
+		WorkCard next = await TestData.AddCardAsync(database, "Next", CardLane.Queue);
+		CardService service = new(database.ContextFactory, database.Clock);
+
+		Assert.Equal(first.Id, Assert.Single(await service.GetBoardPageAsync(0, 1, token)).Card.Id);
+		ResultAssert.Succeeded(await service.CloseAsync(first.Id, token));
+		Assert.Equal(next.Id, Assert.Single(await service.GetBoardPageAsync(first.Id, 1, token)).Card.Id);
+		Assert.Empty(await service.GetBoardPageAsync(next.Id, 1, token));
 	}
 
 	[Fact]

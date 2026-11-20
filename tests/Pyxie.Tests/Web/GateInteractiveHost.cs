@@ -17,8 +17,15 @@ namespace Pyxie.Tests.Web;
 /// <summary>Renders a component without a browser and lets a test press its buttons and type into its fields, the way a person would, by raising the events the rendered elements listen to. It reads the component tree as it is after each interaction, so a test asserts what a person would see and what reached the database.</summary>
 public sealed class GateInteractiveHost : Renderer
 {
+	// What @onclick:stopPropagation renders on an element: a click inside it goes no further up.
+	private const string StopClickPropagation = "__internal_stopPropagation_onclick";
+
 	private readonly List<Exception> _failures = [];
+	private readonly List<TaskCompletionSource> _unacknowledged = [];
 	private int _rootComponentId = -1;
+
+	// Read and written only on the dispatcher, where renders happen.
+	private bool _holdsAcknowledgements;
 
 	/// <summary>Initializes a new instance of the <see cref="GateInteractiveHost"/> class.</summary>
 	/// <param name="services">The services components are created with.</param>
@@ -85,7 +92,7 @@ public sealed class GateInteractiveHost : Renderer
 		return await Dispatcher.InvokeAsync(() =>
 		{
 			List<GateRenderedElement> elements = [];
-			Collect(_rootComponentId, elements);
+			Collect(_rootComponentId, elements, []);
 
 			return (IReadOnlyList<GateRenderedElement>)elements;
 		});
@@ -189,6 +196,37 @@ public sealed class GateInteractiveHost : Renderer
 		return elements.Where(element => element.Name == name && (condition?.Invoke(element) ?? true)).ToList();
 	}
 
+	/// <summary>Finds every component of a type in the tree as it is now, parents before their children, such as the panels of a page, to tell a panel that was made anew from one that only rendered again.</summary>
+	/// <typeparam name="TComponent">The component type.</typeparam>
+	/// <returns>The component instances.</returns>
+	public async Task<IReadOnlyList<TComponent>> FindComponentsAsync<TComponent>()
+		where TComponent : IComponent
+	{
+		return await Dispatcher.InvokeAsync(() =>
+		{
+			List<TComponent> components = [];
+			CollectComponents(_rootComponentId, components);
+
+			return (IReadOnlyList<TComponent>)components;
+		});
+	}
+
+	/// <summary>Raises what the one component of a type in the tree reports to its parent through one of its <see cref="EventCallback{TValue}"/> parameters, as the component does when its script tells it what the browser did, such as a file picked in a file input or a modal that finished its animation. The host runs no script, so the test raises the report the script would have made the component send.</summary>
+	/// <typeparam name="TComponent">The component type, of which the tree holds exactly one.</typeparam>
+	/// <typeparam name="TValue">The type of the value the callback reports.</typeparam>
+	/// <param name="callback">Picks the callback parameter from the component, such as its <c>Changed</c>.</param>
+	/// <param name="value">The value the component reports.</param>
+	/// <returns>A task that completes when the parent has handled the report and rendered.</returns>
+	public async Task RaiseComponentEventAsync<TComponent, TValue>(Func<TComponent, EventCallback<TValue>> callback, TValue value)
+		where TComponent : IComponent
+	{
+		TComponent component = Assert.Single(await FindComponentsAsync<TComponent>());
+
+		await Dispatcher.InvokeAsync(() => callback(component).InvokeAsync(value));
+
+		ThrowIfFailed();
+	}
+
 	/// <summary>Ticks or clears a checkbox, as clicking it does.</summary>
 	/// <param name="element">The checkbox, read from this host after the last interaction.</param>
 	/// <param name="isChecked">Whether the checkbox is ticked afterwards.</param>
@@ -229,14 +267,42 @@ public sealed class GateInteractiveHost : Renderer
 		return elements.Where(element => (element.Attribute("class") ?? string.Empty).Split(' ').Contains(cssClass)).Select(element => element.Text).ToList();
 	}
 
-	/// <summary>Presses an element a person could press.</summary>
+	/// <summary>Presses an element a person could press. The click reaches the element's own handler and then, as it bubbles up, the handlers around it, as in the browser, which sends the click to each of them before it hears what any of them did.</summary>
 	/// <param name="element">The element, read from this host after the last interaction.</param>
-	/// <returns>A task that completes when the component has handled the press and rendered.</returns>
-	public async Task ClickAsync(GateRenderedElement element)
+	/// <param name="clicks">The click count the browser reports: 1 for a click, 2 for the second click of a double click.</param>
+	/// <returns>A task that completes when the components have handled the press and rendered.</returns>
+	public async Task ClickAsync(GateRenderedElement element, long clicks = 1)
 	{
-		Assert.True(element.IsClickable, $"The <{element.Name}> '{element.Attribute("aria-label") ?? element.Text}' cannot be pressed: it has no click handler or is disabled.");
+		Assert.True(element.IsClickable, $"The <{element.Name}> '{element.Attribute("aria-label") ?? element.Text}' cannot be pressed: no click handler reaches it, or it is disabled.");
 
-		await RaiseAsync(element.EventHandlers["onclick"], new MouseEventArgs());
+		List<ulong> handlers = [.. element.EventHandlers.TryGetValue("onclick", out ulong own) ? [own] : Array.Empty<ulong>(), .. element.BubblingClickHandlers ?? []];
+		MouseEventArgs press = new() { Detail = clicks };
+
+		if (handlers.Count == 1)
+		{
+			await RaiseAsync(handlers[0], press);
+
+			return;
+		}
+
+		// Every handler the click reaches gets it before the browser applies a render the first one caused, so the renders wait, unless a test already holds them.
+		bool holds = await Dispatcher.InvokeAsync(() => _holdsAcknowledgements);
+		await HoldAcknowledgementsAsync();
+
+		try
+		{
+			foreach (ulong handler in handlers)
+			{
+				await RaiseAsync(handler, press);
+			}
+		}
+		finally
+		{
+			if (!holds)
+			{
+				await AcknowledgeAsync();
+			}
+		}
 	}
 
 	/// <summary>Submits a form, as pressing its submit button or Enter in one of its fields does.</summary>
@@ -324,8 +390,70 @@ public sealed class GateInteractiveHost : Renderer
 		await RaiseAsync(end, new DragEventArgs { Type = "dragend" });
 	}
 
+	/// <summary>Has the browser fall behind: from now on each render waits for the browser to acknowledge it, until <see cref="AcknowledgeAsync"/>. In the application a render is done once the browser has applied it, and until then the handlers of the elements it removed or replaced keep working, because the browser can still send events to them. A test holds acknowledgements to press an element again as a person does whose second click left before the first one's render arrived; otherwise every render is acknowledged at once.</summary>
+	/// <returns>A task that completes when renders wait.</returns>
+	public async Task HoldAcknowledgementsAsync()
+	{
+		await Dispatcher.InvokeAsync(() =>
+		{
+			_holdsAcknowledgements = true;
+		});
+	}
+
+	/// <summary>Has the browser catch up: it acknowledges every render it has not acknowledged yet, in order, with the renders those lead to, and from then on acknowledges each render at once. The handlers of the elements the acknowledged renders removed or replaced stop working, and the components hear that they rendered.</summary>
+	/// <returns>A task that completes when the renders have been acknowledged.</returns>
+	public async Task AcknowledgeAsync()
+	{
+		await Dispatcher.InvokeAsync(() =>
+		{
+			// Hearing that it rendered can make a component render again. That render reaches the browser after the ones before it, so it waits for them and is acknowledged in the next round.
+			while (_unacknowledged.Count > 0)
+			{
+				List<TaskCompletionSource> acknowledgements = [.. _unacknowledged];
+				_unacknowledged.Clear();
+
+				foreach (TaskCompletionSource acknowledgement in acknowledgements)
+				{
+					acknowledgement.SetResult();
+				}
+			}
+
+			_holdsAcknowledgements = false;
+		});
+
+		ThrowIfFailed();
+	}
+
 	/// <inheritdoc/>
-	protected override Task UpdateDisplayAsync(in RenderBatch renderBatch) => Task.CompletedTask;
+	protected override Task UpdateDisplayAsync(in RenderBatch renderBatch)
+	{
+		if (!_holdsAcknowledgements)
+		{
+			return Task.CompletedTask;
+		}
+
+		TaskCompletionSource acknowledgement = new();
+		_unacknowledged.Add(acknowledgement);
+
+		return acknowledgement.Task;
+	}
+
+	/// <inheritdoc/>
+	protected override void Dispose(bool disposing)
+	{
+		// Renders the browser never acknowledged are cancelled, as the application's renderer cancels them when the circuit goes away. The base class runs this again on the dispatcher when it is called from elsewhere.
+		if (Dispatcher.CheckAccess())
+		{
+			foreach (TaskCompletionSource acknowledgement in _unacknowledged)
+			{
+				acknowledgement.TrySetCanceled();
+			}
+
+			_unacknowledged.Clear();
+		}
+
+		base.Dispose(disposing);
+	}
 
 	/// <inheritdoc/>
 	protected override void HandleException(Exception exception)
@@ -348,7 +476,8 @@ public sealed class GateInteractiveHost : Renderer
 		}
 	}
 
-	private void Collect(int componentId, List<GateRenderedElement> elements)
+	// A component's frames hold the frames of the components it renders, each followed by its parameters; what those render is in their own frames.
+	private void CollectComponents<TComponent>(int componentId, List<TComponent> components)
 	{
 		ArrayRange<RenderTreeFrame> frames = GetCurrentRenderTreeFrames(componentId);
 
@@ -356,18 +485,78 @@ public sealed class GateInteractiveHost : Renderer
 		{
 			RenderTreeFrame frame = frames.Array[index];
 
+			if (frame.FrameType != RenderTreeFrameType.Component)
+			{
+				continue;
+			}
+
+			if (frame.Component is TComponent component)
+			{
+				components.Add(component);
+			}
+
+			CollectComponents(frame.ComponentId, components);
+		}
+	}
+
+	// Click handlers reach the elements inside them, so each element is read with the handlers around it, nearest first.
+	private void Collect(int componentId, List<GateRenderedElement> elements, IReadOnlyList<ulong> around)
+	{
+		ArrayRange<RenderTreeFrame> frames = GetCurrentRenderTreeFrames(componentId);
+		Collect(frames, 0, frames.Count, elements, around);
+	}
+
+	private void Collect(ArrayRange<RenderTreeFrame> frames, int start, int end, List<GateRenderedElement> elements, IReadOnlyList<ulong> around)
+	{
+		int index = start;
+
+		while (index < end)
+		{
+			RenderTreeFrame frame = frames.Array[index];
+
 			if (frame.FrameType == RenderTreeFrameType.Component)
 			{
-				Collect(frame.ComponentId, elements);
+				Collect(frame.ComponentId, elements, around);
+				index += frame.ComponentSubtreeLength;
 			}
 			else if (frame.FrameType == RenderTreeFrameType.Element)
 			{
-				elements.Add(ReadElement(frames, index));
+				GateRenderedElement element = ReadElement(frames, index, around);
+				elements.Add(element);
+				Collect(frames, index + 1, index + frame.ElementSubtreeLength, elements, Inside(element, around));
+				index += frame.ElementSubtreeLength;
+			}
+			else
+			{
+				index++;
 			}
 		}
 	}
 
-	private static GateRenderedElement ReadElement(ArrayRange<RenderTreeFrame> frames, int index)
+	// The handlers a click inside an element reaches after its own: the element's, then those around it, unless the element stops the click there. The browser sends no click from inside a disabled control.
+	private static IReadOnlyList<ulong> Inside(GateRenderedElement element, IReadOnlyList<ulong> around)
+	{
+		if (element.Name is "button" or "input" or "select" or "textarea" && element.Attributes.ContainsKey("disabled"))
+		{
+			return [];
+		}
+
+		List<ulong> handlers = element.EventHandlers.TryGetValue("onclick", out ulong own) ? [own] : [];
+
+		if (!StopsClicks(element))
+		{
+			handlers.AddRange(around);
+		}
+
+		return handlers;
+	}
+
+	private static bool StopsClicks(GateRenderedElement element)
+	{
+		return element.Attribute(StopClickPropagation) == "true";
+	}
+
+	private static GateRenderedElement ReadElement(ArrayRange<RenderTreeFrame> frames, int index, IReadOnlyList<ulong> around)
 	{
 		RenderTreeFrame element = frames.Array[index];
 		int lastAttribute = index + CountAttributes(frames, index);
@@ -408,7 +597,9 @@ public sealed class GateInteractiveHost : Renderer
 			}
 		}
 
-		return new GateRenderedElement(element.ElementName, attributes, handlers, text.ToString(), element.ElementKey, referenceId);
+		GateRenderedElement read = new(element.ElementName, attributes, handlers, text.ToString(), element.ElementKey, referenceId);
+
+		return StopsClicks(read) ? read : read with { BubblingClickHandlers = around };
 	}
 
 	// An element's attributes, and the reference the component captured for it, are the frames that follow it directly, before its first child.

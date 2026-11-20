@@ -21,13 +21,13 @@ public sealed class DockerBuildCacheTests
 	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
 	public async Task UnusedBuildCache_StepsOfAnImageThatIsThere_AreNotPicked()
 	{
-		const string Word = "pyxie-test-cache-in-use";
 		await using DockerSandboxRig rig = new(_image);
-		await rig.BuildImageAsync(Dockerfile(Word), Token);
+		string word = $"pyxie-test-cache-in-use-{rig.ProjectKey}";
+		await rig.BuildImageAsync(Dockerfile(word), Token);
 
-		IReadOnlyList<BuildCacheEntry> cache = await CacheAsync(rig, Word);
+		IReadOnlyList<BuildCacheEntry> cache = await CacheAsync(rig, word);
 
-		IReadOnlyList<string> steps = StepsOf(cache, Word);
+		IReadOnlyList<string> steps = StepsOf(cache, word);
 		Assert.Equal(3, steps.Count);
 		Assert.Empty(DockerImages.UnusedBuildCache(cache).Intersect(steps));
 	}
@@ -35,13 +35,13 @@ public sealed class DockerBuildCacheTests
 	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]
 	public async Task UnusedBuildCache_StepsOfARemovedImage_AreAllPickedAndOnePruneRemovesThem()
 	{
-		const string Word = "pyxie-test-cache-removed";
 		await using DockerSandboxRig rig = new(_image);
-		string tag = await rig.BuildImageAsync(Dockerfile(Word), Token);
+		string word = $"pyxie-test-cache-removed-{rig.ProjectKey}";
+		string tag = await rig.BuildImageAsync(Dockerfile(word), Token);
 		await rig.Docker.RunCheckedAsync("image", "rm", tag);
 
-		IReadOnlyList<BuildCacheEntry> cache = await CacheAsync(rig, Word);
-		IReadOnlyList<string> steps = StepsOf(cache, Word);
+		IReadOnlyList<BuildCacheEntry> cache = await CacheAsync(rig, word);
+		IReadOnlyList<string> steps = StepsOf(cache, word);
 		IReadOnlyList<string> picked = [.. DockerImages.UnusedBuildCache(cache).Where(steps.Contains)];
 
 		Assert.Equal(3, steps.Count);
@@ -50,7 +50,7 @@ public sealed class DockerBuildCacheTests
 
 		await rig.Docker.RunCheckedAsync("builder", "prune", "--force", "--filter", DockerImages.PruneFilters(picked, int.MaxValue)[0]);
 
-		Assert.Empty(StepsOf(await CacheAsync(rig, Word), Word));
+		Assert.Empty(StepsOf(await CacheAsync(rig, word), word));
 	}
 
 	// A step with Pyxie's shell, then two that record none: a WORKDIR, and a step run with a shell the image sets itself.

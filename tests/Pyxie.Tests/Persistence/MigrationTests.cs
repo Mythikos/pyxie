@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
 using Pyxie.Data.Persistence;
@@ -31,7 +32,7 @@ public sealed class MigrationTests
 
 		List<Category> categories = await context.Categories.OrderBy(category => category.Id).ToListAsync(TestContext.Current.CancellationToken);
 
-		Assert.Equal([("Feature", CategoryColor.Green), ("Bug", CategoryColor.Pink), ("Chore", CategoryColor.Neutral)], categories.Select(category => (category.Name, category.Color)));
+		Assert.Equal([("Feature", CategoryColors.Green), ("Bug", CategoryColors.Pink), ("Chore", CategoryColors.Neutral)], categories.Select(category => (category.Name, category.Color)));
 		Assert.False(await context.Agents.AnyAsync(TestContext.Current.CancellationToken), "No agents are seeded.");
 		Assert.False(await context.Cards.AnyAsync(TestContext.Current.CancellationToken), "No cards are seeded.");
 		Assert.False(await context.Rounds.AnyAsync(TestContext.Current.CancellationToken), "No rounds are seeded.");
@@ -74,7 +75,36 @@ public sealed class MigrationTests
 
 		List<string> columns = await MigrationDatabase.ReadAsync(connection, "SELECT name || ':' || type || ':' || CASE \"notnull\" WHEN 1 THEN 'required' ELSE 'optional' END || ':' || ifnull(dflt_value, 'no default') FROM pragma_table_info('Categories') WHERE name = 'Color'");
 
-		Assert.Equal(["Color:INTEGER:required:no default"], columns);
+		Assert.Equal(["Color:TEXT:required:no default"], columns);
+	}
+
+	[Theory]
+	[InlineData("#eaf3e2")]
+	[InlineData("#EAF3E")]
+	[InlineData("#EAF3E2F")]
+	[InlineData("#EAF3E2FF")]
+	[InlineData("EAF3E2")]
+	[InlineData(" #EAF3E2")]
+	[InlineData("#EAF3E2;color:red")]
+	[InlineData("#GGGGGG")]
+	[InlineData("red")]
+	[InlineData("")]
+	public async Task ShippedMigrations_RefuseACategoryColorNotWrittenAsHexColorWritesIt(string color)
+	{
+		await using SqliteConnection connection = await MigrationDatabase.OpenMigratedAsync();
+
+		await Assert.ThrowsAsync<SqliteException>(() => MigrationDatabase.ExecuteAsync(connection, $"INSERT INTO \"Categories\" (\"Name\", \"Color\") VALUES ('Docs', '{color}')"));
+		await Assert.ThrowsAsync<SqliteException>(() => MigrationDatabase.ExecuteAsync(connection, $"UPDATE \"Categories\" SET \"Color\" = '{color}' WHERE \"Name\" = 'Bug'"));
+	}
+
+	[Fact]
+	public async Task ShippedMigrations_AcceptACategoryColorWrittenAsHexColorWritesIt()
+	{
+		await using SqliteConnection connection = await MigrationDatabase.OpenMigratedAsync();
+
+		await MigrationDatabase.ExecuteAsync(connection, "INSERT INTO \"Categories\" (\"Name\", \"Color\") VALUES ('Docs', '#0A1B2C')");
+
+		Assert.Equal(["#0A1B2C"], await MigrationDatabase.ReadAsync(connection, "SELECT \"Color\" FROM \"Categories\" WHERE \"Name\" = 'Docs'"));
 	}
 
 	[Fact]
@@ -227,7 +257,7 @@ public sealed class MigrationTests
 
 		List<string> columns = await MigrationDatabase.ReadAsync(connection, "SELECT name FROM pragma_table_info('Rounds') WHERE name LIKE 'Agent%' ORDER BY name");
 
-		Assert.Equal(["Agent_Arguments", "Agent_Command", "Agent_Harness", "Agent_Name"], columns);
+		Assert.Equal(["Agent_Arguments", "Agent_Authentication", "Agent_Command", "Agent_Harness", "Agent_Name"], columns);
 		Assert.Empty(await MigrationDatabase.ReadAsync(connection, "SELECT \"from\" FROM pragma_foreign_key_list('Rounds') WHERE \"table\" = 'Agents'"));
 	}
 
@@ -291,7 +321,7 @@ public sealed class MigrationTests
 
 	private static string InsertAgent(string name, bool canMerge)
 	{
-		return $"INSERT INTO \"Agents\" (\"Name\", \"Harness\", \"Command\", \"Arguments\", \"CanWork\", \"CanReview\", \"CanMerge\") VALUES ('{name}', 0, 'claude', '', 1, 1, {(canMerge ? 1 : 0)})";
+		return $"INSERT INTO \"Agents\" (\"Name\", \"Harness\", \"Authentication\", \"Command\", \"Arguments\", \"CanWork\", \"CanReview\", \"CanMerge\") VALUES ('{name}', 0, 1, 'claude', '', 1, 1, {(canMerge ? 1 : 0)})";
 	}
 
 	private static string InsertCard(string categoryId)

@@ -1,7 +1,8 @@
-<Modal Visible="@Visible" VisibleChanged="@VisibleChanged" Centered>
+@inherits Pyxie.Web.Components.Projects.ProjectEditorComponent
+<Modal Visible="@Visible" VisibleChanged="@OnModalVisibleChangedAsync" Centered>
 	<ModalContent>
 		<ModalHeader>
-			<ModalTitle>@(Agent is null ? "Add agent" : "Edit agent")</ModalTitle>
+			<ModalTitle>@(_opening.Subject is null ? "Add agent" : "Edit agent")</ModalTitle>
 		</ModalHeader>
 		<ModalBody>
 			<Field>
@@ -21,6 +22,16 @@
 					}
 				</Select>
 			</Field>
+			@if (_model.Harness != HarnessKind.Other)
+			{
+				<Field>
+					<FieldLabel For="agent-authentication">Authentication</FieldLabel>
+					<Select ElementId="agent-authentication" TValue="AgentAuthentication" @bind-Value="_model.Authentication">
+						<SelectItem TValue="AgentAuthentication" Value="AgentAuthentication.Account">Account</SelectItem>
+						<SelectItem TValue="AgentAuthentication" Value="AgentAuthentication.ApiKey">API key</SelectItem>
+					</Select>
+				</Field>
+			}
 			<Field>
 				<FieldLabel>Command</FieldLabel>
 				<TextInput @bind-Value="_model.Command" />
@@ -51,6 +62,6 @@
 				<Alert Color="Color.Danger" Visible="true">@_serviceError</Alert>
 			}
 		</ModalBody>
-		<EditorFooter Subject="@(Agent?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(Agent is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
+		<EditorFooter Subject="@(_opening.Subject?.Name ?? string.Empty)" Visible="@Visible" Deletable="@(_opening.Subject is not null)" Busy="@_busy" SaveRequested="@SaveAsync" CancelRequested="@CancelAsync" DeleteRequested="@DeleteAsync" />
 	</ModalContent>
 </Modal>

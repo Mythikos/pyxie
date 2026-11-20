@@ -42,6 +42,10 @@ public partial class CommitList : ComponentBase, IDisposable
 	[Inject]
 	public required TimeProvider Time { get; set; }
 
+	/// <summary>Gets or sets the project used to qualify card history links.</summary>
+	[Parameter]
+	public int ProjectId { get; set; }
+
 	// A full page may be the last one, so Older stays available and an empty page says so.
 	private bool HasOlder => _commits is not null && _commits.Count == RepositoryBrowser.CommitsPerPage;
 

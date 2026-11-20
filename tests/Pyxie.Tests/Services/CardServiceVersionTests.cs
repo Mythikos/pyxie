@@ -11,6 +11,21 @@ namespace Pyxie.Tests.Services;
 public sealed class CardServiceVersionTests
 {
 	[Fact]
+	public async Task DeleteAsync_RequiresTheInspectedQueueCardVersion()
+	{
+		CancellationToken token = TestContext.Current.CancellationToken;
+		await using TestDatabase database = new();
+		CardService service = new(database.ContextFactory, database.Clock);
+		WorkCard original = await TestData.AddCardAsync(database, "Original");
+		WorkCard updated = ResultAssert.Succeeded(await service.UpdateAsync(original.Id, await TestCardInput.CreateAsync(database, "Revised"), token));
+
+		ResultAssert.Failed(await service.DeleteAsync(original.Id, token, original.Version));
+		Assert.Equal(updated.Name, (await TestData.FindCardAsync(database, original.Id))?.Name);
+		ResultAssert.Succeeded(await service.DeleteAsync(updated.Id, token, updated.Version));
+		Assert.Null(await TestData.FindCardAsync(database, original.Id));
+	}
+
+	[Fact]
 	public async Task CreateAsync_StartsTheCardAtVersionZero()
 	{
 		await using TestDatabase database = new();

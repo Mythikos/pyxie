@@ -24,7 +24,6 @@ public sealed class AgentFormModelTests
 		Assert.Equal("claude", model.Command);
 		Assert.Equal(ClaudeArguments, model.Arguments);
 		Assert.Equal(string.Empty, model.Name);
-		Assert.True(model.IsNew, "CreateNew should produce a form for a new agent.");
 	}
 
 	[Theory]
@@ -91,7 +90,6 @@ public sealed class AgentFormModelTests
 		Assert.Equal(canWork, model.CanWork);
 		Assert.Equal(canReview, model.CanReview);
 		Assert.Equal(canMerge, model.CanMerge);
-		Assert.False(model.IsNew, "FromAgent should produce a form for a stored agent.");
 	}
 
 	[Fact]
@@ -111,8 +109,8 @@ public sealed class AgentFormModelTests
 
 	[Theory]
 	[InlineData(HarnessKind.ClaudeCode, HarnessKind.Codex, "codex", CodexArguments)]
-	[InlineData(HarnessKind.Codex, HarnessKind.OpenCode, "opencode", "run")]
-	[InlineData(HarnessKind.OpenCode, HarnessKind.Other, "", "")]
+	[InlineData(HarnessKind.Codex, HarnessKind.DeepSeek, "dsh", "--profile headless --permission-mode danger-full-access --approval-policy never")]
+	[InlineData(HarnessKind.DeepSeek, HarnessKind.Other, "", "")]
 	[InlineData(HarnessKind.Other, HarnessKind.ClaudeCode, "claude", ClaudeArguments)]
 	[InlineData(HarnessKind.ClaudeCode, HarnessKind.Other, "", "")]
 	[InlineData(HarnessKind.Other, HarnessKind.Codex, "codex", CodexArguments)]
@@ -186,7 +184,7 @@ public sealed class AgentFormModelTests
 	{
 		AgentFormModel model = AgentFormModel.CreateNew();
 
-		model.ChangeHarness(HarnessKind.OpenCode);
+		model.ChangeHarness(HarnessKind.DeepSeek);
 		model.ChangeHarness(HarnessKind.ClaudeCode);
 
 		Assert.Equal("claude", model.Command);
@@ -194,7 +192,7 @@ public sealed class AgentFormModelTests
 	}
 
 	[Fact]
-	public void ChangeHarness_LeavesAStoredAgentsCommandAndArgumentsAlone()
+	public void ChangeHarness_ReplacesAStoredAgentsStockCommandAndArguments()
 	{
 		Agent agent = new()
 		{
@@ -208,7 +206,7 @@ public sealed class AgentFormModelTests
 		model.ChangeHarness(HarnessKind.Codex);
 
 		Assert.Equal(HarnessKind.Codex, model.Harness);
-		Assert.Equal("claude", model.Command);
-		Assert.Equal(ClaudeArguments, model.Arguments);
+		Assert.Equal("codex", model.Command);
+		Assert.Equal(CodexArguments, model.Arguments);
 	}
 }

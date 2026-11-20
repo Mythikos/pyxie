@@ -16,7 +16,7 @@ using RepositoryEntity = Pyxie.Data.Entities.Repository;
 
 namespace Pyxie.Web.Components.Pages;
 
-/// <summary>The Repository page: the projects panel, which imports, opens, and closes projects and is always there, and, while a project is open, its repository to browse. The tab, branch, folder or file, commit, and page of history live in the address, so links and back and forward work and this component keeps no navigation state of its own. It follows projects being imported, opened, or closed, here or in another tab.</summary>
+/// <summary>The Repository page: the projects panel, which imports, opens, closes, and removes projects and is always there, and, while a project is open, its repository to browse. The tab, branch, folder or file, commit, and page of history live in the address, so links and back and forward work and this component keeps no navigation state of its own. It follows projects being imported, opened, closed, or removed, here or in another tab.</summary>
 public partial class Repository : ComponentBase, IDisposable
 {
 	private readonly LatestLoad _load = new();
@@ -121,7 +121,7 @@ public partial class Repository : ComponentBase, IDisposable
 		return _load.RunAsync(ReadAsync, Apply);
 	}
 
-	// Raised on the thread that imported, opened, or closed a project, which can be a background import: the work moves onto the page's own context.
+	// Raised on the thread that imported, opened, closed, or removed a project, which can be a background import: the work moves onto the page's own context.
 	private void OnProjectChanged()
 	{
 		_ = InvokeAsync(ReloadAfterChangeAsync);

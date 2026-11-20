@@ -9,9 +9,9 @@ public enum HarnessKind
 	/// <summary>OpenAI Codex.</summary>
 	Codex = 1,
 
-	/// <summary>OpenCode.</summary>
-	OpenCode = 2,
-
 	/// <summary>Any other command-line harness.</summary>
 	Other = 3,
+
+	/// <summary>DeepSeek Harness.</summary>
+	DeepSeek = 4,
 }

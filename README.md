@@ -1,6 +1,6 @@
 # Pyxie
 
-Pyxie ("Pyx") is a locally run software factory for one application. People queue cards on a kanban board (Queue, In Progress, Gates, Review, Complete), and a pipeline carries each card through work by an agent, automated gates, and agent review, then merges it into the target branch, with nobody in the loop. A merge that conflicts goes to the project's merge agent, if you set one, and its resolution is gated and reviewed again before it merges; without one, the card's worker resolves it. Agents are your local harnesses (Claude Code, Codex, OpenCode, or other commands), so your existing subscriptions are used. Every round is recorded in the card's history.
+Pyxie ("Pyx") is a locally run software factory for one application. People queue cards on a kanban board (Queue, In Progress, Gates, Review, Complete), and a pipeline carries each card through work by an agent, automated gates, and agent review, then merges it into the target branch, with nobody in the loop. A merge that conflicts goes to the project's merge agent, if you set one, and its resolution is gated and reviewed again before it merges; without one, the card's worker resolves it. Agents are your local harnesses (Claude Code, Codex, DeepSeek Harness, or other commands), with an authentication method selected per agent. Every round is recorded in the card's history.
 
 - **Board**: every card has a name, a description, a category, a worker, an optional reviewer (without one, review is skipped), and an attempt limit (5 by default). Cards the pipeline stops (out of attempts, or blocked) wait at the top of the Queue in red until someone retries them.
 - **Repository**: your projects. Each project is one application: import its repository from a local folder or a URL, open it, and open another to switch to it; closing keeps everything. Pyxie keeps its own bare clone, the hub, so your working folder is never changed. The hub is a git remote: clone it to work on the project, pull to get finished cards, and push your own commits so cards build on them. Browse files, history, and branches, or download a branch as a zip.
@@ -16,9 +16,13 @@ dotnet run --project src/Pyxie.Web
 
 The app listens on <http://localhost:5280> and applies database migrations at startup. The `http` launch profile runs in the Development environment. Git must be on `PATH`, and the pipeline needs Docker running Linux containers (Docker Desktop on Windows): every round runs in a sandbox container ([agent sandboxes](docs/sandboxing.md)).
 
-Agents run unattended in their sandbox, which is the boundary, so their arguments run the harness in print mode with every permission: `-p --dangerously-skip-permissions` for Claude Code and `exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` for Codex. Pyxie passes the prompt on standard input (as the last argument for OpenCode). Claude Code signs in with a token from `claude setup-token`, saved in `secrets\claude-oauth-token` under the workspace root; Codex uses a copy of your Codex sign-in. Settings shows whether both are found.
+Agents run unattended in their sandbox, which is the boundary, so their arguments run the harness in print mode with every permission: `-p --dangerously-skip-permissions` for Claude Code and `exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` for Codex. All harnesses receive the prompt on standard input.
+
+In Settings → Agents, select **Account** or **API key** for Claude Code, Codex, or DeepSeek. For an account, save the token from `claude setup-token` in `secrets\claude-oauth-token`, sign into Codex with ChatGPT using `codex login` and file storage, or sign into DeepSeek with `dsh web`. For an API key, save the provider key in `secrets\anthropic-api-key`, `secrets\openai-api-key`, or `secrets\deepseek-api-key` under the workspace root. Settings → Sandbox shows which credentials are present. If both are available, the agent uses the selected method. A missing selected credential blocks the round.
 
 ## Configuration
+
+To connect a local external agent, open **Settings → Global**, enable MCP access, and copy the Streamable HTTP endpoint into the client. This applies to all projects and works before opening one. See [external agent setup and workflows](docs/mcp.md).
 
 Set in `src/Pyxie.Web/appsettings.json`, an environment-specific file, or environment variables (for example `Workspace__Root`).
 

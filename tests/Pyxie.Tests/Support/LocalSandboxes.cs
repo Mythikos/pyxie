@@ -7,7 +7,7 @@ using Pyxie.Runtime.Sandboxes;
 
 namespace Pyxie.Tests.Support;
 
-/// <summary>A stand-in for <see cref="DockerSandboxes"/> in tests (see <see cref="LocalSandbox"/>). Each sandbox works in a folder under the stand-in's own folder named after the sandbox; a worker's folder stands for its volumes and stays until the card is removed. It records every sandbox it starts, so a test can see what each was given. It remembers the images it handed out for a project's Dockerfile, which <see cref="FindImageAsync"/> finds and a call to <see cref="RemoveUnusedImagesAsync"/> that ran removes except for the one it is told to keep.</summary>
+/// <summary>A stand-in for <see cref="DockerSandboxes"/> in tests (see <see cref="LocalSandbox"/>). Each sandbox works in a folder under the stand-in's own folder named after the sandbox; a worker's folder stands for its volumes and stays until the card is removed. It records every sandbox it starts, so a test can see what each was given. It remembers the images it handed out for a project's Dockerfile, which <see cref="FindImageAsync"/> finds, a call to <see cref="RemoveUnusedImagesAsync"/> that ran removes except for the one it is told to keep, and removing the project removes with its sandboxes' folders.</summary>
 public sealed class LocalSandboxes : ISandboxes
 {
 	/// <summary>The image tag the stand-in hands out.</summary>
@@ -18,8 +18,10 @@ public sealed class LocalSandboxes : ISandboxes
 	private readonly ConcurrentQueue<SandboxSpec> _started = new();
 	private readonly ConcurrentQueue<(string ProjectKey, string Dockerfile)> _unusedImageRemovals = new();
 	private readonly ConcurrentDictionary<(string ProjectKey, string Dockerfile), string> _images = new();
+	private readonly ConcurrentQueue<string> _projectRemovals = new();
 	private volatile bool _removeUnusedImagesResult = true;
 	private volatile Exception? _removeUnusedImagesFailure;
+	private volatile Exception? _removeProjectFailure;
 	private volatile Func<SandboxImageRequest, CancellationToken, Task<ServiceResult<string>>>? _ensureImage;
 
 	/// <summary>Initializes a new instance of the <see cref="LocalSandboxes"/> class.</summary>
@@ -49,6 +51,16 @@ public sealed class LocalSandboxes : ISandboxes
 	{
 		get => _removeUnusedImagesFailure;
 		set => _removeUnusedImagesFailure = value;
+	}
+
+	/// <summary>Gets the keys of the projects <see cref="RemoveProjectAsync"/> was asked to remove, in order, also when it failed.</summary>
+	public IReadOnlyList<string> ProjectRemovals => [.. _projectRemovals];
+
+	/// <summary>Gets or sets what <see cref="RemoveProjectAsync"/> throws after recording the call, instead of removing anything, such as a <see cref="SandboxUnavailableException"/> for a container engine that does not answer; <see langword="null"/> while it works.</summary>
+	public Exception? RemoveProjectFailure
+	{
+		get => _removeProjectFailure;
+		set => _removeProjectFailure = value;
 	}
 
 	/// <summary>Gets or sets what <see cref="EnsureImageAsync"/> does instead of handing out <see cref="Image"/> at once, so a test can make an image build fail, wait, or report itself through <see cref="SandboxImageRequest.BuildStarting"/>; <see langword="null"/> to hand out <see cref="Image"/>.</summary>
@@ -145,6 +157,12 @@ public sealed class LocalSandboxes : ISandboxes
 	}
 
 	/// <inheritdoc/>
+	public Task QuiesceCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
+	{
+		return Task.CompletedTask;
+	}
+
+	/// <inheritdoc/>
 	public Task RemoveCardAsync(string projectKey, int cardId, CancellationToken cancellationToken)
 	{
 		foreach (string folder in CardFolders(projectKey).Where(entry => entry.CardId == cardId).Select(entry => entry.Folder))
@@ -161,6 +179,29 @@ public sealed class LocalSandboxes : ISandboxes
 		foreach (string folder in CardFolders(projectKey).Where(entry => !entry.Folder.EndsWith($"-{SandboxNames.RoleName(SandboxRole.Worker)}", StringComparison.Ordinal)).Select(entry => entry.Folder))
 		{
 			DeleteFolder(folder);
+		}
+
+		return Task.CompletedTask;
+	}
+
+	/// <inheritdoc/>
+	public Task RemoveProjectAsync(string projectKey, CancellationToken cancellationToken)
+	{
+		Exception? failure = _removeProjectFailure;
+		_projectRemovals.Enqueue(projectKey);
+		if (failure is not null)
+		{
+			return Task.FromException(failure);
+		}
+
+		foreach (string folder in CardFolders(projectKey).Select(entry => entry.Folder))
+		{
+			DeleteFolder(folder);
+		}
+
+		foreach ((string ProjectKey, string Dockerfile) image in _images.Keys.Where(image => image.ProjectKey == projectKey))
+		{
+			_images.TryRemove(image, out _);
 		}
 
 		return Task.CompletedTask;

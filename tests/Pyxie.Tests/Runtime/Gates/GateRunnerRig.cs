@@ -1,7 +1,6 @@
 using System.Text.Json;
 
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
 using Pyxie.Runtime.Gates;
 using Pyxie.Runtime.Orchestration;
 using Pyxie.Runtime.Sandboxes;
@@ -56,7 +55,7 @@ public sealed class GateRunnerRig : IAsyncDisposable
 	{
 		string[] arguments = [.. fakeArguments ?? [], "--record", _recordPath, "--note", name];
 
-		return new Gate { Name = name, Command = FakeHarnessAgent.Command, Arguments = FakeHarnessAgent.Arguments(HarnessKind.Other, arguments), TimeoutMinutes = timeoutMinutes, IsEnabled = true };
+		return new Gate { Name = name, Command = FakeHarnessAgent.Command, Arguments = FakeHarnessAgent.Arguments(arguments), TimeoutMinutes = timeoutMinutes, IsEnabled = true };
 	}
 
 	/// <summary>Creates a gate whose command does not exist in the sandbox, so it cannot start.</summary>

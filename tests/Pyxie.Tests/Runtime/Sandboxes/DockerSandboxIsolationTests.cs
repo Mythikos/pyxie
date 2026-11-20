@@ -41,21 +41,22 @@ public sealed class DockerSandboxIsolationTests
 		await using DockerSandboxRig rig = new(_image);
 		string secret = $"pyxie-secret-{Guid.NewGuid():N}";
 		string secretFile = Path.Combine(rig.Folder, "secret.txt");
-		await File.WriteAllTextAsync(secretFile, secret, Token);
+		string fileContents = secret + "\r\n";
+		await File.WriteAllTextAsync(secretFile, fileContents, Token);
 		SandboxSpec spec = rig.Spec(1, SandboxRole.Review) with { Secrets = [new SandboxSecret(secretFile, SecretVariable)] };
 		await using ISandbox sandbox = await rig.Sandboxes.StartAsync(spec, Token);
 
-		ProcessResult seen = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", $"printf %s \"${SecretVariable}\""], sandbox.WorkPath), Token);
+		ProcessResult seen = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", $"printf '%s.' \"${SecretVariable}\""], sandbox.WorkPath), Token);
 		string inspect = await rig.Docker.RunCheckedAsync("inspect", sandbox.Name);
 		ProcessResult containerEnvironment = await rig.Docker.RunAsync("exec", sandbox.Name, "env");
 		ProcessResult overwrite = await sandbox.RunAsync(new SandboxCommand("sh", ["-c", $"echo changed > /pyxie/secrets/{SecretVariable}"], sandbox.WorkPath), Token);
 
-		Assert.Equal(secret, seen.StandardOutput);
+		Assert.Equal(secret + ".", seen.StandardOutput);
 		Assert.False(inspect.Contains(secret, StringComparison.Ordinal), "The secret's text is in docker inspect, so anything that can list containers can read it.");
 		Assert.True(containerEnvironment.Succeeded, containerEnvironment.Output);
 		Assert.False(containerEnvironment.Output.Contains(secret, StringComparison.Ordinal), "The secret is in the container's own environment rather than handed to each command.");
 		Assert.False(overwrite.Succeeded, "The sandbox could write to its secret file, which it must only read.");
-		Assert.Equal(secret, await File.ReadAllTextAsync(secretFile, Token));
+		Assert.Equal(fileContents, await File.ReadAllTextAsync(secretFile, Token));
 	}
 
 	[Fact(Skip = DockerTestSwitch.NeedsDocker, SkipUnless = nameof(DockerTestSwitch.IsOn), SkipType = typeof(DockerTestSwitch), Timeout = RuntimeTestTimeouts.TestMilliseconds)]

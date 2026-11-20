@@ -10,11 +10,13 @@ using Pyxie.Web.Components.Settings.Models;
 namespace Pyxie.Web.Components.Settings;
 
 /// <summary>A modal form that creates a new agent or edits an existing one, and deletes an existing one. It hides itself when it is done, and whoever shows it reads the agents again then.</summary>
-public partial class AgentEditor : ComponentBase, IDisposable
+public partial class AgentEditor : IDisposable
 {
 	private readonly CancellationTokenSource _cts = new();
+
+	// The agent the form was filled from, which Save and Delete write, and whether the editor can still act.
+	private readonly EditorOpening<Agent> _opening = new();
 	private AgentFormModel _model = AgentFormModel.CreateNew();
-	private bool _wasVisible;
 	private bool _busy;
 	private string? _nameError;
 	private string? _commandError;
@@ -47,18 +49,21 @@ public partial class AgentEditor : ComponentBase, IDisposable
 	/// <inheritdoc/>
 	protected override void OnParametersSet()
 	{
-		if (Visible && !_wasVisible)
+		if (!_opening.Follow(Visible, Agent))
 		{
-			_model = Agent is null ? AgentFormModel.CreateNew() : AgentFormModel.FromAgent(Agent);
-			_nameError = null;
-			_commandError = null;
-			_argumentsError = null;
-			_serviceError = null;
-			_busy = false;
+			return;
 		}
 
-		_wasVisible = Visible;
+		_model = _opening.Subject is null ? AgentFormModel.CreateNew() : AgentFormModel.FromAgent(_opening.Subject);
+		_nameError = null;
+		_commandError = null;
+		_argumentsError = null;
+		_serviceError = null;
+		_busy = false;
 	}
+
+	// Save, Delete, and Cancel act only while the editor is open and nothing is running, whatever the browser shows: a click the person made while the app was busy with the last one is handled once that has ended, when the closed modal's buttons are enabled again.
+	private bool CanAct => _opening.IsOpen && !_busy;
 
 	private static string? CheckRequired(string value, int maxLength, string label)
 	{
@@ -81,6 +86,17 @@ public partial class AgentEditor : ComponentBase, IDisposable
 
 	private async Task SaveAsync()
 	{
+		using var lease = AcquireProject(out _serviceError);
+		if (lease is null)
+		{
+			return;
+		}
+
+		if (!CanAct)
+		{
+			return;
+		}
+
 		_serviceError = null;
 		if (!Validate())
 		{
@@ -92,16 +108,16 @@ public partial class AgentEditor : ComponentBase, IDisposable
 		try
 		{
 			AgentInput input = _model.ToInput();
-			ServiceResult<Agent> result = Agent is null
+			ServiceResult<Agent> result = _opening.Subject is not Agent subject
 				? await AgentService.CreateAsync(input, _cts.Token)
-				: await AgentService.UpdateAsync(Agent.Id, input, _cts.Token);
+				: await AgentService.UpdateIfCurrentAsync(subject.Id, input, SettingsRevision.Of(subject), _cts.Token);
 			if (!result.Succeeded)
 			{
 				_serviceError = result.Error;
 				return;
 			}
 
-			await VisibleChanged.InvokeAsync(false);
+			await FinishAsync();
 		}
 		catch (OperationCanceledException) when (_cts.IsCancellationRequested)
 		{
@@ -115,7 +131,13 @@ public partial class AgentEditor : ComponentBase, IDisposable
 	// A refusal, such as an agent a card still needs, shows in the dialog and leaves the agent as it was.
 	private async Task DeleteAsync()
 	{
-		if (Agent is null)
+		using var lease = AcquireProject(out _serviceError);
+		if (lease is null)
+		{
+			return;
+		}
+
+		if (!CanAct || _opening.Subject is not Agent subject)
 		{
 			return;
 		}
@@ -125,14 +147,14 @@ public partial class AgentEditor : ComponentBase, IDisposable
 
 		try
 		{
-			ServiceResult result = await AgentService.DeleteAsync(Agent.Id, _cts.Token);
+			ServiceResult result = await AgentService.DeleteIfCurrentAsync(subject.Id, SettingsRevision.Of(subject), _cts.Token);
 			if (!result.Succeeded)
 			{
 				_serviceError = result.Error;
 				return;
 			}
 
-			await VisibleChanged.InvokeAsync(false);
+			await FinishAsync();
 		}
 		catch (OperationCanceledException) when (_cts.IsCancellationRequested)
 		{
@@ -145,6 +167,27 @@ public partial class AgentEditor : ComponentBase, IDisposable
 
 	private async Task CancelAsync()
 	{
+		if (!CanAct)
+		{
+			return;
+		}
+
+		await FinishAsync();
+	}
+
+	// The modal reports a close the person made, with Escape or the backdrop. It also repeats the showing and hiding the parent asked for once its animation has ended, 150 ms later, when that may be out of date: an editor that saved within that time would be shown again, ready to save again. Only a close is passed on, and only while the editor is open, so the parent alone shows the editor; a close repeated late still closes an editor shown again within those 150 ms.
+	private async Task OnModalVisibleChangedAsync(bool visible)
+	{
+		if (!visible && _opening.IsOpen)
+		{
+			await FinishAsync();
+		}
+	}
+
+	// The editor has done its work or was cancelled: it acts no more until it is shown again, and asks whoever shows it to hide it.
+	private async Task FinishAsync()
+	{
+		_opening.Finish();
 		await VisibleChanged.InvokeAsync(false);
 	}
 }

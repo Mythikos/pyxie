@@ -21,7 +21,7 @@ public sealed class AgentTableTests
 
 		string html = await GateRenderHost.RenderAsync<AgentTable>(database);
 
-		Assert.Equal(["Name", "Harness", "Command", "Work", "Review", "Resolve", "Actions"], HeaderCells(html));
+		Assert.Equal(["Name", "Harness", "Authentication", "Command", "Work", "Review", "Resolve", "Actions"], HeaderCells(html));
 		Assert.Matches(@"<span class=""pyx-visually-hidden""[^>]*>Actions</span>", html);
 	}
 
@@ -34,8 +34,8 @@ public sealed class AgentTableTests
 
 		string html = await GateRenderHost.RenderAsync<AgentTable>(database);
 
-		Assert.Equal(["Claude", "Claude Code", "claude -p --dangerously-skip-permissions"], Cells(html, "Claude").Take(3));
-		Assert.Equal(["Runner", "Other", "./run.sh"], Cells(html, "Runner").Take(3));
+		Assert.Equal(["Claude", "Claude Code", "Account", "claude -p --dangerously-skip-permissions"], Cells(html, "Claude").Take(4));
+		Assert.Equal(["Runner", "Other", "—", "./run.sh"], Cells(html, "Runner").Take(4));
 	}
 
 	[Fact]
@@ -47,7 +47,7 @@ public sealed class AgentTableTests
 		string html = await GateRenderHost.RenderAsync<AgentTable>(database);
 
 		Assert.Equal(["{CARD_NAME}", "{BRANCH}"], [.. Regex.Matches(html, @"<span class=""argument-token""[^>]*>([^<]*)</span>").Select(match => WebUtility.HtmlDecode(match.Groups[1].Value))]);
-		Assert.Equal("claude -p --name \"{CARD_NAME}\" --branch {BRANCH} --home ${HOME} --json {\"a\":1}", Cells(html, "Claude")[2]);
+		Assert.Equal("claude -p --name \"{CARD_NAME}\" --branch {BRANCH} --home ${HOME} --json {\"a\":1}", Cells(html, "Claude")[3]);
 	}
 
 	[Fact]

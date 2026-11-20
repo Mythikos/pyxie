@@ -23,6 +23,18 @@ public sealed class ProjectSetupServiceCredentialTests
 	}
 
 	[Fact]
+	public async Task CloneAsync_WithASignedUrlOmitsFreeFormGitDiagnostics()
+	{
+		await using RepositoryRig rig = new();
+		const string address = "http://127.0.0.1:1/owner/repo.git";
+
+		string message = ResultAssert.Failed(await rig.Setup.CloneAsync($"{address}?signature={Token}#private", Cancellation));
+
+		Assert.Equal($"git could not clone {address}: Check the repository address, credentials and connectivity.", message);
+		await rig.AssertNothingImportedAsync();
+	}
+
+	[Fact]
 	public async Task CloneAsync_WhenAWebUrlWithCredentialsCannotBeCloned_NamesTheUrlWithoutThem()
 	{
 		await using RepositoryRig rig = new();
@@ -91,6 +103,7 @@ public sealed class ProjectSetupServiceCredentialTests
 		Project listed = Assert.Single(await rig.Catalog.ListAsync(Cancellation));
 		Assert.Equal($"{server.BaseAddress}/app.git", listed.Source);
 		Assert.Equal(GitUrl.WithoutCredentials(connected.Origin), listed.Source);
+		Assert.Equal(listed.Source, connected.Origin);
 		AssertNoCredentials(listed.Source);
 	}
 

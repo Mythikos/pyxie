@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Pyxie.Tests.Runtime.Workspaces;
 
-/// <summary>A person's build of a project's image (<see cref="SandboxImageBuilds.TryStart"/>): it runs in the background from the moment it is asked for, one at a time, and ends as succeeded, failed, or cancelled, with the end of the build log kept when it failed. <see cref="ImageBuildingSandboxes"/> builds in the container engine's own order, so the tests look at the builds while one is held and then finished.</summary>
+/// <summary>A person's build of a project's image (<see cref="SandboxImageBuilds.TryStart(string, string)"/>): it runs in the background from the moment it is asked for, one at a time, and ends as succeeded, failed, or cancelled, with the end of the build log kept when it failed. <see cref="ImageBuildingSandboxes"/> builds in the container engine's own order, so the tests look at the builds while one is held and then finished.</summary>
 public sealed class SandboxImageBuildsTests
 {
 	private const string FailureMessage = "The project's sandbox image could not be built.";

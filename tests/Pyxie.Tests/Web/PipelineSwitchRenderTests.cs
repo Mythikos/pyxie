@@ -229,7 +229,7 @@ public sealed class PipelineSwitchRenderTests
 	{
 		await using PipelineHeader header = await PipelineHeader.RenderAsync(projectOpen: true);
 
-		await header.Switch.ClickAsync("StartPipelineAsync");
+		await header.Switch.ClickAsync("StartPipeline");
 
 		Assert.True(header.Controller.IsRunning, "Start should start the pipeline.");
 	}
@@ -240,7 +240,7 @@ public sealed class PipelineSwitchRenderTests
 		await using PipelineHeader header = await PipelineHeader.RenderAsync(projectOpen: true);
 		await header.CloseProjectAsync();
 
-		await header.Switch.ClickAsync("StartPipelineAsync");
+		await header.Switch.ClickAsync("StartPipeline");
 
 		Assert.False(header.Controller.IsRunning, "No project is open, so the controller refuses to start.");
 	}

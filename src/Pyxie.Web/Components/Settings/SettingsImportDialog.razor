@@ -1,0 +1,53 @@
+<Modal Visible="@Visible" VisibleChanged="@OnModalVisibleChangedAsync" Centered Scrollable>
+	<ModalContent>
+		<ModalHeader>
+			<ModalTitle>Import settings</ModalTitle>
+		</ModalHeader>
+		<ModalBody>
+			@if (_opening.Subject is { Succeeded: false } refused)
+			{
+				<Alert Color="Color.Danger" Visible="true"><span class="import-message">@refused.Error</span></Alert>
+			}
+			else if (_preview is SettingsImportPreview preview)
+			{
+				<ul class="import-sections">
+					@foreach (SectionPreview section in preview.Sections)
+					{
+						<li @key="section.Section" class="import-section">
+							<Check TValue="bool" Value="@_picked.Contains(section.Section)" ValueChanged="@((bool picked) => SetPicked(section.Section, picked))" Disabled="@_busy">@SettingsSections.Of(section.Section).Title</Check>
+							@if (!section.CanImport)
+							{
+								<ul class="import-problems">
+									@foreach (string problem in section.Problems)
+									{
+										<li>@problem</li>
+									}
+								</ul>
+							}
+							else if (section.Changes.Removed.Count > 0)
+							{
+								<div class="import-removes">Removes @string.Join(", ", section.Changes.Removed)</div>
+							}
+						</li>
+					}
+				</ul>
+			}
+			@if (_error is not null)
+			{
+				<Alert Color="Color.Danger" Visible="true"><span class="import-message">@_error</span></Alert>
+			}
+		</ModalBody>
+		<ModalFooter>
+			@if (_opening.Subject is { Succeeded: true })
+			{
+				SettingsImportPreview? shownPreview = _preview;
+				<Button Color="Color.Default" Disabled="@_busy" Clicked="@CancelAsync">Cancel</Button>
+				<span class="import-action" @onclick="@(press => ImportAsync(press, shownPreview))"><Button Color="Color.Primary" Disabled="@(!CanImport)" Loading="@_busy">Import</Button></span>
+			}
+			else
+			{
+				<Button Color="Color.Default" Clicked="@CancelAsync">Close</Button>
+			}
+		</ModalFooter>
+	</ModalContent>
+</Modal>

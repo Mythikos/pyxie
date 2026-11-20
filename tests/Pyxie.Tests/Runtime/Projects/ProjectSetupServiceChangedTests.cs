@@ -1,5 +1,6 @@
 using Pyxie.Data.Entities;
 using Pyxie.Data.Enums;
+using Pyxie.Runtime.Projects;
 using Pyxie.Tests.Runtime.Git;
 using Pyxie.Tests.Runtime.Repositories;
 using Pyxie.Tests.Support;
@@ -11,6 +12,20 @@ namespace Pyxie.Tests.Runtime.Projects;
 /// <summary>The header's Start button and the pages follow <c>PipelineActivity.ProjectChanged</c>, so it is raised once an import is over whenever the import put a project in the catalog: after a project was imported, and after an import that failed once the project was listed, because a page may have listed it meanwhile. An import that was refused or failed earlier announces nothing. Opening and closing announce too (<see cref="ProjectSessionsTests"/>).</summary>
 public sealed class ProjectSetupServiceChangedTests
 {
+	[Fact]
+	public async Task ImportReturnsTheCreatedIdEvenIfTheOpenProjectChangesBeforeTheCallerResumes()
+	{
+		await using TempGitRepository source = await TempGitRepository.CreateAsync();
+		await using RepositoryRig rig = new();
+		rig.Activity.ProjectChanged += () => rig.OpenProject.Set(null);
+
+		ImportedProject imported = ResultAssert.Succeeded(await rig.Setup.ImportProjectAsync(RepositorySource.Folder, source.Folder, Token));
+
+		Assert.Null(rig.OpenProject.Current);
+		Assert.Equal(Assert.Single(await rig.Catalog.ListAsync(Token)).Id, imported.ProjectId);
+		Assert.Equal(Path.GetFullPath(source.Folder), Path.GetFullPath(imported.Repository.Origin), ignoreCase: OperatingSystem.IsWindows());
+	}
+
 	private static CancellationToken Token => TestContext.Current.CancellationToken;
 
 	[Fact]

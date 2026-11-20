@@ -23,7 +23,7 @@ internal static class StoredProjects
 
 		if (withFolder)
 		{
-			await new SqliteProjectDatabase().MigrateAsync(folder, token);
+			ResultAssert.Succeeded(await new SqliteProjectDatabase().MigrateAsync(folder, token));
 			Directory.CreateDirectory(WorkspaceLayout.HubPath(folder));
 		}
 

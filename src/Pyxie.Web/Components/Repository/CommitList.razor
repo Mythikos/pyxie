@@ -34,7 +34,7 @@
 								<a class="commit-subject" href="@Href(commit)">@commit.Subject</a>
 								@if (commit.CardId is int cardId)
 								{
-									<span class="pyx-chip pyx-chip-green commit-card">Card @cardId</span>
+									<a class="pyx-chip pyx-chip-green commit-card" href="@($"/?project={ProjectId}&card={cardId}")">Card @cardId</a>
 								}
 							</div>
 							<span class="commit-meta">@commit.AuthorName · <time datetime="@IsoOf(commit)" title="@RepositoryDates.Format(commit.AuthoredUtc)">@AgoOf(commit)</time></span>

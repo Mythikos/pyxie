@@ -76,6 +76,8 @@ One header bar in `--pyx-coat`, wrapping on narrow screens: mark and wordmark, n
 
 ## Board
 
+- Card dialogs place **Media** immediately above **History**. Reuse the existing dialog, type, spacing, borders, and colors. A small secondary **Attach files** button appears for editable Queue context; the empty section has no explanatory paragraph. Upload progress and failures appear only when relevant. Context and output by round use a compact responsive grid, with contained image previews and filenames that wrap. Native video/audio controls do not autoplay. Preview offers Back and Download, stays within the dialog, and returns keyboard focus to Media. Older output expands in place. Closed cards use the same read-only dialog through Repository history's Card link.
+
 - Five lanes from `CardLifecycleRules.BoardLanes`, in a grid of `repeat(5, minmax(264px, 1fr))` inside a horizontal scroll box, so lanes scroll sideways on narrow screens rather than stacking.
 - Lane header: colored dot, lane name, card count. **Add** (secondary button with plus icon) appears only on the Queue lane.
 - Card, top row: stage badge (active lanes only), category chip, attempt count on the right in mono (`2/5`; Queue cards that have not run show only the limit). Then the name. Then a footer.
@@ -91,31 +93,31 @@ One header bar in `--pyx-coat`, wrapping on narrow screens: mark and wordmark, n
 - A card in Error sits at the top of the Queue with `--pyx-error-tint` background, `--pyx-error-border`, the attempt count in `--pyx-error-text`, the stop reason under the name next to an alert icon, and Retry (primary, with a retry icon) and Edit (secondary) buttons.
 - A resolve round also shows the conflicting files under the name ("Conflict in `docs/pipeline.md`").
 - Complete cards: when they finished on the right, then "Merged" with a check and a Close button.
-- Category chips: Feature green tint, Bug pink tint, Chore neutral. Categories are user-defined, so this needs a rule for the rest; see Open questions.
+- Category chips: a category's color is its chip's background, any color at all. The quick colors are the tints with their text tokens: Neutral `--pyx-lane` with `--pyx-text-2`, Green `--pyx-success-tint` with `--pyx-primary-hover`, Pink `--pyx-pink-tint` with `--pyx-pink-text`; Feature, Bug and Chore start green, pink and neutral. Any other color gets text in its own hue, deep on a light color and pale on a dark one, at 7:1, or black or white where neither reaches 7:1; never below 4.5:1. Focus rings inside such a chip are drawn in its text color.
 
 ## Repository
 
 - Two columns that wrap: Projects panel (`flex: 1 1 300px; max-width: 360px`) and the repository (`flex: 999 1 640px; min-width: 0`).
-- Projects panel: title, then an import box on `--pyx-ground` with a Folder/URL segmented control, a labelled mono input and a dark Import button. Then the project list: the open project highlighted (`#F3F8EE` background, 3 px `--pyx-primary` left border, "Open" chip, Close button); others show Open. A background import shows "Importing" and a thin progress bar. Open and Close are disabled while the pipeline runs; follow the existing service rule and show its message.
-- Repository header panel: project name in Outfit, the target branch in a mono chip with a lock icon, then Origin and Hub rows. The hub path is a mono code box with a Copy button.
+- Projects panel: title, then an import box on `--pyx-ground` with a Folder/URL segmented control, a labelled mono input and a dark Import button. Then the project list: the open project highlighted (`#F3F8EE` background, 3 px `--pyx-primary` left border, "Open" chip, Close button); others show Open, and every project that is not open an icon-only Remove (a delete icon with an `aria-label`), also one whose folder is gone. Remove asks in the row, under the source: "Deletes its hub, cards, and settings." in 600 weight, with Cancel, which takes the focus, and Confirm (danger) at the end; Cancel or a refusal gives the focus back to Remove. A background import shows "Importing" and a thin progress bar. Open, Close, Remove, and Confirm are disabled while the pipeline runs; follow the existing service rule and show its message.
+- Repository header panel: project name in Outfit, the target branch in a mono chip with a lock icon, then Origin and Hub rows. Both locations are mono code boxes with Copy buttons and independent Copied feedback. Origin copies the displayed value without credentials.
 - Tabs: Files, History, Branches (with count), with the selected tab underlined in `--pyx-primary`. To the right: a labelled branch select and a Zip download button.
 - History lists the branch's first-parent line, which is what landed on it. Rows: avatar (the mark for Pyxie's merge commits, an initial otherwise), commit subject, a "Card N" chip on the merges that landed a card, author and relative time, and the short SHA in mono on the right.
 
 ## Settings
 
-- A section nav (Agents, Gates, Categories, Sandbox) linking to anchors, beside one column of panels that stops at 1100 px wide.
+- A section nav (Agents, Gates, Categories, Sandbox) linking to anchors, beside one column of panels that stops at 1100 px wide. Under the nav, past a divider: Export and Import, secondary buttons with download and upload icons; on narrow screens they follow the nav, at the end of its row where they fit and at the start of the next row where they do not.
+- **Import** opens the file picker; a picked file opens a dialog titled "Import settings" with a checkbox per section the file holds, all ticked, labelled with the section titles. Under a section: "Removes …" in 600 weight when it would remove items, or its problems in `--pyx-error-text`. Import (primary) waits while nothing is ticked or a ticked section has problems; a refusal shows in a danger alert, one reason per line. A file that cannot be read shows why, with Close only. No success message: the dialog closes and the panels show the result.
 - **Agents**: a table in a horizontal scroll box with the columns Name, Harness, Command (mono, with `{TOKEN}`s highlighted on the pink tint), Work, Review, Resolve, and an icon-only Edit button with an `aria-label`. Work and Review are checkboxes; Resolve is a radio group, because only one agent can be the merge agent. "Add agent" sits in the panel header.
 - **Gates**: an ordered list with a drag handle, name, mono command, timeout, and an on/off switch (`role="switch"`). Disabled gates render in `--pyx-text-muted`. "Add gate" sits in the panel header.
-- **Categories**: chips with a remove button each, plus an inline input and Add button.
+- **Categories**: chips with a remove button each; a chip's name turns it into an inline editor in the chosen color. The editor and the add form after the chips (input, color, Add) share one color choice on a white pill: the three quick colors as swatches, then a fourth swatch that opens the browser's color picker and shows the chosen color while it is not a quick color.
 - **Sandbox**: the Dockerfile in a dark mono editor (`--pyx-coat` background, `#E6E6E3` text). Under it: check and "Built" plus the image tag in mono while the image for the saved Dockerfile is on the machine, and the error and the end of the log when its last build failed, then Build (secondary) and Save (primary). While the image builds, whoever started the build, Build reads Building with a spinner and is disabled. A build started from this page adds Cancel. Beside it: Sign-ins, listing the Claude Code token and the Codex sign-in as Found (green check) or Not found.
 
 ## Open questions: raise these rather than invent an answer
 
 1. **Live gate progress and elapsed time** on running cards need data the board summary may not expose yet. "Showing a running round's live output" is an open decision in `docs/pipeline.md`. If the data is not there, ship the cards without it and say so; do not add polling or new runtime plumbing without asking.
-2. **Category colors.** Feature, Bug and Chore have colors; user-made categories need a rule. Suggested: neutral by default, or a color chosen in Settings. Ask before adding a model field.
-3. **Inline role editing on the Agents table** writes immediately. Today's editor may be a dialog. Removing CanWork or CanReview can be refused (`AgentService`), so if the table edits inline it must show the `ServiceResult` message and revert. Otherwise keep the dialog and make the table read-only.
-4. **The "Card N" chip on merge commits** needs the card id in Pyxie's merge commit, or a lookup. Use what exists; don't parse free text.
-5. **Import progress** may not have a percentage. Use an indeterminate bar if it doesn't.
+2. **Inline role editing on the Agents table** writes immediately. Today's editor may be a dialog. Removing CanWork or CanReview can be refused (`AgentService`), so if the table edits inline it must show the `ServiceResult` message and revert. Otherwise keep the dialog and make the table read-only.
+3. **The "Card N" chip on merge commits** needs the card id in Pyxie's merge commit, or a lookup. Use what exists; don't parse free text.
+4. **Import progress** may not have a percentage. Use an indeterminate bar if it doesn't.
 
 ## Done means
 

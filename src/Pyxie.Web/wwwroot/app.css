@@ -367,7 +367,7 @@ h1:focus {
 	border: 0;
 }
 
-/* Chips and pills: radius 999, 11/600. Neutral by default; the color classes match the category colors. */
+/* Chips and pills: radius 999, 11/600. Neutral by default; pyx-chip-green and pyx-chip-pink are also the quick category colors, with the design's text colors. pyx-chip-custom is a category in any other color: CategoryChipAppearance sets its tint and the text color derived for it as --chip-tint and --chip-ink on the element. */
 .pyx-chip {
 	display: inline-flex;
 	align-items: center;
@@ -390,6 +390,23 @@ h1:focus {
 .pyx-chip-pink {
 	background: var(--pyx-pink-tint);
 	color: var(--pyx-pink-text);
+}
+
+.pyx-chip-custom {
+	background: var(--chip-tint);
+	color: var(--chip-ink);
+}
+
+/* On a category's own color the primary green can vanish (1.3:1 on a mid gray), so the focus rings inside the chip, and inside an editor in that color, are drawn in the chip's text color, which reads on it at 4.5:1 or more. */
+.pyx-chip-custom :focus-visible,
+.pyx-chip-custom .ant-btn:not(:disabled):focus-visible {
+	outline-color: var(--chip-ink);
+}
+
+/* Ant marks a focused text field only by turning its border primary green, which can vanish on a category's own color, so a field in an editor in that color gets the ring too. */
+.pyx-chip-custom .ant-input:focus-visible {
+	outline: 2px solid var(--chip-ink);
+	outline-offset: 2px;
 }
 
 .pyx-chip-dark {

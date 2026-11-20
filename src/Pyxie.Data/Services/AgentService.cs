@@ -2,13 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
-using Pyxie.Data.Limits;
 using Pyxie.Data.Persistence;
 using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Internal;
 using Pyxie.Data.Services.Results;
-using Pyxie.Data.Services.Rules;
 
 namespace Pyxie.Data.Services;
 
@@ -16,9 +13,6 @@ namespace Pyxie.Data.Services;
 public sealed class AgentService : IAgentService
 {
 	private const string NotFoundMessage = "Agent not found.";
-
-	// Finished cards are the only cards that let go of an agent; every other card keeps the agents it was given.
-	private static readonly CardLane[] s_finishedLanes = [.. CardLifecycleRules.FinishedLanes];
 
 	private readonly IDbContextFactory<ProjectDbContext> _contextFactory;
 	private readonly TimeProvider _timeProvider;
@@ -47,14 +41,13 @@ public sealed class AgentService : IAgentService
 	/// <inheritdoc/>
 	public async Task<ServiceResult<Agent>> CreateAsync(AgentInput input, CancellationToken cancellationToken)
 	{
-		string name = InputRules.Normalize(input.Name);
-		string command = InputRules.Normalize(input.Command);
-		string arguments = InputRules.Normalize(input.Arguments);
-		string? inputError = ValidateFields(input, name, command, arguments);
-		if (inputError is not null)
+		AgentInput normalized = AgentInputRules.Normalize(input);
+		if (AgentInputRules.Validate(normalized) is string inputError)
 		{
 			return ServiceResult<Agent>.Failure(inputError);
 		}
+
+		string name = normalized.Name;
 
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -72,7 +65,7 @@ public sealed class AgentService : IAgentService
 		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		Agent agent = new();
-		Apply(agent, input, name, command, arguments);
+		AgentStore.Apply(agent, normalized);
 		context.Agents.Add(agent);
 		if (await TrySaveAsync(context, name, input.CanMerge, null, cancellationToken) is string raced)
 		{
@@ -91,23 +84,31 @@ public sealed class AgentService : IAgentService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken)
+	public Task<ServiceResult<Agent>> UpdateAsync(int id, AgentInput input, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, input, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult<Agent>> UpdateIfCurrentAsync(int id, AgentInput input, string? expectedRevision, CancellationToken cancellationToken)
 	{
-		string name = InputRules.Normalize(input.Name);
-		string command = InputRules.Normalize(input.Command);
-		string arguments = InputRules.Normalize(input.Arguments);
-		string? inputError = ValidateFields(input, name, command, arguments);
-		if (inputError is not null)
+		AgentInput normalized = AgentInputRules.Normalize(input);
+		if (AgentInputRules.Validate(normalized) is string inputError)
 		{
 			return ServiceResult<Agent>.Failure(inputError);
 		}
 
+		string name = normalized.Name;
+
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		Agent? agent = await context.Agents.FirstOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 		if (agent is null)
 		{
 			return ServiceResult<Agent>.Failure(NotFoundMessage);
+		}
+
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(agent))
+		{
+			return ServiceResult<Agent>.Failure(SettingsRevision.ChangedMessage);
 		}
 
 		if (await IsNameTakenAsync(context, name, id, cancellationToken))
@@ -120,24 +121,21 @@ public sealed class AgentService : IAgentService
 			return ServiceResult<Agent>.Failure(refusal);
 		}
 
-		// Every return before the commit rolls back, so a refused change leaves no card cleared.
-		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
 		if (!input.CanWork || !input.CanReview)
 		{
-			(int working, int reviewing, _) = await ReleaseAsync(context, id, releaseWorker: !input.CanWork, releaseReviewer: !input.CanReview, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+			(int working, int reviewing, _) = await AgentStore.ReleaseAsync(context, id, releaseWorker: !input.CanWork, releaseReviewer: !input.CanReview, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
 			if (working > 0)
 			{
-				return ServiceResult<Agent>.Failure($"Agent '{agent.Name}' is the worker of {UnfinishedCards(working)} and must keep the worker role.");
+				return ServiceResult<Agent>.Failure(AgentStore.KeepWorkerRefusal(agent.Name, working));
 			}
 
 			if (reviewing > 0)
 			{
-				return ServiceResult<Agent>.Failure($"Agent '{agent.Name}' is the reviewer of {UnfinishedCards(reviewing)} and must keep the reviewer role.");
+				return ServiceResult<Agent>.Failure(AgentStore.KeepReviewerRefusal(agent.Name, reviewing));
 			}
 		}
 
-		Apply(agent, input, name, command, arguments);
+		AgentStore.Apply(agent, normalized);
 		if (await TrySaveAsync(context, name, input.CanMerge, id, cancellationToken) is string raced)
 		{
 			return ServiceResult<Agent>.Failure(raced);
@@ -163,7 +161,7 @@ public sealed class AgentService : IAgentService
 		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		// The role is cleared first, as the transaction's first write, which takes the database's write lock: the unique index on the merge role checks each row as it is written, so the new merge agent can only be written once no other agent has the role, and no other caller can slip in between the two writes.
-		await context.Agents.Where(agent => agent.CanMerge && agent.Id != agentId).ExecuteUpdateAsync(changes => changes.SetProperty(agent => agent.CanMerge, false), cancellationToken);
+		await AgentStore.ClearMergeRoleExceptAsync(context, agentId, cancellationToken);
 
 		if (agentId is int id && await context.Agents.Where(agent => agent.Id == id).ExecuteUpdateAsync(changes => changes.SetProperty(agent => agent.CanMerge, true), cancellationToken) == 0)
 		{
@@ -176,9 +174,13 @@ public sealed class AgentService : IAgentService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken) => DeleteIfCurrentAsync(id, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		Agent? agent = await context.Agents.FirstOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 		if (agent is null)
@@ -186,25 +188,16 @@ public sealed class AgentService : IAgentService
 			return ServiceResult.Failure(NotFoundMessage);
 		}
 
-		// Every return before the commit rolls back, so a refused delete leaves no card cleared.
-		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(agent))
+		{
+			return ServiceResult.Failure(SettingsRevision.ChangedMessage);
+		}
 
 		// The foreign keys would also set these to null; releasing explicitly keeps the behavior independent of provider FK enforcement and advances each card's version.
-		(int working, int reviewing, int cards) = await ReleaseAsync(context, id, releaseWorker: true, releaseReviewer: true, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+		(int working, int reviewing, int cards) = await AgentStore.ReleaseAsync(context, id, releaseWorker: true, releaseReviewer: true, _timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
 		if (cards > 0)
 		{
-			List<string> parts = [];
-			if (working > 0)
-			{
-				parts.Add($"{working} as worker");
-			}
-
-			if (reviewing > 0)
-			{
-				parts.Add($"{reviewing} as reviewer");
-			}
-
-			return ServiceResult.Failure($"Agent '{agent.Name}' is assigned to {UnfinishedCards(cards)} ({string.Join(", ", parts)}) and cannot be deleted.");
+			return ServiceResult.Failure(AgentStore.DeleteRefusal(agent.Name, working, reviewing, cards));
 		}
 
 		context.Agents.Remove(agent);
@@ -212,48 +205,6 @@ public sealed class AgentService : IAgentService
 		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult.Success();
-	}
-
-	private static string? ValidateFields(AgentInput input, string name, string command, string arguments)
-	{
-		if (!Enum.IsDefined(input.Harness))
-		{
-			return "Harness is not recognized.";
-		}
-
-		return InputRules.ValidateRequired(name, "Agent name", PyxieLimits.MaxNameLength) ?? InputRules.ValidateMaxLength(command, "Command", PyxieLimits.MaxCommandLength) ?? AgentInputRules.ValidateArguments(arguments);
-	}
-
-	private static void Apply(Agent agent, AgentInput input, string name, string command, string arguments)
-	{
-		agent.Name = name;
-		agent.Harness = input.Harness;
-		agent.Command = command;
-		agent.Arguments = arguments;
-		agent.CanWork = input.CanWork;
-		agent.CanReview = input.CanReview;
-		agent.CanMerge = input.CanMerge;
-	}
-
-	private static string UnfinishedCards(int count)
-	{
-		return count == 1 ? "1 card that is not complete" : $"{count} cards that are not complete";
-	}
-
-	/// <summary>Removes an agent from the given roles on every finished card (complete or closed), then counts the unfinished cards that still have it in those roles. An unfinished card keeps its agents: every card needs its worker until it is merged, and clearing a reviewer would silently skip its review. Rounds already run keep their own copy of the agent. The release is the transaction's first write, so it takes the database's write lock (on SQL Server, the locks of the rows it changes) before the count, and a pipeline write racing it fails its version check and re-reads. The caller rolls back when any count is not zero.</summary>
-	/// <returns>The unfinished cards that keep the agent as worker, as reviewer, and in either role (a card holding it in both roles counts once).</returns>
-	private static async Task<(int Working, int Reviewing, int Cards)> ReleaseAsync(ProjectDbContext context, int agentId, bool releaseWorker, bool releaseReviewer, DateTime now, CancellationToken cancellationToken)
-	{
-		CardLane[] finishedLanes = s_finishedLanes;
-
-		// One statement clears both roles, so a card advances its version once even when the agent held both.
-		await context.Cards.Where(card => finishedLanes.Contains(card.Lane) && ((releaseWorker && card.WorkerAgentId == agentId) || (releaseReviewer && card.ReviewerAgentId == agentId))).ExecuteUpdateAsync(changes => changes.SetProperty(card => card.WorkerAgentId, card => releaseWorker && card.WorkerAgentId == agentId ? null : card.WorkerAgentId).SetProperty(card => card.ReviewerAgentId, card => releaseReviewer && card.ReviewerAgentId == agentId ? null : card.ReviewerAgentId).SetProperty(card => card.Version, card => card.Version + 1).SetProperty(card => card.UpdatedUtc, now), cancellationToken);
-
-		int working = releaseWorker ? await context.Cards.CountAsync(card => card.WorkerAgentId == agentId && !finishedLanes.Contains(card.Lane), cancellationToken) : 0;
-		int reviewing = releaseReviewer ? await context.Cards.CountAsync(card => card.ReviewerAgentId == agentId && !finishedLanes.Contains(card.Lane), cancellationToken) : 0;
-		int cards = await context.Cards.CountAsync(card => !finishedLanes.Contains(card.Lane) && ((releaseWorker && card.WorkerAgentId == agentId) || (releaseReviewer && card.ReviewerAgentId == agentId)), cancellationToken);
-
-		return (working, reviewing, cards);
 	}
 
 	private static string DuplicateMessage(string name)

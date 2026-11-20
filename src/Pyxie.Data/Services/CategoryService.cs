@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
+using Pyxie.Data.Colors;
 using Pyxie.Data.Entities;
-using Pyxie.Data.Enums;
-using Pyxie.Data.Limits;
 using Pyxie.Data.Persistence;
+using Pyxie.Data.Services.Inputs;
 using Pyxie.Data.Services.Internal;
 using Pyxie.Data.Services.Results;
 
@@ -12,7 +13,6 @@ namespace Pyxie.Data.Services;
 /// <summary>Default <see cref="ICategoryService"/> backed by <see cref="ProjectDbContext"/>.</summary>
 public sealed class CategoryService : ICategoryService
 {
-	private const string NameLabel = "Category name";
 	private const string NotFoundMessage = "Category not found.";
 
 	private readonly IDbContextFactory<ProjectDbContext> _contextFactory;
@@ -37,10 +37,10 @@ public sealed class CategoryService : ICategoryService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Category>> CreateAsync(string name, CancellationToken cancellationToken)
+	public async Task<ServiceResult<Category>> CreateAsync(string name, HexColor color, CancellationToken cancellationToken)
 	{
 		string normalized = InputRules.Normalize(name);
-		string? inputError = InputRules.ValidateRequired(normalized, NameLabel, PyxieLimits.MaxNameLength);
+		string? inputError = CategoryInputRules.ValidateName(normalized);
 		if (inputError is not null)
 		{
 			return ServiceResult<Category>.Failure(inputError);
@@ -53,7 +53,7 @@ public sealed class CategoryService : ICategoryService
 			return ServiceResult<Category>.Failure(DuplicateMessage(normalized));
 		}
 
-		Category category = new() { Name = normalized };
+		Category category = new() { Name = normalized, Color = color };
 		context.Categories.Add(category);
 		if (!await TrySaveAsync(context, normalized, null, cancellationToken))
 		{
@@ -64,58 +64,58 @@ public sealed class CategoryService : ICategoryService
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Category>> RenameAsync(int id, string name, CancellationToken cancellationToken)
+	public Task<ServiceResult<Category>> RenameAsync(int id, string name, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, name ?? string.Empty, null, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public Task<ServiceResult<Category>> SetColorAsync(int id, HexColor color, CancellationToken cancellationToken) => UpdateIfCurrentAsync(id, null, color, null, cancellationToken);
+
+	/// <inheritdoc/>
+	public async Task<ServiceResult<Category>> UpdateIfCurrentAsync(int id, string? name, HexColor? color, string? expectedRevision, CancellationToken cancellationToken)
 	{
-		string normalized = InputRules.Normalize(name);
-		string? inputError = InputRules.ValidateRequired(normalized, NameLabel, PyxieLimits.MaxNameLength);
-		if (inputError is not null)
+		string? normalized = name is null ? null : InputRules.Normalize(name);
+		if (normalized is not null && CategoryInputRules.ValidateName(normalized) is string inputError)
 		{
 			return ServiceResult<Category>.Failure(inputError);
 		}
 
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 		Category? category = await context.Categories.FirstOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 		if (category is null)
 		{
 			return ServiceResult<Category>.Failure(NotFoundMessage);
 		}
 
-		if (await IsNameTakenAsync(context, normalized, id, cancellationToken))
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(category))
+		{
+			return ServiceResult<Category>.Failure(SettingsRevision.ChangedMessage);
+		}
+
+		if (normalized is not null && await IsNameTakenAsync(context, normalized, id, cancellationToken))
 		{
 			return ServiceResult<Category>.Failure(DuplicateMessage(normalized));
 		}
 
-		category.Name = normalized;
-		if (!await TrySaveAsync(context, normalized, id, cancellationToken))
+		category.Name = normalized ?? category.Name;
+		category.Color = color ?? category.Color;
+		if (!await TrySaveAsync(context, category.Name, id, cancellationToken))
 		{
-			return ServiceResult<Category>.Failure(DuplicateMessage(normalized));
+			return ServiceResult<Category>.Failure(DuplicateMessage(category.Name));
 		}
+
+		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult<Category>.Success(category);
 	}
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult<Category>> SetColorAsync(int id, CategoryColor color, CancellationToken cancellationToken)
-	{
-		if (!Enum.IsDefined(color))
-		{
-			return ServiceResult<Category>.Failure("Category color is not recognized.");
-		}
-
-		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-
-		// One conditional statement, so a category deleted by someone else mid-request is reported as missing rather than written back.
-		int changed = await context.Categories.Where(category => category.Id == id).ExecuteUpdateAsync(changes => changes.SetProperty(category => category.Color, color), cancellationToken);
-		Category? updated = changed == 0 ? null : await context.Categories.AsNoTracking().FirstOrDefaultAsync(category => category.Id == id, cancellationToken);
-
-		return updated is null ? ServiceResult<Category>.Failure(NotFoundMessage) : ServiceResult<Category>.Success(updated);
-	}
+	public Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken) => DeleteIfCurrentAsync(id, null, cancellationToken);
 
 	/// <inheritdoc/>
-	public async Task<ServiceResult> DeleteAsync(int id, CancellationToken cancellationToken)
+	public async Task<ServiceResult> DeleteIfCurrentAsync(int id, string? expectedRevision, CancellationToken cancellationToken)
 	{
 		await using ProjectDbContext context = await _contextFactory.CreateDbContextAsync(cancellationToken);
+		await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
 		Category? category = await context.Categories.FirstOrDefaultAsync(existing => existing.Id == id, cancellationToken);
 		if (category is null)
@@ -123,14 +123,21 @@ public sealed class CategoryService : ICategoryService
 			return ServiceResult.Failure(NotFoundMessage);
 		}
 
-		int cardCount = await context.Cards.CountAsync(card => card.CategoryId == id, cancellationToken);
+		if (expectedRevision is not null && expectedRevision != SettingsRevision.Of(category))
+		{
+			return ServiceResult.Failure(SettingsRevision.ChangedMessage);
+		}
+
+		int cardCount = await CategoryStore.CountCardsAsync(context, id, cancellationToken);
 		if (cardCount > 0)
 		{
-			return ServiceResult.Failure($"Category '{category.Name}' is used by {cardCount} {(cardCount == 1 ? "card" : "cards")} and cannot be deleted.");
+			return ServiceResult.Failure(CategoryStore.InUseRefusal(category.Name, cardCount));
 		}
 
 		context.Categories.Remove(category);
 		await context.SaveChangesAsync(cancellationToken);
+
+		await transaction.CommitAsync(cancellationToken);
 
 		return ServiceResult.Success();
 	}
