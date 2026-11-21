@@ -33,11 +33,20 @@ Each revision goes through the gates again. On the next review, the reviewer get
 
 ## Run locally
 
+### Install a release
+
+1. Install Git and confirm that `git --version` works in your terminal.
+2. For the pipeline, install and start Docker Desktop on Windows or macOS, or Docker Engine with the Docker CLI on Linux. On Windows, select Linux containers. Run `docker info --format '{{.OSType}}'` as the user who will run Pyxie and check that it prints `linux`.
+3. Download the ZIP for your operating system and processor from [GitHub Releases](https://github.com/Mythikos/pyxie/releases) and extract it. The ZIP includes the .NET runtime.
+4. Open a terminal in the extracted folder. Run `.\Pyxie.Web.exe` on Windows or `./Pyxie.Web` on macOS and Linux. Open the URL printed at startup.
+
+### Run from source
+
 ```shell
 dotnet run --project src/Pyxie.Web
 ```
 
-Open the URL printed at startup. The included `http` launch profile defaults to <http://localhost:5280> and runs in the Development environment. Pyxie applies database migrations at startup. Git must be on `PATH`, and the pipeline needs Docker running Linux containers (Docker Desktop on Windows): every round runs in a sandbox container ([agent sandboxes](docs/sandboxing.md)).
+Open the URL printed at startup. The included `http` launch profile defaults to <http://localhost:5280> and runs in the Development environment. Pyxie applies database migrations at startup.
 
 **First card.** Import a repository on the Repository page, configure a worker in Settings, and add a card to the Queue. The pipeline starts stopped on each launch. Start it from the header. Blocked cards and cards that exhaust their attempts return to the top of the Queue for retry (five attempts by default).
 
