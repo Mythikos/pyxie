@@ -1,28 +1,57 @@
 # Pyxie
 
-Pyxie ("Pyx") is a locally run software factory for one application. People queue cards on a kanban board (Queue, In Progress, Gates, Review, Complete), and a pipeline carries each card through work by an agent, automated gates, and agent review, then merges it into the target branch, with nobody in the loop. A merge that conflicts goes to the project's merge agent, if you set one, and its resolution is gated and reviewed again before it merges; without one, the card's worker resolves it. Agents are your local harnesses (Claude Code, Codex, DeepSeek Harness, or other commands), with an authentication method selected per agent. Every round is recorded in the card's history.
+Pyxie is a local kanban board for coding agents. Queue a card, choose its worker and optional reviewer, and start the pipeline. Pyxie runs the work in Docker, checks the resulting commit, and merges it into the project's target branch.
 
-- **Board**: every card has a name, a description, a category, a worker, an optional reviewer (without one, review is skipped), and an attempt limit (5 by default). Cards the pipeline stops (out of attempts, or blocked) wait at the top of the Queue in red until someone retries them.
-- **Repository**: your projects. Each project is one application: import its repository from a local folder or a URL, open it, and open another to switch to it; closing keeps everything. Pyxie keeps its own bare clone, the hub, so your working folder is never changed. The hub is a git remote: clone it to work on the project, pull to get finished cards, and push your own commits so cards build on them. Browse files, history, and branches, or download a branch as a zip.
-- **Settings**: the open project's categories, agents (each can work, review, or resolve merge conflicts, and only one can resolve them), gates (the commands, such as build, tests, and linters, that every card must pass before review), and the Dockerfile of its sandbox image.
+## How the agent loop works
 
-The pipeline starts stopped every time Pyxie launches; start it from the header. Its design is in [docs/pipeline.md](docs/pipeline.md).
-
-## Run
-
+```mermaid
+flowchart LR
+    Q[Queue] --> W[In Progress]
+    W --> G[Gates]
+    G -->|Failed checks| W
+    G -->|Checks pass| R[Review]
+    R -->|Changes requested| W
+    R -->|Approved| M[Merge]
+    G -->|Checks pass, no reviewer| M
+    M -->|Merged| C[Complete]
 ```
+
+The worker implements the card on its branch. If a gate fails, Pyxie sends the card back to **In Progress** with the failing output in the worker’s next briefing. If the gates pass but the reviewer requests changes, the reviewer’s findings go back to the worker the same way.
+
+Each revision goes through the gates again. On the next review, the reviewer gets the worker’s handoff, the new gate results, and the previous rejection so it can check whether the revision addressed its findings. Pyxie merges once the same commit clears all required checks. If the card uses its last attempt, it returns to the **Queue** in error for a person to retry.
+
+## Features
+
+| Feature | What you can do |
+| --- | --- |
+| Local MCP server | Connect an external agent to browse code and diffs, queue cards, read round reports, and retrieve attachments. [MCP tools and examples](docs/mcp.md) |
+| Workers and reviewers | Assign Claude Code, Codex, DeepSeek Harness, or a custom command per card. Choose account or API-key authentication for each supported harness. |
+| Gates and merges | Require builds, tests, or linters to pass before review. If a merge conflicts, the merge agent or card's worker resolves it, then the resolution goes through the checks again. [Pipeline](docs/pipeline.md) |
+| Card history and media | Attach reference files to a card and inspect reports, screenshots, or recordings from individual rounds, including failed attempts. Capture tools come from the project image. [Card media](docs/media.md) |
+| Project repositories | Import a local folder or URL into a project-local bare Git repository called the hub. Clone, pull, or push to the hub, browse branches and history, or download a branch as a ZIP. |
+| Sandboxes and settings | Customize the project Dockerfile and transfer agents, ordered gates, category colors, and sandbox settings between projects. [Sandboxes](docs/sandboxing.md) · [Settings files](docs/settings-file.md) |
+
+## Run locally
+
+```shell
 dotnet run --project src/Pyxie.Web
 ```
 
-The app listens on <http://localhost:5280> and applies database migrations at startup. The `http` launch profile runs in the Development environment. Git must be on `PATH`, and the pipeline needs Docker running Linux containers (Docker Desktop on Windows): every round runs in a sandbox container ([agent sandboxes](docs/sandboxing.md)).
+Open the URL printed at startup. The included `http` launch profile defaults to <http://localhost:5280> and runs in the Development environment. Pyxie applies database migrations at startup. Git must be on `PATH`, and the pipeline needs Docker running Linux containers (Docker Desktop on Windows): every round runs in a sandbox container ([agent sandboxes](docs/sandboxing.md)).
+
+**First card.** Import a repository on the Repository page, configure a worker in Settings, and add a card to the Queue. The pipeline starts stopped on each launch. Start it from the header. Blocked cards and cards that exhaust their attempts return to the top of the Queue for retry (five attempts by default).
+
+### Agent setup
 
 Agents run unattended in their sandbox, which is the boundary, so their arguments run the harness in print mode with every permission: `-p --dangerously-skip-permissions` for Claude Code and `exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check` for Codex. All harnesses receive the prompt on standard input.
 
 In Settings → Agents, select **Account** or **API key** for Claude Code, Codex, or DeepSeek. For an account, save the token from `claude setup-token` in `secrets\claude-oauth-token`, sign into Codex with ChatGPT using `codex login` and file storage, or sign into DeepSeek with `dsh web`. For an API key, save the provider key in `secrets\anthropic-api-key`, `secrets\openai-api-key`, or `secrets\deepseek-api-key` under the workspace root. Settings → Sandbox shows which credentials are present. If both are available, the agent uses the selected method. A missing selected credential blocks the round.
 
-## Configuration
+## Connect an MCP client
 
-To connect a local external agent, open **Settings → Global**, enable MCP access, and copy the Streamable HTTP endpoint into the client. This applies to all projects and works before opening one. See [external agent setup and workflows](docs/mcp.md).
+To connect a local external agent, open **Settings → Global**, enable MCP access, and copy the displayed Streamable HTTP endpoint into the client. This applies to all projects and works before opening one. See [external agent setup and workflows](docs/mcp.md).
+
+## Configuration
 
 Set in `src/Pyxie.Web/appsettings.json`, an environment-specific file, or environment variables (for example `Workspace__Root`).
 
